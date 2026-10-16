@@ -130,14 +130,33 @@ private fun Root(activity: FragmentActivity, lockVm: AppLockViewModel = viewMode
     val nav = rememberNavController()
     val vm: BrowserViewModel = viewModel()
     var confirmReset by remember { mutableStateOf(false) }
+    var backgroundSince by remember { mutableStateOf(0L) }
 
     // Lock when the app goes to the background (immediately, or after the chosen delay).
     val owner = LocalLifecycleOwner.current
     DisposableEffect(owner) {
         val observer = LifecycleEventObserver { _, event ->
             when (event) {
-                Lifecycle.Event.ON_STOP -> if (!activity.isChangingConfigurations) lockVm.onBackground()
-                Lifecycle.Event.ON_START -> lockVm.onForeground()
+                Lifecycle.Event.ON_STOP -> if (!activity.isChangingConfigurations) {
+                    lockVm.onBackground()
+                    backgroundSince = System.currentTimeMillis()
+                }
+                Lifecycle.Event.ON_START -> {
+                    lockVm.onForeground()
+                    // Network connections often die while the app is in the background (the phone or the server
+                    // drops idle ones). Start fresh instead of waiting for a dead connection to time out, then
+                    // reload what's on screen. Running transfers keep their connections and recover on their own.
+                    val away = backgroundSince > 0 && System.currentTimeMillis() - backgroundSince > 30_000
+                    backgroundSince = 0
+                    if (away && Ops.active.isEmpty()) {
+                        Thread {
+                            App.vfs.dropAll()
+                            activity.runOnUiThread { if (vm.location.vfsId.startsWith(RemoteVfs.PREFIX)) vm.load(quiet = vm.error == null) }
+                        }.start()
+                    } else if (away && vm.location.vfsId.startsWith(RemoteVfs.PREFIX) && vm.error != null) {
+                        vm.load()
+                    }
+                }
                 else -> Unit
             }
         }

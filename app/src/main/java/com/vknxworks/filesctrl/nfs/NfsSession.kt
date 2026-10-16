@@ -50,7 +50,9 @@ class NfsSession(val server: NetServer) {
         try {
             return call(block)
         } catch (e: NfsException) {
-            if (!isConnectionError(e.errno)) throw e
+            // Anything that isn't clearly about the file itself may be a dead connection (e.g. dropped while the
+            // app was in the background, which often shows up as a plain I/O error): reconnect and try once more.
+            if (isFileError(e.errno)) throw e
             disconnect()
             return call(block)
         }
@@ -80,7 +82,8 @@ class NfsSession(val server: NetServer) {
     fun ok(h: Long, rc: Int, what: String, path: String? = null): Int {
         if (rc >= 0) return rc
         val errno = -rc
-        if (isConnectionError(errno)) disconnectLocked()
+        // Don't keep using a connection that failed for a non-file reason; the next call reconnects.
+        if (!isFileError(errno)) disconnectLocked()
         val detail = NfsNative.error(h)
         if (errno == OsConstants.ENOENT) throw FileNotFoundException(path?.let { "$it: not found" } ?: "Not found")
         throw NfsException(errno, describe(errno, what, path, detail))
@@ -134,6 +137,13 @@ class NfsSession(val server: NetServer) {
             val t = e.trim().ifEmpty { "/" }
             return if (t.startsWith("/")) t else "/$t"
         }
+
+        /** Errors about the file or folder itself, which reconnecting wouldn't fix. */
+        fun isFileError(errno: Int) = errno == OsConstants.ENOENT || errno == OsConstants.EACCES ||
+            errno == OsConstants.EPERM || errno == OsConstants.EEXIST || errno == OsConstants.ENOTEMPTY ||
+            errno == OsConstants.EROFS || errno == OsConstants.ENOSPC || errno == OsConstants.EDQUOT ||
+            errno == OsConstants.EISDIR || errno == OsConstants.ENOTDIR || errno == OsConstants.ENAMETOOLONG ||
+            errno == OsConstants.EINVAL || errno == OsConstants.EFBIG || errno == OsConstants.EXDEV
 
         fun isConnectionError(errno: Int) = errno == OsConstants.ETIMEDOUT || errno == OsConstants.ENOTCONN ||
             errno == OsConstants.EPIPE || errno == OsConstants.ECONNRESET || errno == OsConstants.ECONNREFUSED ||
