@@ -77,6 +77,7 @@ import com.vknxworks.filesctrl.ui.ServerEditScreen
 import com.vknxworks.filesctrl.ui.SettingsTab
 import com.vknxworks.filesctrl.ui.TabIsland
 import com.vknxworks.filesctrl.ui.TransfersTab
+import com.vknxworks.filesctrl.ui.VfsTextSource
 import com.vknxworks.filesctrl.ui.isAppInDarkTheme
 import com.vknxworks.filesctrl.ui.lock.AppLockViewModel
 import com.vknxworks.filesctrl.ui.lock.LockScreen
@@ -206,7 +207,7 @@ private fun Root(activity: FragmentActivity, lockVm: AppLockViewModel = viewMode
                 val raw = entry.arguments?.getString("loc").orEmpty()
                 val loc = Location.fromKey(raw)
                 if (loc == null) LaunchedEffect(Unit) { nav.popBackStack() }
-                else EditorScreen(loc, onBack = { nav.popBackStack() })
+                else EditorScreen(remember(loc) { VfsTextSource(loc) }, onBack = { nav.popBackStack() })
             }
         }
     }

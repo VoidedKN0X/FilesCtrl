@@ -36,6 +36,66 @@
             </intent-filter>
         </activity>
 
+        <!-- The text editor on its own: offered in "Open with" / "Edit with" for text and other editable files. -->
+        <activity
+            android:name=".EditorActivity"
+            android:exported="true"
+            android:label="@string/editor_name"
+            android:icon="@mipmap/ic_launcher"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden|density"
+            android:windowSoftInputMode="adjustResize">
+            <intent-filter android:label="@string/editor_name">
+                <action android:name="android.intent.action.VIEW" />
+                <action android:name="android.intent.action.EDIT" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:scheme="content" />
+                <data android:scheme="file" />
+                <data android:mimeType="text/*" />
+                <data android:mimeType="application/json" />
+                <data android:mimeType="application/ld+json" />
+                <data android:mimeType="application/xml" />
+                <data android:mimeType="application/xhtml+xml" />
+                <data android:mimeType="application/rss+xml" />
+                <data android:mimeType="application/atom+xml" />
+                <data android:mimeType="application/javascript" />
+                <data android:mimeType="application/x-javascript" />
+                <data android:mimeType="application/ecmascript" />
+                <data android:mimeType="application/typescript" />
+                <data android:mimeType="application/x-sh" />
+                <data android:mimeType="application/x-shellscript" />
+                <data android:mimeType="application/x-csh" />
+                <data android:mimeType="application/x-yaml" />
+                <data android:mimeType="application/yaml" />
+                <data android:mimeType="application/toml" />
+                <data android:mimeType="application/x-toml" />
+                <data android:mimeType="application/sql" />
+                <data android:mimeType="application/x-sql" />
+                <data android:mimeType="application/x-subrip" />
+                <data android:mimeType="application/x-wine-extension-ini" />
+                <data android:mimeType="application/x-desktop" />
+                <data android:mimeType="application/x-properties" />
+                <data android:mimeType="application/x-httpd-php" />
+                <data android:mimeType="application/x-php" />
+                <data android:mimeType="application/x-perl" />
+                <data android:mimeType="application/x-ruby" />
+                <data android:mimeType="application/x-python" />
+                <data android:mimeType="application/x-tex" />
+                <data android:mimeType="application/x-latex" />
+                <data android:mimeType="application/x-bat" />
+                <data android:mimeType="application/x-msdos-program" />
+                <data android:mimeType="application/x-ndjson" />
+                <data android:mimeType="application/x-empty" />
+                <data android:mimeType="application/x-pem-file" />
+                <data android:mimeType="application/x-x509-ca-cert" />
+                <data android:mimeType="application/pgp-keys" />
+                <data android:mimeType="application/x-mpegurl" />
+                <data android:mimeType="audio/x-mpegurl" />
+                <data android:mimeType="application/vnd.apple.mpegurl" />
+                <data android:mimeType="application/x-cue" />
+                <data android:mimeType="application/octet-stream" />
+            </intent-filter>
+        </activity>
+
         <service
             android:name=".ops.OpService"
             android:exported="false"
