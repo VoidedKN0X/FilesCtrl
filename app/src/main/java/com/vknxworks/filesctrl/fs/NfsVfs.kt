@@ -40,7 +40,7 @@ class NfsVfs(override val server: NetServer) : RemoteVfs {
         val count = (res[2] as IntArray)[0]
         val per = NfsNative.LIST_FIELDS
         val st = LongArray(NfsNative.STAT_FIELDS)
-        (0 until count).map { i ->
+        (0 until count).filter { Paths.isSafeName(names[it]) }.map { i ->
             val name = names[i]
             val path = Paths.join(dir, name)
             val isLink = rows[i * per + NfsNative.STAT_FIELDS] == NfsNative.TYPE_SYMLINK ||

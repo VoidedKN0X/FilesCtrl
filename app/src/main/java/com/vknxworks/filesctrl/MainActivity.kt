@@ -88,6 +88,8 @@ import dev.chrisbanes.haze.hazeSource
 class MainActivity : FragmentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // Keep file names and server contents out of the recent-apps thumbnail.
+        setRecentsScreenshotEnabled(false)
         App.init(this)
         enableEdgeToEdge()
         setContent {

@@ -85,11 +85,34 @@ object Paths {
     }
     fun name(path: String): String = path.trimEnd('/').substringAfterLast('/').ifEmpty { "/" }
 
-    /** True if [child] is [dir] itself or somewhere below it. */
+    /**
+     * True if [child] is [dir] itself or somewhere below it. Compares whole path segments after normalising, and
+     * says no for any path with "." or ".." segments (which could climb out of [dir]).
+     */
     fun isWithin(child: String, dir: String): Boolean {
-        val d = dir.trimEnd('/')
-        return child == d || child.startsWith("$d/") || d.isEmpty()
+        val c = normalize(child) ?: return false
+        val d = normalize(dir) ?: return false
+        if (d == "/") return true
+        return c == d || c.startsWith("$d/")
     }
+
+    /**
+     * An absolute path with repeated and trailing slashes removed ("/a//b/" -> "/a/b"), or null if it has a "."
+     * or ".." segment or a NUL character. Used wherever a path comes from outside the app.
+     */
+    fun normalize(path: String): String? {
+        if (path.contains('\u0000')) return null
+        val parts = path.split('/').filter { it.isNotEmpty() }
+        if (parts.any { it == "." || it == ".." }) return null
+        return "/" + parts.joinToString("/")
+    }
+
+    /**
+     * True if a name read from a server or archive is safe to use as one path segment: not empty, not "." or
+     * "..", and without "/" or NUL. (Unlike [validName] it allows long names, which some servers have.)
+     */
+    fun isSafeName(name: String): Boolean =
+        name.isNotEmpty() && name != "." && name != ".." && !name.contains('/') && !name.contains('\u0000')
 
     fun validName(name: String): String? = when {
         name.isBlank() -> "Enter a name"

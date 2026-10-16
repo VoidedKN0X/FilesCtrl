@@ -10,6 +10,7 @@ import androidx.compose.runtime.setValue
 import com.vknxworks.filesctrl.App
 import com.vknxworks.filesctrl.fs.CrossDeviceException
 import com.vknxworks.filesctrl.fs.FileEntry
+import com.vknxworks.filesctrl.fs.LocalVfs
 import com.vknxworks.filesctrl.fs.Location
 import com.vknxworks.filesctrl.fs.Paths
 import com.vknxworks.filesctrl.fs.Vfs
@@ -21,6 +22,7 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.launch
 import java.io.BufferedInputStream
 import java.io.BufferedOutputStream
+import java.io.File
 import java.io.IOException
 import java.util.zip.ZipEntry
 import java.util.zip.ZipInputStream
@@ -126,6 +128,7 @@ object Ops {
                 coroutineContext.ensureActive()
                 val srcVfs = App.vfs.get(src.vfsId)
                 var name = src.name
+                if (!Paths.isSafeName(name)) { t.warnings += "Skipped unsafe name ${src.name}"; t.filesDone++; continue }
                 val sameFolder = src.vfsId == dest.vfsId && src.parentLocation.path == dest.path
                 if (sameFolder && move) { t.filesDone++; continue }
                 var target = Paths.join(dest.path, name)
@@ -159,6 +162,7 @@ object Ops {
                         t.bytesTotal += bytes; t.filesTotal += files - 1
                     }
                 }
+                checkInside(dst, target, dest.path)
                 copyTree(srcVfs, src, dst, target, t)
                 if (move) deleteTree(srcVfs, src, null)
             }
@@ -188,7 +192,13 @@ object Ops {
         if (e.isDir && !e.isLink) {
             if (!dst.exists(target)) dst.mkdir(target)
             t.filesDone++
-            for (c in src.list(e.path)) copyTree(src, c, dst, Paths.join(target, c.name), t)
+            for (c in src.list(e.path)) {
+                // Names come from the source (maybe a remote server): never let one climb out of the target folder.
+                if (!Paths.isSafeName(c.name)) { t.warnings += "Skipped unsafe name ${c.name}"; continue }
+                val childTarget = Paths.join(target, c.name)
+                checkInside(dst, childTarget, target)
+                copyTree(src, c, dst, childTarget, t)
+            }
             dst.setModified(target, e.modified)
         } else {
             try {
@@ -320,16 +330,18 @@ object Ops {
                     val entry = zip.nextEntry ?: break
                     // Refuse paths that would escape the target folder ("zip slip").
                     val parts = entry.name.replace('\\', '/').split('/').filter { it.isNotEmpty() && it != "." }
-                    if (parts.isEmpty() || parts.any { it == ".." }) { t.warnings += "Skipped unsafe entry ${entry.name}"; continue }
+                    if (parts.isEmpty() || parts.any { !Paths.isSafeName(it) }) { t.warnings += "Skipped unsafe entry ${entry.name}"; continue }
                     t.detail = parts.last()
                     var dir = root
                     val dirParts = if (entry.isDirectory) parts else parts.dropLast(1)
                     for (p in dirParts) {
                         dir = Paths.join(dir, p)
+                        checkInside(dst, dir, root)
                         if (made.add(dir) && !dst.exists(dir)) dst.mkdir(dir)
                     }
                     if (entry.isDirectory) continue
                     val target = Paths.join(dir, parts.last())
+                    checkInside(dst, target, root)
                     dst.openWrite(target).use { out ->
                         while (true) {
                             coroutineContext.ensureActive()
@@ -343,6 +355,19 @@ object Ops {
                 }
             }
         }
+
+    /**
+     * Refuses to write [target] unless it's inside [dir]. Remote names are already filtered, but on the phone a
+     * folder link inside the destination could still point elsewhere, so local targets are checked by their real
+     * (canonical) path too.
+     */
+    private fun checkInside(dst: Vfs, target: String, dir: String) {
+        if (!Paths.isWithin(target, dir) || target.trimEnd('/') == dir.trimEnd('/')) throw IOException("Refused to write outside the destination: ${Paths.name(target)}")
+        if (dst.id != LocalVfs.ID) return
+        val base = File(dir).canonicalPath
+        val real = File(target).canonicalPath
+        if (!real.startsWith(base + File.separator)) throw IOException("Refused to write outside the destination: ${Paths.name(target)}")
+    }
 
     // ---------- Recursive size (for Properties) ----------
 

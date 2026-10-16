@@ -3,6 +3,7 @@ package com.vknxworks.filesctrl.fs
 import com.vknxworks.filesctrl.data.NetServer
 import net.schmizz.sshj.DefaultConfig
 import net.schmizz.sshj.SSHClient
+import net.schmizz.sshj.common.Buffer
 import net.schmizz.sshj.common.SecurityUtils
 import net.schmizz.sshj.sftp.FileAttributes
 import net.schmizz.sshj.sftp.FileMode
@@ -19,7 +20,9 @@ import java.io.FileNotFoundException
 import java.io.IOException
 import java.io.InputStream
 import java.io.OutputStream
+import java.security.MessageDigest
 import java.security.PublicKey
+import java.util.Base64
 import java.util.EnumSet
 
 /** Thrown when an SFTP server's host key differs from the one remembered for it. */
@@ -28,7 +31,22 @@ class HostKeyChangedException(val fingerprint: String) : IOException(
         "in the share's settings; otherwise someone may be intercepting the connection.",
 )
 
-/** SFTP (SSH file transfer). [onLearned] saves the host key the first time a server is trusted. */
+/** SSH host key fingerprints, written like OpenSSH does ("SHA256:base64"). */
+object HostKeys {
+    fun sha256(key: PublicKey): String {
+        val blob = Buffer.PlainBuffer().putPublicKey(key).compactData
+        val digest = MessageDigest.getInstance("SHA-256").digest(blob)
+        return "SHA256:" + Base64.getEncoder().withoutPadding().encodeToString(digest)
+    }
+
+    /** Old versions saved MD5 fingerprints ("12:ab:…"). */
+    fun isLegacyMd5(fp: String) = Regex("^([0-9a-fA-F]{2}:){15}[0-9a-fA-F]{2}$").matches(fp)
+}
+
+/**
+ * SFTP (SSH file transfer). An unknown server fails with [HostKeyUnknownException] until the user confirms its
+ * key; [onLearned] saves a remembered key upgraded from MD5 to SHA-256.
+ */
 class SftpVfs(server: NetServer, private val onLearned: (NetServer) -> Unit = {}) : RemoteVfs {
     @Volatile override var server: NetServer = server
         private set
@@ -55,16 +73,18 @@ class SftpVfs(server: NetServer, private val onLearned: (NetServer) -> Unit = {}
             c.timeout = s.timeoutSec.coerceIn(2, 120) * 1000
             c.addHostKeyVerifier(object : HostKeyVerifier {
                 override fun verify(hostname: String?, port: Int, key: PublicKey): Boolean {
-                    val fp = SecurityUtils.getFingerprint(key)
+                    val fp = HostKeys.sha256(key)
                     val known = server.hostKey
-                    if (known.isBlank()) {
-                        // Trust on first use, like ssh does after you answer "yes".
+                    // Like ssh: the first time, ask the user (the UI shows the fingerprint and retries).
+                    if (known.isBlank()) throw HostKeyUnknownException(fp)
+                    if (known == fp) return true
+                    if (HostKeys.isLegacyMd5(known) && known.equals(SecurityUtils.getFingerprint(key), ignoreCase = true)) {
+                        // Same key, remembered by an older version as MD5: store it as SHA-256 from now on.
                         server = server.copy(hostKey = fp)
                         onLearned(server)
                         return true
                     }
-                    if (known != fp) throw HostKeyChangedException(fp)
-                    return true
+                    throw HostKeyChangedException(fp)
                 }
 
                 override fun findExistingAlgorithms(hostname: String?, port: Int): List<String> = emptyList()
@@ -108,6 +128,8 @@ class SftpVfs(server: NetServer, private val onLearned: (NetServer) -> Unit = {}
             throw e
         } catch (e: HostKeyChangedException) {
             throw e
+        } catch (e: UntrustedIdentityException) {
+            throw e
         } catch (e: Exception) {
             // The connection may look open but be dead (e.g. after time in the background): start fresh once.
             if (connected && !RemoteVfs.looksLikeConnectionError(e)) throw friendly(e, what, path)
@@ -136,7 +158,9 @@ class SftpVfs(server: NetServer, private val onLearned: (NetServer) -> Unit = {}
     }
 
     override fun list(dir: String): List<FileEntry> = call("Listing", dir) { c ->
-        c.ls(remote(dir)).filter { it.name != "." && it.name != ".." }.map { r ->
+        // Drop "." / ".." and names with "/" or NUL: a hostile server could use them to escape the destination
+        // folder when files are copied to the phone.
+        c.ls(remote(dir)).filter { Paths.isSafeName(it.name) }.map { r ->
             val p = Paths.join(dir, r.name)
             val a = r.attributes
             val target = if (a.type == FileMode.Type.SYMLINK) try { c.stat(r.path) } catch (_: Exception) { null } else null
@@ -234,8 +258,8 @@ class SftpVfs(server: NetServer, private val onLearned: (NetServer) -> Unit = {}
 
     private fun friendly(e: Exception, what: String, path: String? = null): IOException {
         val name = path?.let { " (${Paths.name(it)})" } ?: ""
+        TlsPin.identityError(e)?.let { return it }
         return when (e) {
-            is HostKeyChangedException -> e
             is SFTPException -> when (e.statusCode) {
                 Response.StatusCode.NO_SUCH_FILE, Response.StatusCode.NO_SUCH_PATH -> FileNotFoundException("${path ?: "That"}: not found")
                 Response.StatusCode.PERMISSION_DENIED -> IOException("$what failed: permission denied$name")
@@ -247,7 +271,7 @@ class SftpVfs(server: NetServer, private val onLearned: (NetServer) -> Unit = {}
             is UserAuthException -> IOException(
                 if (server.privateKey.isNotBlank()) "The server didn't accept the key" else "Wrong username or password",
             )
-            is TransportException -> (e.cause as? HostKeyChangedException) ?: IOException("$what failed: ${e.message}")
+            is TransportException -> IOException("$what failed: ${e.message}")
             is java.net.SocketTimeoutException -> IOException("$what failed: the server stopped responding")
             is java.net.ConnectException -> IOException("Couldn't reach ${server.host} on port ${server.effectivePort}. Is SSH running?")
             is java.net.UnknownHostException -> IOException("Unknown server address ${server.host}")

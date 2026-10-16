@@ -173,27 +173,53 @@ fun FileIcon(e: FileEntry, size: Dp, modifier: Modifier = Modifier, selected: Bo
 
 // ---------- Opening and sharing ----------
 
-/** A content:// URI other apps can read (and write) the file through. */
+/**
+ * A content:// URI other apps can read (and write) the file through. Local files are shared only from
+ * phone storage, SD cards and USB drives (under /storage); anything else throws IllegalArgumentException.
+ */
 fun contentUri(ctx: Context, e: FileEntry): Uri =
     if (e.vfsId == LocalVfs.ID) FileProvider.getUriForFile(ctx, "${ctx.packageName}.fileprovider", File(e.path))
     else NetDocumentsProvider.uriFor(e)
 
-fun openFile(ctx: Context, e: FileEntry, chooser: Boolean = false, mimeOverride: String? = null) {
-    val intent = Intent(Intent.ACTION_VIEW)
-        .setDataAndType(contentUri(ctx, e), mimeOverride ?: e.mime)
-        .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
+private fun contentUriOrToast(ctx: Context, e: FileEntry): Uri? = try {
+    contentUri(ctx, e)
+} catch (_: IllegalArgumentException) {
+    Toast.makeText(ctx, "Only files in phone storage, SD cards and USB drives can be opened in other apps", Toast.LENGTH_LONG).show()
+    null
+}
+
+/** True if [e] is on a server saved as read-only. */
+fun isReadOnly(e: FileEntry): Boolean =
+    e.vfsId.startsWith(RemoteVfs.PREFIX) && App.servers.get(e.vfsId.removePrefix(RemoteVfs.PREFIX))?.readOnly == true
+
+/**
+ * Opens [e] in another app. Viewing grants read access only; [edit] (an explicit "Edit with") sends ACTION_EDIT
+ * with write access so the other app can save back, and is refused for read-only servers.
+ */
+fun openFile(ctx: Context, e: FileEntry, chooser: Boolean = false, mimeOverride: String? = null, edit: Boolean = false) {
+    val canWrite = edit && !isReadOnly(e)
+    if (edit && !canWrite) { Toast.makeText(ctx, "This server is read-only", Toast.LENGTH_SHORT).show(); return }
+    var flags = Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK
+    if (canWrite) flags = flags or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+    val uri = contentUriOrToast(ctx, e) ?: return
+    val intent = Intent(if (canWrite) Intent.ACTION_EDIT else Intent.ACTION_VIEW)
+        .setDataAndType(uri, mimeOverride ?: e.mime)
+        .addFlags(flags)
     try {
-        ctx.startActivity(if (chooser) Intent.createChooser(intent, "Open with").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK) else intent)
+        ctx.startActivity(
+            if (chooser) Intent.createChooser(intent, if (canWrite) "Edit with" else "Open with").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            else intent,
+        )
     } catch (_: ActivityNotFoundException) {
-        if (!chooser) openFile(ctx, e, chooser = true, mimeOverride = "*/*")
-        else Toast.makeText(ctx, "No app can open this file", Toast.LENGTH_SHORT).show()
+        if (!chooser) openFile(ctx, e, chooser = true, mimeOverride = "*/*", edit = edit)
+        else Toast.makeText(ctx, "No app can ${if (canWrite) "edit" else "open"} this file", Toast.LENGTH_SHORT).show()
     }
 }
 
 fun shareFiles(ctx: Context, items: List<FileEntry>) {
     val files = items.filter { !it.isDir }
     if (files.isEmpty()) { Toast.makeText(ctx, "Folders can't be shared", Toast.LENGTH_SHORT).show(); return }
-    val uris = ArrayList(files.map { contentUri(ctx, it) })
+    val uris = ArrayList(files.map { contentUriOrToast(ctx, it) ?: return })
     val mimes = files.map { it.mime }.distinct()
     val type = if (mimes.size == 1) mimes[0] else mimes.map { it.substringBefore('/') }.distinct().singleOrNull()?.let { "$it/*" } ?: "*/*"
     val intent = if (uris.size == 1) Intent(Intent.ACTION_SEND).putExtra(Intent.EXTRA_STREAM, uris[0])

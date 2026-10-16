@@ -39,9 +39,13 @@ class NetVfsTest {
 
     @Test fun sftp() {
         enabled()
-        var learned: NetServer? = null
-        exercise(server(Proto.SFTP, 2222, "/upload")) { learned = it }
-        assertTrue("host key not learned", learned?.hostKey?.isNotBlank() == true)
+        // The first connection must stop and ask before trusting the host key.
+        val first = RemoteVfs.create(server(Proto.SFTP, 2222, "/upload"))
+        val fp = try { first.list("/"); fail("connected to an unknown server without asking"); "" } catch (e: HostKeyUnknownException) {
+            e.fingerprint
+        } finally { first.close() }
+        assertTrue("not a SHA-256 fingerprint: $fp", fp.startsWith("SHA256:"))
+        exercise(server(Proto.SFTP, 2222, "/upload").copy(hostKey = fp))
         // A different remembered key must be refused.
         val wrong = server(Proto.SFTP, 2222, "/upload").copy(hostKey = "00:11:22:33")
         val v = RemoteVfs.create(wrong)
