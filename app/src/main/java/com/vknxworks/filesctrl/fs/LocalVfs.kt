@@ -90,7 +90,7 @@ class LocalVfs(private val context: Context) : Vfs {
 
     override fun delete(path: String, isDir: Boolean) {
         try {
-            if (isDir) Os.rmdir(path) else Os.remove(path)
+            Os.remove(path) // remove(3) handles both files and empty folders
         } catch (e: ErrnoException) {
             throw IOException("Couldn't delete ${Paths.name(path)}: ${Os.strerror(e.errno)}")
         }
