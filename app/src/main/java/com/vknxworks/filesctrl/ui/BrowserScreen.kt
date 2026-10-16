@@ -107,6 +107,7 @@ import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -193,6 +194,10 @@ fun BrowserScreen(vm: BrowserViewModel, showMenuButton: Boolean, openDrawer: () 
     }
     val currentIndex = { if (s.gridView) gridState.firstVisibleItemIndex else listState.firstVisibleItemIndex }
 
+    // Hide the pull indicator explicitly when a refresh ends, so it can't get stuck half-way.
+    val pullState = rememberPullToRefreshState()
+    LaunchedEffect(vm.refreshing) { if (!vm.refreshing) pullState.animateToHidden() }
+
     val items = vm.visible()
     val readOnly = vm.readOnly
 
@@ -262,6 +267,7 @@ fun BrowserScreen(vm: BrowserViewModel, showMenuButton: Boolean, openDrawer: () 
                 else -> PullToRefreshBox(
                     isRefreshing = vm.refreshing,
                     onRefresh = { vm.refresh() },
+                    state = pullState,
                     modifier = Modifier.fillMaxSize(),
                 ) {
                     when {

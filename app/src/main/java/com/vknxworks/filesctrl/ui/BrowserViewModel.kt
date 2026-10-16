@@ -150,7 +150,10 @@ class BrowserViewModel : ViewModel() {
         return true
     }
 
+    private var refreshStarted = 0L
+
     fun refresh() {
+        refreshStarted = System.currentTimeMillis()
         refreshing = true
         load(quiet = true)
     }
@@ -183,7 +186,15 @@ class BrowserViewModel : ViewModel() {
                 }
             } finally {
                 if (loc == location) { loading = false; loadCount++ }
-                refreshing = false
+                if (refreshing) {
+                    // Keep the spinner up briefly: a reload that finishes within a frame would otherwise leave
+                    // the pull indicator stuck, because it never sees refreshing change.
+                    val left = 450 - (System.currentTimeMillis() - refreshStarted)
+                    viewModelScope.launch {
+                        if (left > 0) kotlinx.coroutines.delay(left)
+                        refreshing = false
+                    }
+                }
             }
         }
     }
