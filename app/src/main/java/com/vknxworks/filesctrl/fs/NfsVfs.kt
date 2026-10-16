@@ -124,6 +124,9 @@ class NfsVfs(override val server: NetServer) : RemoteVfs {
 
     override fun close() = session.close()
 
+    // close() retires the session for good; dropping just disconnects so the next call reconnects.
+    override fun drop() = session.disconnect()
+
     override fun openRandom(path: String, write: Boolean, truncate: Boolean): RandomFile =
         NfsRandomFile(session, path, write, truncate)
 }

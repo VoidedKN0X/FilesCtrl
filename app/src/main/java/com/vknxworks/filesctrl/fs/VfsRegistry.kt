@@ -39,6 +39,6 @@ class VfsRegistry(context: Context, private val servers: ServerStore) {
     /** The server's file system only if it's connected now (doesn't start a connection). */
     fun connected(serverId: String): RemoteVfs? = remotes[serverId]?.takeIf { it.connected }
 
-    /** Drops idle connections (e.g. when the app goes to the background for a while). */
-    fun disconnectAll() = remotes.values.forEach { it.close() }
+    /** Drops every connection (e.g. after the app was in the background for a while); they reconnect on use. */
+    fun dropAll() = remotes.values.forEach { try { it.drop() } catch (_: Exception) {} }
 }

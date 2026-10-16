@@ -109,7 +109,8 @@ class SftpVfs(server: NetServer, private val onLearned: (NetServer) -> Unit = {}
         } catch (e: HostKeyChangedException) {
             throw e
         } catch (e: Exception) {
-            if (connected) throw friendly(e, what, path)
+            // The connection may look open but be dead (e.g. after time in the background): start fresh once.
+            if (connected && !RemoteVfs.looksLikeConnectionError(e)) throw friendly(e, what, path)
             close()
             return try { block(client()) } catch (e2: Exception) { throw friendly(e2, what, path) }
         }

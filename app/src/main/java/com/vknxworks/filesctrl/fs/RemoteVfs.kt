@@ -25,6 +25,9 @@ interface RemoteVfs : Vfs {
     val connected: Boolean
     fun close()
 
+    /** Drops the connection without giving up the file system; the next call reconnects. */
+    fun drop() = close()
+
     /** Random access if the protocol supports it natively; null to use the generic fallbacks. */
     fun openRandom(path: String, write: Boolean, truncate: Boolean): RandomFile? = null
 
@@ -52,6 +55,25 @@ interface RemoteVfs : Vfs {
             Proto.SFTP -> SftpVfs(server, onLearned)
             Proto.FTP -> FtpVfs(server)
             Proto.WEBDAV -> WebDavVfs(server)
+        }
+
+        /** True if [e] (or what caused it) is a network/connection failure rather than a "no" from the server. */
+        fun looksLikeConnectionError(e: Throwable): Boolean {
+            var t: Throwable? = e
+            var depth = 0
+            while (t != null && depth++ < 8) {
+                if (t is java.net.SocketException || t is java.net.SocketTimeoutException || t is java.io.EOFException ||
+                    t is java.io.InterruptedIOException
+                ) return true
+                val n = t.javaClass.name
+                if (n.contains("Transport") || n.contains("ConnectionException") || n.contains("SMBRuntimeException") ||
+                    n.contains("Socket") || n.contains("Timeout")
+                ) return true
+                val m = t.message.orEmpty()
+                if (m.contains("Broken pipe", true) || m.contains("Connection reset", true) || m.contains("closed", true)) return true
+                t = t.cause
+            }
+            return false
         }
 
         /** Joins the server's starting folder with a path inside the file system. */
