@@ -4,60 +4,87 @@ import android.Manifest
 import android.content.pm.PackageManager
 import android.graphics.Color
 import android.os.Bundle
-import androidx.activity.ComponentActivity
+import android.view.WindowManager
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.width
-import androidx.compose.material3.DrawerValue
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Folder
+import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.material.icons.outlined.Storage
+import androidx.compose.material.icons.outlined.SwapVert
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Badge
+import androidx.compose.material3.BadgedBox
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalDrawerSheet
-import androidx.compose.material3.ModalNavigationDrawer
-import androidx.compose.material3.PermanentDrawerSheet
+import androidx.compose.material3.NavigationRail
+import androidx.compose.material3.NavigationRailItem
 import androidx.compose.material3.Surface
-import androidx.compose.material3.VerticalDivider
-import androidx.compose.material3.rememberDrawerState
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
+import androidx.fragment.app.FragmentActivity
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import com.vknxworks.filesctrl.fs.LocalVfs
 import com.vknxworks.filesctrl.fs.Location
 import com.vknxworks.filesctrl.fs.RemoteVfs
+import com.vknxworks.filesctrl.ops.Ops
 import com.vknxworks.filesctrl.ui.BrowserScreen
 import com.vknxworks.filesctrl.ui.BrowserViewModel
-import com.vknxworks.filesctrl.ui.DrawerContent
 import com.vknxworks.filesctrl.ui.EditorScreen
 import com.vknxworks.filesctrl.ui.FilesTheme
+import com.vknxworks.filesctrl.ui.IslandTab
 import com.vknxworks.filesctrl.ui.LocalNav
+import com.vknxworks.filesctrl.ui.PlacesTab
 import com.vknxworks.filesctrl.ui.ServerEditScreen
-import com.vknxworks.filesctrl.ui.SettingsScreen
-import com.vknxworks.filesctrl.ui.TasksSheet
+import com.vknxworks.filesctrl.ui.SettingsTab
+import com.vknxworks.filesctrl.ui.TabIsland
+import com.vknxworks.filesctrl.ui.TransfersTab
 import com.vknxworks.filesctrl.ui.isAppInDarkTheme
-import kotlinx.coroutines.launch
+import com.vknxworks.filesctrl.ui.lock.AppLockViewModel
+import com.vknxworks.filesctrl.ui.lock.LockScreen
+import dev.chrisbanes.haze.HazeState
+import dev.chrisbanes.haze.hazeSource
 
-class MainActivity : ComponentActivity() {
+// FragmentActivity (a ComponentActivity) is required by the fingerprint prompt.
+class MainActivity : FragmentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         App.init(this)
@@ -70,7 +97,12 @@ class MainActivity : ComponentActivity() {
                     else SystemBarStyle.light(Color.TRANSPARENT, Color.TRANSPARENT)
                     enableEdgeToEdge(statusBarStyle = style, navigationBarStyle = style)
                 }
-                Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) { Root() }
+                val secure = App.lock.pinSet && App.lock.hideContent
+                LaunchedEffect(secure) {
+                    if (secure) window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
+                    else window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
+                }
+                Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) { Root(this) }
             }
         }
     }
@@ -83,44 +115,93 @@ class MainActivity : ComponentActivity() {
     }
 }
 
+/** Which tab is showing; other screens can switch it. */
+object MainTab {
+    const val FILES = 0
+    const val PLACES = 1
+    const val TRANSFERS = 2
+    const val SETTINGS = 3
+    var selected by mutableIntStateOf(FILES)
+}
+
 @Composable
-private fun Root() {
+private fun Root(activity: FragmentActivity, lockVm: AppLockViewModel = viewModel()) {
     val nav = rememberNavController()
     val vm: BrowserViewModel = viewModel()
-    val ctx = androidx.compose.ui.platform.LocalContext.current
-    var tasksOpen by remember { mutableStateOf(false) }
+    var confirmReset by remember { mutableStateOf(false) }
+
+    // Lock when the app goes to the background (immediately, or after the chosen delay).
+    val owner = LocalLifecycleOwner.current
+    DisposableEffect(owner) {
+        val observer = LifecycleEventObserver { _, event ->
+            when (event) {
+                Lifecycle.Event.ON_STOP -> if (!activity.isChangingConfigurations) lockVm.onBackground()
+                Lifecycle.Event.ON_START -> lockVm.onForeground()
+                else -> Unit
+            }
+        }
+        owner.lifecycle.addObserver(observer)
+        onDispose { owner.lifecycle.removeObserver(observer) }
+    }
 
     // Ask once for notifications, used for progress of copies and moves.
     val permLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {}
     LaunchedEffect(Unit) {
-        val granted = ContextCompat.checkSelfPermission(ctx, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
+        val granted = ContextCompat.checkSelfPermission(activity, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
         if (!granted && !App.settings.askedNotifications) {
             App.settings.askedNotifications = true
             permLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
         }
     }
 
+    if (lockVm.locked && App.lock.pinSet) {
+        LockScreen(vm = lockVm, onForgot = { confirmReset = true })
+        if (confirmReset) {
+            AlertDialog(
+                onDismissRequest = { confirmReset = false },
+                title = { Text("Reset app lock?") },
+                text = {
+                    Text(
+                        "This removes the PIN and forgets the saved passwords and keys of your network locations. " +
+                            "The locations stay; you'll enter their passwords again.",
+                    )
+                },
+                confirmButton = {
+                    TextButton(onClick = {
+                        confirmReset = false
+                        App.servers.forgetSecrets()
+                        App.lock.clearPin()
+                        lockVm.unlock()
+                    }) { Text("Reset", color = MaterialTheme.colorScheme.error) }
+                },
+                dismissButton = { TextButton(onClick = { confirmReset = false }) { Text("Cancel") } },
+            )
+        }
+        return
+    }
+
     CompositionLocalProvider(LocalNav provides nav) {
         NavHost(
-            nav, startDestination = "browser",
-            enterTransition = { slideInHorizontally(tween(280)) { it / 5 } + fadeIn(tween(200)) },
-            exitTransition = { slideOutHorizontally(tween(280)) { -it / 8 } + fadeOut(tween(150)) },
-            popEnterTransition = { slideInHorizontally(tween(280)) { -it / 5 } + fadeIn(tween(200)) },
-            popExitTransition = { slideOutHorizontally(tween(280)) { it / 8 } + fadeOut(tween(150)) },
+            nav, startDestination = "main",
+            enterTransition = { slideInHorizontally(tween(300)) { it / 5 } + fadeIn(tween(220)) },
+            exitTransition = { slideOutHorizontally(tween(300)) { -it / 8 } + fadeOut(tween(160)) },
+            popEnterTransition = { slideInHorizontally(tween(300)) { -it / 5 } + fadeIn(tween(220)) },
+            popExitTransition = { slideOutHorizontally(tween(300)) { it / 8 } + fadeOut(tween(160)) },
         ) {
-            composable("browser") { BrowserWithDrawer(vm, onTasks = { tasksOpen = true }) }
+            composable("main") { MainShell(vm) }
             composable("server/{id}") { entry ->
                 val id = entry.arguments?.getString("id")?.takeIf { it != "new" }
                 ServerEditScreen(id) { openId ->
                     nav.popBackStack()
-                    if (openId != null) vm.navigate(Location(RemoteVfs.idFor(openId), "/"))
-                    else if (id != null && App.servers.get(id) == null && vm.location.vfsId == RemoteVfs.idFor(id)) {
-                        // The share we were looking at was removed.
-                        vm.navigate(Location(com.vknxworks.filesctrl.fs.LocalVfs.ID, App.vfs.local.primaryRoot), addToHistory = false)
+                    if (openId != null) {
+                        vm.navigate(Location(RemoteVfs.idFor(openId), "/"))
+                        MainTab.selected = MainTab.FILES
+                    } else if (id != null && App.servers.get(id) == null && vm.location.vfsId == RemoteVfs.idFor(id)) {
+                        // The location we were looking at was removed.
+                        vm.navigate(Location(LocalVfs.ID, App.vfs.local.primaryRoot), addToHistory = false)
                     } else if (id != null && vm.location.vfsId == RemoteVfs.idFor(id)) vm.load()
                 }
             }
-            composable("settings") { SettingsScreen(onBack = { nav.popBackStack() }) }
             composable("edit?loc={loc}") { entry ->
                 val raw = entry.arguments?.getString("loc").orEmpty()
                 val loc = Location.fromKey(raw)
@@ -129,43 +210,75 @@ private fun Root() {
             }
         }
     }
-    if (tasksOpen) TasksSheet { tasksOpen = false }
 }
 
+/**
+ * Same shell as the other Ctrl apps: on phones the tabs float in a frosted island over the content; on wide
+ * windows (tablets, unfolded foldables, landscape) they sit in a side rail.
+ */
 @Composable
-private fun BrowserWithDrawer(vm: BrowserViewModel, onTasks: () -> Unit) {
+private fun MainShell(vm: BrowserViewModel) {
     val nav = LocalNav.current
-    val drawer = rememberDrawerState(DrawerValue.Closed)
-    val scope = rememberCoroutineScope()
+    val running = Ops.active.size
+    val tabs = listOf(
+        IslandTab(MainTab.FILES, Icons.Outlined.Folder, "Files"),
+        IslandTab(MainTab.PLACES, Icons.Outlined.Storage, "Places"),
+        IslandTab(MainTab.TRANSFERS, Icons.Outlined.SwapVert, "Transfers", running),
+        IslandTab(MainTab.SETTINGS, Icons.Outlined.Settings, "Settings"),
+    )
+
+    // Back from another tab returns to Files; the Files tab handles its own back (folder history).
+    BackHandler(MainTab.selected != MainTab.FILES) { MainTab.selected = MainTab.FILES }
 
     BoxWithConstraints(Modifier.fillMaxSize()) {
-        val permanent = maxWidth >= 840.dp
-        val content: @Composable (closeDrawer: () -> Unit) -> Unit = { close ->
-            DrawerContent(
-                current = vm.location,
-                onOpen = { close(); vm.jump(it, 0) },
-                onAddServer = { close(); nav.navigate("server/new") },
-                onEditServer = { close(); nav.navigate("server/$it") },
-                onSettings = { close(); nav.navigate("settings") },
-                onTasks = { close(); onTasks() },
-            )
+        val rail = maxWidth >= 600.dp
+        val content: @Composable () -> Unit = {
+            AnimatedContent(MainTab.selected, transitionSpec = { fadeIn() togetherWith fadeOut() }, label = "tab") { t ->
+                when (t) {
+                    MainTab.PLACES -> Box(Modifier.statusBarsPadding()) {
+                        PlacesTab(
+                            current = vm.location,
+                            onOpen = { vm.jump(it, 0); MainTab.selected = MainTab.FILES },
+                            onAddServer = { nav.navigate("server/new") },
+                            onEditServer = { nav.navigate("server/$it") },
+                        )
+                    }
+                    MainTab.TRANSFERS -> Box(Modifier.statusBarsPadding()) { TransfersTab() }
+                    MainTab.SETTINGS -> Box(Modifier.statusBarsPadding()) { SettingsTab() }
+                    else -> BrowserScreen(vm, islandSpace = if (rail) 0.dp else 82.dp)
+                }
+            }
         }
-        if (permanent) {
+
+        if (rail) {
             Row(Modifier.fillMaxSize()) {
-                PermanentDrawerSheet(Modifier.width(320.dp)) { content {} }
-                VerticalDivider()
-                BrowserScreen(vm, showMenuButton = false, openDrawer = {})
+                NavigationRail(Modifier.statusBarsPadding()) {
+                    Spacer(Modifier.height(8.dp))
+                    tabs.forEach { t ->
+                        NavigationRailItem(
+                            selected = MainTab.selected == t.index,
+                            onClick = { MainTab.selected = t.index },
+                            icon = {
+                                BadgedBox(badge = { if (t.badge > 0) Badge { Text("${t.badge}") } }) { Icon(t.icon, null) }
+                            },
+                            label = { Text(t.label, maxLines = 1) },
+                        )
+                    }
+                }
+                Box(Modifier.weight(1f).fillMaxSize().navigationBarsPadding()) { content() }
             }
         } else {
-            ModalNavigationDrawer(
-                drawerState = drawer,
-                drawerContent = {
-                    ModalDrawerSheet(Modifier.width(320.dp)) { content { scope.launch { drawer.close() } } }
-                },
-            ) {
-                BrowserScreen(vm, showMenuButton = true, openDrawer = { scope.launch { drawer.open() } })
-                // Registered after the browser's handler, so it wins while the drawer is open.
-                BackHandler(enabled = drawer.isOpen) { scope.launch { drawer.close() } }
+            // Content runs edge to edge under the floating island, which blurs it.
+            val haze = remember { HazeState() }
+            Box(Modifier.fillMaxSize()) {
+                Box(Modifier.fillMaxSize().hazeSource(haze)) { content() }
+                TabIsland(
+                    tabs = tabs,
+                    selected = MainTab.selected,
+                    hazeState = haze,
+                    onSelect = { MainTab.selected = it },
+                    modifier = Modifier.align(Alignment.BottomCenter),
+                )
             }
         }
     }

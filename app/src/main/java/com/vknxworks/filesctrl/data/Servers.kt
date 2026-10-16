@@ -152,6 +152,13 @@ class ServerStore(context: Context) {
         persist()
     }
 
+    /** Forgets every saved password and key (servers stay). Used when the app lock PIN is forgotten. */
+    fun forgetSecrets() {
+        for (i in all.indices) all[i] = all[i].copy(password = "", privateKey = "")
+        persist()
+        all.forEach { s -> listeners.forEach { it(s.id) } }
+    }
+
     fun remove(id: String) {
         all.removeAll { it.id == id }
         persist()

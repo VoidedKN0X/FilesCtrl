@@ -99,6 +99,12 @@ dependencies {
     implementation("androidx.navigation:navigation-compose:2.8.9")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.2")
 
+    // Shared look with the other Ctrl apps: frosted tab island, app lock.
+    implementation("dev.chrisbanes.haze:haze:1.6.0")
+    implementation("androidx.biometric:biometric:1.1.0")
+    implementation("androidx.fragment:fragment-ktx:1.8.6")
+    implementation("androidx.window:window:1.3.0")
+
     // Network file systems (NFS is native, via libnfs).
     implementation("com.hierynomus:smbj:0.13.0")
     implementation("com.rapid7.client:dcerpc:0.12.13") // SMB share listing

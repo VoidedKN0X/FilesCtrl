@@ -128,6 +128,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
@@ -146,6 +147,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
+/** Bottom padding for this screen's lists, so they scroll clear of the island and paste card. */
+private val LocalListPadding = androidx.compose.runtime.compositionLocalOf { PaddingValues(bottom = 96.dp) }
+
 private sealed interface Dlg {
     data class New(val folder: Boolean) : Dlg
     data class Rename(val e: FileEntry) : Dlg
@@ -154,14 +158,14 @@ private sealed interface Dlg {
     data class Compress(val items: List<FileEntry>) : Dlg
     data class Conflicts(val names: List<String>, val items: List<FileEntry>, val dest: Location, val move: Boolean) : Dlg
     data class Error(val title: String, val message: String) : Dlg
-    data object Tasks : Dlg
 }
 
 // Navigation decodes the argument itself, so encode with Uri.encode (not URLEncoder, whose "+" for space it would keep).
 fun editorRoute(e: FileEntry) = "edit?loc=" + Uri.encode(e.location.key)
 
 @Composable
-fun BrowserScreen(vm: BrowserViewModel, showMenuButton: Boolean, openDrawer: () -> Unit) {
+/** [islandSpace]: room the floating tab island takes at the bottom (0 when tabs are in a side rail). */
+fun BrowserScreen(vm: BrowserViewModel, islandSpace: Dp) {
     val ctx = LocalContext.current
     val nav = LocalNav.current
     val scope = rememberCoroutineScope()
@@ -235,25 +239,30 @@ fun BrowserScreen(vm: BrowserViewModel, showMenuButton: Boolean, openDrawer: () 
         }
     }
 
+    val pasting = FileClipboard.items.isNotEmpty()
+    // Everything at the bottom floats above the tab island (and the paste card, when it's showing).
+    val floatSpace = islandSpace + if (pasting) 76.dp else 0.dp
+
+    androidx.compose.runtime.CompositionLocalProvider(LocalListPadding provides PaddingValues(bottom = floatSpace + 96.dp)) {
+    Box(Modifier.fillMaxSize()) {
     Scaffold(
         topBar = {
             if (vm.selecting) {
                 SelectionBar(vm, readOnly, onDialog = { dlg = it })
             } else {
-                MainBar(vm, showMenuButton, openDrawer, onDialog = { dlg = it })
+                MainBar(vm, onDialog = { dlg = it })
             }
         },
         floatingActionButton = {
             if (!vm.selecting && !readOnly && vm.error == null && vm.deepQuery == null && (hasAllFiles || !vm.isLocal)) {
-                SpeedDial(
-                    pasteVisible = FileClipboard.items.isNotEmpty(),
-                    onNewFolder = { dlg = Dlg.New(true) },
-                    onNewFile = { dlg = Dlg.New(false) },
-                )
+                Box(Modifier.padding(bottom = floatSpace)) {
+                    SpeedDial(
+                        pasteVisible = pasting,
+                        onNewFolder = { dlg = Dlg.New(true) },
+                        onNewFile = { dlg = Dlg.New(false) },
+                    )
+                }
             }
-        },
-        bottomBar = {
-            if (FileClipboard.items.isNotEmpty()) PasteBar(readOnly, onPaste = ::startPaste)
         },
     ) { pad ->
         Column(Modifier.padding(pad).fillMaxSize()) {
@@ -279,6 +288,16 @@ fun BrowserScreen(vm: BrowserViewModel, showMenuButton: Boolean, openDrawer: () 
                 }
             }
         }
+    }
+
+        if (pasting) {
+            PasteBar(
+                readOnly,
+                Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(bottom = islandSpace + 8.dp),
+                onPaste = ::startPaste,
+            )
+        }
+    }
     }
 
     // ---------- Dialogs ----------
@@ -338,14 +357,13 @@ fun BrowserScreen(vm: BrowserViewModel, showMenuButton: Boolean, openDrawer: () 
             FileClipboard.clear()
         }
         is Dlg.Error -> InfoDialog(d.title, d.message) { dlg = null }
-        Dlg.Tasks -> TasksSheet { dlg = null }
     }
 }
 
 // ---------- Top bars ----------
 
 @Composable
-private fun MainBar(vm: BrowserViewModel, showMenuButton: Boolean, openDrawer: () -> Unit, onDialog: (Dlg) -> Unit) {
+private fun MainBar(vm: BrowserViewModel, onDialog: (Dlg) -> Unit) {
     val ctx = LocalContext.current
     val nav = LocalNav.current
     val s = App.settings
@@ -358,10 +376,6 @@ private fun MainBar(vm: BrowserViewModel, showMenuButton: Boolean, openDrawer: (
             if (vm.searchOpen) {
                 IconButton(onClick = { vm.searchOpen = false; vm.filter = ""; vm.closeDeepSearch() }) {
                     Icon(Icons.AutoMirrored.Outlined.ArrowBack, "Close search")
-                }
-            } else if (showMenuButton) {
-                IconButton(onClick = openDrawer) {
-                    BadgedBox(badge = { if (Ops.active.isNotEmpty()) Badge() }) { Icon(Icons.Outlined.Menu, "Menu") }
                 }
             }
         },
@@ -475,16 +489,6 @@ private fun MainBar(vm: BrowserViewModel, showMenuButton: Boolean, openDrawer: (
                             val loc = vm.location
                             onDialog(Dlg.Props(FileEntry(loc.vfsId, loc.path, vm.title, true, 0, 0)))
                         },
-                    )
-                    DropdownMenuItem(
-                        text = { Text("Operations") },
-                        leadingIcon = { Icon(Icons.Outlined.Sync, null) },
-                        onClick = { menu = false; onDialog(Dlg.Tasks) },
-                    )
-                    DropdownMenuItem(
-                        text = { Text("Settings") },
-                        leadingIcon = { Icon(Icons.Outlined.Settings, null) },
-                        onClick = { menu = false; nav.navigate("settings") },
                     )
                 }
             }
@@ -708,7 +712,7 @@ private fun FileList(
     onOpen: (FileEntry) -> Unit,
     onAction: (FileEntry, ItemAction) -> Unit,
 ) {
-    LazyColumn(state = state, modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 96.dp)) {
+    LazyColumn(state = state, modifier = Modifier.fillMaxSize(), contentPadding = LocalListPadding.current) {
         items(items, key = { it.path }) { e ->
             val selected = e.path in vm.selection
             FileRow(
@@ -727,7 +731,7 @@ private fun FileGrid(items: List<FileEntry>, vm: BrowserViewModel, state: LazyGr
         columns = GridCells.Adaptive(112.dp),
         state = state,
         modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(start = 8.dp, end = 8.dp, top = 4.dp, bottom = 96.dp),
+        contentPadding = PaddingValues(start = 8.dp, end = 8.dp, top = 4.dp, bottom = LocalListPadding.current.calculateBottomPadding()),
     ) {
         items(items, key = { it.path }) { e ->
             val selected = e.path in vm.selection
@@ -768,7 +772,7 @@ private fun SearchResults(vm: BrowserViewModel, onOpen: (FileEntry) -> Unit, onM
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
         )
-        LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 96.dp)) {
+        LazyColumn(Modifier.fillMaxSize(), contentPadding = LocalListPadding.current) {
             items(vm.deepResults, key = { it.path }) { e ->
                 val rel = Paths.parent(e.path).removePrefix(vm.location.path).trimStart('/')
                 FileRow(
@@ -815,11 +819,16 @@ private fun DialItem(label: String, icon: ImageVector, onClick: () -> Unit) {
 }
 
 @Composable
-private fun PasteBar(readOnly: Boolean, onPaste: () -> Unit) {
+private fun PasteBar(readOnly: Boolean, modifier: Modifier = Modifier, onPaste: () -> Unit) {
     val n = FileClipboard.items.size
-    Surface(color = MaterialTheme.colorScheme.surfaceContainer, tonalElevation = 3.dp) {
+    Surface(
+        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+        shape = RoundedCornerShape(24.dp),
+        shadowElevation = 6.dp,
+        modifier = modifier.padding(horizontal = 16.dp).widthIn(max = 480.dp).fillMaxWidth(),
+    ) {
         Row(
-            Modifier.fillMaxWidth().navigationBarsPadding().padding(start = 16.dp, end = 8.dp, top = 8.dp, bottom = 8.dp),
+            Modifier.fillMaxWidth().padding(start = 16.dp, end = 8.dp, top = 6.dp, bottom = 6.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Icon(if (FileClipboard.cut) Icons.AutoMirrored.Outlined.DriveFileMove else Icons.Outlined.ContentCopy, null)
