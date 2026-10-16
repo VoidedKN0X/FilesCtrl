@@ -39,6 +39,8 @@ class SftpVfs(server: NetServer, private val onLearned: (NetServer) -> Unit = {}
     private val lock = Any()
     private var ssh: SSHClient? = null
     private var sftp: SFTPClient? = null
+    /** The home folder, used as the starting point when no folder is set. */
+    @Volatile private var home: String? = null
 
     override val connected: Boolean get() = ssh?.isConnected == true && ssh?.isAuthenticated == true
 
@@ -77,6 +79,7 @@ class SftpVfs(server: NetServer, private val onLearned: (NetServer) -> Unit = {}
                 else -> c.authPassword(user, s.password)
             }
             val f = c.newSFTPClient()
+            if (home == null) home = try { f.canonicalize(".") } catch (_: Exception) { "/" }
             ssh = c; sftp = f
             return f
         } catch (e: Exception) {
@@ -93,7 +96,7 @@ class SftpVfs(server: NetServer, private val onLearned: (NetServer) -> Unit = {}
 
     override fun close() = synchronized(lock) { dropLocked() }
 
-    private fun remote(path: String) = RemoteVfs.join(server.path, path)
+    private fun remote(path: String) = RemoteVfs.join(server.path.ifBlank { home ?: "/" }, path)
 
     private fun <T> call(what: String, path: String, block: (SFTPClient) -> T): T {
         val c = client()

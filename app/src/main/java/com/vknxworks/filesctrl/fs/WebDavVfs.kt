@@ -85,6 +85,16 @@ class WebDavVfs(override val server: NetServer) : RemoteVfs {
             throw friendly(e, what)
         }
         if (resp.isSuccessful) return resp
+        // Many servers redirect "/folder" to "/folder/"; follow that one kind of redirect, keeping the method.
+        if (resp.code in setOf(301, 302, 307, 308)) {
+            val target = resp.header("Location")?.let { req.url.resolve(it) }
+            if (target != null && target.host == req.url.host && target.encodedPath.trimEnd('/') == req.url.encodedPath.trimEnd('/') &&
+                target.encodedPath != req.url.encodedPath
+            ) {
+                resp.close()
+                return exec(req.newBuilder().url(target).build(), what, path)
+            }
+        }
         val code = resp.code
         resp.close()
         throw when (code) {

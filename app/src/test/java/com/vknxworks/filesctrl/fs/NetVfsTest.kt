@@ -50,7 +50,7 @@ class NetVfsTest {
         } finally { v.close() }
     }
 
-    @Test fun ftp() { enabled(); exercise(server(Proto.FTP, 21, "/")) }
+    @Test fun ftp() { enabled(); exercise(server(Proto.FTP, 21, "")) }
 
     @Test fun webdav() { enabled(); exercise(server(Proto.WEBDAV, 8080, "/")) }
 
