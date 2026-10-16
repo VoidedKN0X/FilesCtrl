@@ -95,10 +95,18 @@ fun DrawerContent(
         Section("NFS shares")
         for (s in App.servers.all) {
             val id = NfsVfs.idFor(s.id)
+            // Storage use for shares that are connected; just the address otherwise (no connecting from the menu).
+            var space by remember(s) { mutableStateOf<Space?>(null) }
+            LaunchedEffect(s, current) {
+                val v = App.vfs.openNfs(s.id)
+                if (v != null) space = withContext(Dispatchers.IO) { v.space("/") }
+            }
+            val sp = space?.takeIf { it.total > 0 }
             DrawerEntry(
                 icon = Icons.Outlined.Dns,
                 label = s.title,
-                sub = s.summary,
+                sub = sp?.let { "${Fmt.size(ctx, it.total - it.free)} of ${Fmt.size(ctx, it.total)} used" } ?: s.host,
+                progress = sp?.let { 1f - it.free.toFloat() / it.total },
                 selected = current.vfsId == id,
                 onClick = { onOpen(Location(id, "/")) },
                 trailing = {

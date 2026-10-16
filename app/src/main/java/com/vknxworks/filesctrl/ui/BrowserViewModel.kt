@@ -42,6 +42,13 @@ class BrowserViewModel : ViewModel() {
         private set
     var loading by mutableStateOf(false)
         private set
+    /** True only while a pull-to-refresh is running, so its spinner can finish. */
+    var refreshing by mutableStateOf(false)
+        private set
+    /** Capacity of the share or volume being shown, when the server reports it. */
+    var space by mutableStateOf<com.vknxworks.filesctrl.fs.Space?>(null)
+        private set
+    private var spaceFor: String? = null
     var error by mutableStateOf<String?>(null)
         private set
     /** Bumped on every finished load, so the UI can react (e.g. scroll the breadcrumbs). */
@@ -143,9 +150,15 @@ class BrowserViewModel : ViewModel() {
         return true
     }
 
+    fun refresh() {
+        refreshing = true
+        load(quiet = true)
+    }
+
     fun load(quiet: Boolean = false) {
         loadJob?.cancel()
         val loc = location
+        if (spaceFor != loc.vfsId) { space = null; spaceFor = null }
         loadJob = viewModelScope.launch {
             if (!quiet) loading = true
             error = null
@@ -157,6 +170,10 @@ class BrowserViewModel : ViewModel() {
                     val names = list.mapTo(HashSet()) { it.path }
                     selection.retainAll { it in names }
                 }
+                if (loc.vfsId.startsWith(NfsVfs.PREFIX)) {
+                    val sp = withContext(Dispatchers.IO) { try { App.vfs.get(loc.vfsId).space(loc.path) } catch (_: Exception) { null } }
+                    if (loc.vfsId == location.vfsId) { space = sp; spaceFor = loc.vfsId }
+                }
             } catch (e: kotlinx.coroutines.CancellationException) {
                 throw e
             } catch (e: Exception) {
@@ -166,6 +183,7 @@ class BrowserViewModel : ViewModel() {
                 }
             } finally {
                 if (loc == location) { loading = false; loadCount++ }
+                refreshing = false
             }
         }
     }

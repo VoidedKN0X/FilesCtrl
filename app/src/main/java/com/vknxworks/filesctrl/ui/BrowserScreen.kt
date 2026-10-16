@@ -254,14 +254,14 @@ fun BrowserScreen(vm: BrowserViewModel, showMenuButton: Boolean, openDrawer: () 
         Column(Modifier.padding(pad).fillMaxSize()) {
             Breadcrumbs(vm) { vm.navigate(it, currentIndex()) }
             Box(Modifier.fillMaxWidth().height(3.dp)) {
-                if (vm.loading || vm.deepSearching) LinearProgressIndicator(Modifier.fillMaxWidth())
+                if ((vm.loading && !vm.refreshing) || vm.deepSearching) LinearProgressIndicator(Modifier.fillMaxWidth())
             }
             when {
                 vm.isLocal && !hasAllFiles -> PermissionGate()
                 vm.deepQuery != null -> SearchResults(vm, onOpen = ::openEntry, onMenu = { e, a -> handleItemAction(ctx, vm, e, a, nav) { dlg = it } })
                 else -> PullToRefreshBox(
-                    isRefreshing = false,
-                    onRefresh = { vm.load() },
+                    isRefreshing = vm.refreshing,
+                    onRefresh = { vm.refresh() },
                     modifier = Modifier.fillMaxSize(),
                 ) {
                     when {
@@ -379,7 +379,7 @@ private fun MainBar(vm: BrowserViewModel, showMenuButton: Boolean, openDrawer: (
                 Column {
                     Text(vm.title, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     Text(
-                        vm.vfsTitle + if (vm.readOnly) " · read-only" else "",
+                        subtitle(vm) + if (vm.readOnly) " · read-only" else "",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1,
@@ -484,6 +484,16 @@ private fun MainBar(vm: BrowserViewModel, showMenuButton: Boolean, openDrawer: (
             }
         },
     )
+}
+
+/** Under the folder name: this phone, or a share's storage use (just its address if the server won't say). */
+@Composable
+private fun subtitle(vm: BrowserViewModel): String {
+    val ctx = LocalContext.current
+    if (vm.isLocal) return vm.vfsTitle
+    val sp = vm.space
+    if (sp != null && sp.total > 0) return "${Fmt.size(ctx, sp.total - sp.free)} of ${Fmt.size(ctx, sp.total)} used"
+    return App.servers.get(vm.location.vfsId.removePrefix(NfsVfs.PREFIX))?.host ?: vm.vfsTitle
 }
 
 @Composable
