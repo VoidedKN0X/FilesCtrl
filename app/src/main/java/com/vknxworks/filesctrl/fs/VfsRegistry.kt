@@ -12,7 +12,13 @@ class VfsRegistry(context: Context, private val servers: ServerStore) {
 
     init {
         // A changed or removed server drops its connection; the next use reconnects with the new settings.
-        servers.onChange { id -> nfs.remove(id)?.close() }
+        servers.onChange { id ->
+            val old = nfs[id] ?: return@onChange
+            if (old.server == servers.get(id)) return@onChange // Saved without changes: keep the connection.
+            nfs.remove(id)
+            // Closing waits for any running call on that share; never block the main thread on it.
+            Thread { old.close() }.start()
+        }
     }
 
     fun find(id: String): Vfs? = when {

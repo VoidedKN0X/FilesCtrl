@@ -129,6 +129,12 @@ object Ops {
                 val sameFolder = src.vfsId == dest.vfsId && src.parentLocation.path == dest.path
                 if (sameFolder && move) { t.filesDone++; continue }
                 var target = Paths.join(dest.path, name)
+                // Replacing a folder that contains the item itself would delete the item; never do that.
+                if (src.vfsId == dest.vfsId && target != src.path && Paths.isWithin(src.path, target)) {
+                    t.warnings += "Skipped ${src.name}: it's inside the item it would replace"
+                    t.filesDone++
+                    continue
+                }
                 if (dst.exists(target)) {
                     val policy = if (sameFolder) Conflict.KeepBoth else conflict
                     when (policy) {
@@ -173,13 +179,24 @@ object Ops {
 
     private suspend fun copyTree(src: Vfs, e: FileEntry, dst: Vfs, target: String, t: OpTask) {
         coroutineContext.ensureActive()
+        if (e.isLink && e.isDir) {
+            // Following folder links could loop or copy a whole other tree; leave them out.
+            t.warnings += "Skipped folder link ${e.name}"
+            t.filesDone++
+            return
+        }
         if (e.isDir && !e.isLink) {
             if (!dst.exists(target)) dst.mkdir(target)
             t.filesDone++
             for (c in src.list(e.path)) copyTree(src, c, dst, Paths.join(target, c.name), t)
             dst.setModified(target, e.modified)
         } else {
-            copyFile(src, e, dst, target, t)
+            try {
+                copyFile(src, e, dst, target, t)
+            } catch (ex: java.io.FileNotFoundException) {
+                if (!e.isLink) throw ex
+                t.warnings += "Skipped broken link ${e.name}"
+            }
             t.filesDone++
         }
     }
@@ -188,9 +205,10 @@ object Ops {
         t.detail = e.name
         val buf = ByteArray(1024 * 1024)
         var ok = false
+        var created = false
         try {
             src.openRead(e.path).use { input ->
-                dst.openWrite(target).use { out ->
+                dst.openWrite(target).also { created = true }.use { out ->
                     var lastUi = 0L
                     var pending = 0L
                     while (true) {
@@ -208,8 +226,8 @@ object Ops {
             dst.setModified(target, e.modified)
             ok = true
         } finally {
-            // Don't leave half-copied files behind on failure or cancel.
-            if (!ok) try { dst.delete(target, false) } catch (_: Exception) {}
+            // Don't leave half-copied files behind on failure or cancel (only ones this copy created).
+            if (!ok && created) try { dst.delete(target, false) } catch (_: Exception) {}
         }
     }
 
@@ -258,6 +276,7 @@ object Ops {
     private suspend fun addToZip(zip: ZipOutputStream, vfs: Vfs, e: FileEntry, name: String, t: OpTask) {
         coroutineContext.ensureActive()
         t.detail = e.name
+        if (e.isLink && e.isDir) { t.warnings += "Skipped folder link ${e.name}"; t.filesDone++; return }
         if (e.isDir && !e.isLink) {
             zip.putNextEntry(ZipEntry("$name/").apply { time = e.modified })
             zip.closeEntry()
@@ -265,9 +284,13 @@ object Ops {
             for (c in vfs.list(e.path)) addToZip(zip, vfs, c, "$name/${c.name}", t)
             return
         }
+        val input0 = try { vfs.openRead(e.path) } catch (ex: java.io.FileNotFoundException) {
+            if (!e.isLink) throw ex
+            t.warnings += "Skipped broken link ${e.name}"; t.filesDone++; return
+        }
         zip.putNextEntry(ZipEntry(name).apply { time = e.modified })
         val buf = ByteArray(256 * 1024)
-        vfs.openRead(e.path).use { input ->
+        input0.use { input ->
             while (true) {
                 coroutineContext.ensureActive()
                 val n = input.read(buf)

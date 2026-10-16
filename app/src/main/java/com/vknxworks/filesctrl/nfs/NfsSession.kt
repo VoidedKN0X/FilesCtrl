@@ -56,6 +56,14 @@ class NfsSession(val server: NfsServer) {
         }
     }
 
+    /** Runs [block] only if a connection is open (used to release handles; never reconnects). */
+    fun callIfConnected(block: (Long) -> Unit) {
+        lock.withLock {
+            if (ctx == 0L) return
+            try { block(ctx) } catch (_: Exception) {}
+        }
+    }
+
     fun disconnect() = lock.withLock {
         if (ctx != 0L) {
             NfsNative.destroy(ctx)

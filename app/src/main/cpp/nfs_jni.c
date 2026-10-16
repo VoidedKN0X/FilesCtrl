@@ -14,6 +14,7 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <stdint.h>
+#include <stdio.h>
 #include <sys/stat.h>
 #include <sys/statvfs.h>
 #include <sys/time.h>
@@ -56,6 +57,47 @@ static void put_stat64(JNIEnv *env, jlongArray out, const struct nfs_stat_64 *st
 static const char *jstr(JNIEnv *env, jstring s) { return s ? (*env)->GetStringUTFChars(env, s, NULL) : NULL; }
 static void jstr_rel(JNIEnv *env, jstring s, const char *c) { if (s && c) (*env)->ReleaseStringUTFChars(env, s, c); }
 
+/*
+ * NewStringUTF needs valid UTF-8: with CheckJNI on it aborts the process on bad bytes (e.g. Latin-1 names on
+ * old shares), and without it returns a garbled string. Check first.
+ */
+static int valid_utf8(const unsigned char *p) {
+    while (*p) {
+        int n;
+        if (*p < 0x80) n = 0;
+        else if ((*p & 0xE0) == 0xC0 && *p >= 0xC2) n = 1;
+        else if ((*p & 0xF0) == 0xE0) n = 2;
+        else if ((*p & 0xF8) == 0xF0 && *p <= 0xF4) n = 3;
+        else return 0;
+        p++;
+        while (n--) { if ((*p & 0xC0) != 0x80) return 0; p++; }
+    }
+    return 1;
+}
+
+static jstring safe_string(JNIEnv *env, const char *s) {
+    if (!s) return NULL;
+    if (valid_utf8((const unsigned char *)s)) return (*env)->NewStringUTF(env, s);
+    /* Replace invalid bytes with '?' so the name is at least readable. */
+    size_t len = strlen(s);
+    char *copy = malloc(len + 1);
+    if (!copy) return NULL;
+    const unsigned char *p = (const unsigned char *)s;
+    size_t o = 0;
+    while (*p) {
+        if (*p < 0x80) { copy[o++] = (char)*p++; continue; }
+        int n = (*p & 0xE0) == 0xC0 && *p >= 0xC2 ? 1 : (*p & 0xF0) == 0xE0 ? 2 : ((*p & 0xF8) == 0xF0 && *p <= 0xF4) ? 3 : -1;
+        int ok = n > 0;
+        for (int i = 1; ok && i <= n; i++) if ((p[i] & 0xC0) != 0x80) ok = 0;
+        if (ok) { for (int i = 0; i <= n; i++) copy[o++] = (char)p[i]; p += n + 1; }
+        else { copy[o++] = '?'; p++; }
+    }
+    copy[o] = 0;
+    jstring r = (*env)->NewStringUTF(env, copy);
+    free(copy);
+    return r;
+}
+
 #define FN(name) Java_com_vknxworks_filesctrl_nfs_NfsNative_##name
 
 JNIEXPORT jlong JNICALL FN(create)(JNIEnv *env, jobject thiz) {
@@ -76,7 +118,7 @@ JNIEXPORT void JNICALL FN(destroy)(JNIEnv *env, jobject thiz, jlong h) {
 JNIEXPORT jstring JNICALL FN(error)(JNIEnv *env, jobject thiz, jlong h) {
     ctx_t *c = CTX(h);
     const char *e = (c && c->nfs) ? nfs_get_error(c->nfs) : NULL;
-    return e ? (*env)->NewStringUTF(env, e) : NULL;
+    return safe_string(env, e);
 }
 
 JNIEXPORT jint JNICALL FN(lastError)(JNIEnv *env, jobject thiz, jlong h) { return CTX(h)->last; }
@@ -155,11 +197,13 @@ JNIEXPORT jobjectArray JNICALL FN(list)(JNIEnv *env, jobject thiz, jlong h, jstr
     int i = 0;
     while ((e = nfs_readdir(c->nfs, dir)) != NULL && i < n) {
         if (!strcmp(e->name, ".") || !strcmp(e->name, "..")) continue;
-        jstring s = (*env)->NewStringUTF(env, e->name);
-        if ((*env)->ExceptionCheck(env)) {
-            /* Not valid modified UTF-8 (e.g. Latin-1 name); show a replacement instead of crashing. */
-            (*env)->ExceptionClear(env);
-            s = (*env)->NewStringUTF(env, "?");
+        /* A name that isn't UTF-8 can't be opened again by path; mark it but keep it unique. */
+        jstring s;
+        if (valid_utf8((const unsigned char *)e->name)) s = (*env)->NewStringUTF(env, e->name);
+        else {
+            char tmp[64];
+            snprintf(tmp, sizeof tmp, "?unreadable-name-%llu", (unsigned long long)e->inode);
+            s = (*env)->NewStringUTF(env, tmp);
         }
         (*env)->SetObjectArrayElement(env, names, i, s);
         (*env)->DeleteLocalRef(env, s);
@@ -311,7 +355,7 @@ JNIEXPORT jstring JNICALL FN(readlink)(JNIEnv *env, jobject thiz, jlong h, jstri
     int rc = nfs_readlink(CTX(h)->nfs, p, buf, sizeof buf - 1);
     jstr_rel(env, jpath, p);
     if (rc < 0) { CTX(h)->last = rc; return NULL; }
-    return (*env)->NewStringUTF(env, buf);
+    return safe_string(env, buf);
 }
 
 JNIEXPORT jint JNICALL FN(chmod)(JNIEnv *env, jobject thiz, jlong h, jstring jpath, jint mode) {
@@ -360,7 +404,7 @@ JNIEXPORT jlong JNICALL FN(readMax)(JNIEnv *env, jobject thiz, jlong h) {
 JNIEXPORT jobjectArray JNICALL FN(exports)(JNIEnv *env, jobject thiz, jstring jserver, jint mountPort, jint timeoutSec) {
     const char *s = jstr(env, jserver);
     struct exportnode *list = mountPort > 0 ? mount_getexports_mountport(s, mountPort)
-                                            : mount_getexports_timeout(s, timeoutSec > 0 ? timeoutSec : 5);
+                                            : mount_getexports_timeout(s, (timeoutSec > 0 ? timeoutSec : 5) * 1000); /* ms */
     jstr_rel(env, jserver, s);
     if (!list) return NULL;
     int n = 0;
@@ -369,7 +413,7 @@ JNIEXPORT jobjectArray JNICALL FN(exports)(JNIEnv *env, jobject thiz, jstring js
     jobjectArray arr = (*env)->NewObjectArray(env, n, strCls, NULL);
     int i = 0;
     for (struct exportnode *e = list; e; e = e->ex_next) {
-        jstring js = (*env)->NewStringUTF(env, e->ex_dir ? e->ex_dir : "");
+        jstring js = safe_string(env, e->ex_dir ? e->ex_dir : "");
         (*env)->SetObjectArrayElement(env, arr, i++, js);
         (*env)->DeleteLocalRef(env, js);
     }
