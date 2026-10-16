@@ -65,7 +65,7 @@ fun SettingsScreen(onBack: () -> Unit) {
             Toggle("Grid view", null, s.gridView) { s.gridView = it }
             Toggle("Confirm before deleting", null, s.confirmDelete) { s.confirmDelete = it }
             Toggle(
-                "Thumbnails on NFS shares",
+                "Thumbnails on network locations",
                 "Load image previews over the network (images up to 25 MB)",
                 s.nfsThumbnails,
             ) { s.nfsThumbnails = it }
@@ -73,7 +73,7 @@ fun SettingsScreen(onBack: () -> Unit) {
             Header("About")
             ListItem(
                 headlineContent = { Text("FilesCtrl ${BuildConfig.VERSION_NAME}") },
-                supportingContent = { Text("Build ${BuildConfig.VERSION_CODE} · NFS by libnfs 8.0") },
+                supportingContent = { Text("Build ${BuildConfig.VERSION_CODE} · NFS, SMB, SFTP, FTP(S), WebDAV") },
             )
             ListItem(
                 headlineContent = { Text("Source code") },
@@ -83,10 +83,10 @@ fun SettingsScreen(onBack: () -> Unit) {
                 },
             )
             ListItem(
-                headlineContent = { Text("NFS shares in other apps") },
+                headlineContent = { Text("Network locations in other apps") },
                 supportingContent = {
                     Text(
-                        "Your saved shares also appear in Android's file picker (\"Browse\" in any app that opens files), " +
+                        "Your saved servers also appear in Android's file picker (\"Browse\" in any app that opens files), " +
                             "and files opened from FilesCtrl stream straight from the server.",
                     )
                 },

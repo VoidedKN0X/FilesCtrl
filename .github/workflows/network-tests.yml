@@ -1,0 +1,72 @@
+name: Network tests
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - "**.md"
+  workflow_dispatch:
+
+jobs:
+  protocols:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Start test servers
+        run: |
+          docker run -d --name smb -p 445:445 dperson/samba -p -u "test;test" -s "share;/share;yes;no;no;test"
+          docker run -d --name sftp -p 2222:22 atmoz/sftp test:test:::upload
+          docker run -d --name ftp -p 21:21 -p 21000-21010:21000-21010 -e USERS="test|test" -e ADDRESS=127.0.0.1 delfer/alpine-ftp-server
+          docker run -d --name webdav -p 8080:80 -e AUTH_TYPE=Basic -e USERNAME=test -e PASSWORD=test bytemark/webdav
+          for p in 445 2222 21 8080; do
+            for i in $(seq 1 30); do nc -z 127.0.0.1 $p && break; sleep 1; done
+          done
+          sleep 3
+          docker ps
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Run protocol tests
+        env:
+          TEST_NET: "1"
+        run: |
+          chmod +x gradlew
+          ./gradlew --no-daemon :app:testDebugUnitTest --tests '*NetVfsTest*' -i 2>&1 | tee test.log | grep -E "\[(SMB|SFTP|FTP|WEBDAV)\]|SMB shares|PASSED|FAILED|SKIPPED|BUILD" || true
+
+      - name: Report results
+        if: always()
+        run: |
+          shopt -s nullglob
+          files=(app/build/test-results/testDebugUnitTest/*.xml)
+          if [ ${#files[@]} -eq 0 ]; then
+            msg=$(grep -E "^e: |What went wrong|error:" test.log | head -30 | sed 's/%/%25/g' | awk '{printf "%s%%0A", $0}')
+            echo "::error title=Tests didn't run::$msg"
+            exit 1
+          fi
+          python3 - "${files[@]}" <<'EOF'
+          import sys, xml.etree.ElementTree as ET
+          bad = 0
+          for f in sys.argv[1:]:
+              for tc in ET.parse(f).getroot().iter("testcase"):
+                  name = tc.get("name")
+                  fail = tc.find("failure") if tc.find("failure") is not None else tc.find("error")
+                  if tc.find("skipped") is not None:
+                      print(f"::warning title=Skipped::{name}")
+                  elif fail is not None:
+                      bad += 1
+                      msg = (fail.get("message") or fail.text or "")[:600].replace("%", "%25").replace("\n", "%0A")
+                      print(f"::error title=Failed {name}::{msg}")
+                  else:
+                      print(f"::notice title=Passed::{name}")
+          sys.exit(1 if bad else 0)
+          EOF
+
+      - name: Server logs
+        if: failure()
+        run: for c in smb sftp ftp webdav; do echo "== $c"; docker logs --tail 40 $c 2>&1; done

@@ -50,12 +50,11 @@ import androidx.core.content.FileProvider
 import androidx.navigation.NavHostController
 import coil3.compose.AsyncImage
 import com.vknxworks.filesctrl.App
-import com.vknxworks.filesctrl.data.NfsServer
 import com.vknxworks.filesctrl.fs.FileEntry
 import com.vknxworks.filesctrl.fs.LocalVfs
 import com.vknxworks.filesctrl.fs.Mime
-import com.vknxworks.filesctrl.fs.NfsVfs
-import com.vknxworks.filesctrl.provider.NfsDocumentsProvider
+import com.vknxworks.filesctrl.fs.RemoteVfs
+import com.vknxworks.filesctrl.provider.NetDocumentsProvider
 import java.io.File
 
 val LocalNav = staticCompositionLocalOf<NavHostController> { error("No nav controller") }
@@ -134,7 +133,7 @@ fun hasThumbnail(e: FileEntry): Boolean {
     return App.settings.nfsThumbnails && k == Mime.Kind.Image && e.size in 1..25L * 1024 * 1024
 }
 
-fun thumbnailModel(e: FileEntry): Any = if (e.vfsId == LocalVfs.ID) File(e.path) else NfsDocumentsProvider.uriFor(e)
+fun thumbnailModel(e: FileEntry): Any = if (e.vfsId == LocalVfs.ID) File(e.path) else NetDocumentsProvider.uriFor(e)
 
 /** A file's type icon on a tinted tile, or its thumbnail. */
 @Composable
@@ -177,7 +176,7 @@ fun FileIcon(e: FileEntry, size: Dp, modifier: Modifier = Modifier, selected: Bo
 /** A content:// URI other apps can read (and write) the file through. */
 fun contentUri(ctx: Context, e: FileEntry): Uri =
     if (e.vfsId == LocalVfs.ID) FileProvider.getUriForFile(ctx, "${ctx.packageName}.fileprovider", File(e.path))
-    else NfsDocumentsProvider.uriFor(e)
+    else NetDocumentsProvider.uriFor(e)
 
 fun openFile(ctx: Context, e: FileEntry, chooser: Boolean = false, mimeOverride: String? = null) {
     val intent = Intent(Intent.ACTION_VIEW)
@@ -205,12 +204,11 @@ fun shareFiles(ctx: Context, items: List<FileEntry>) {
     ctx.startActivity(Intent.createChooser(intent, "Share").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
 }
 
-/** Local path, or nfs://host/export/path for shares. */
+/** Local path, or a URL like smb://nas/media/file for network locations. */
 fun displayPath(e: FileEntry): String {
     if (e.vfsId == LocalVfs.ID) return e.path
-    val s: NfsServer = App.servers.get(e.vfsId.removePrefix(NfsVfs.PREFIX)) ?: return e.path
-    val export = s.export.trimEnd('/')
-    return "nfs://${s.host}$export${e.path}"
+    val s = App.servers.get(e.vfsId.removePrefix(RemoteVfs.PREFIX)) ?: return e.path
+    return s.url(e.path)
 }
 
 fun copyText(ctx: Context, label: String, text: String) {

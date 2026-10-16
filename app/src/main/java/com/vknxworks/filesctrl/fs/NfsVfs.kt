@@ -1,7 +1,7 @@
 package com.vknxworks.filesctrl.fs
 
 import android.system.OsConstants
-import com.vknxworks.filesctrl.data.NfsServer
+import com.vknxworks.filesctrl.data.NetServer
 import com.vknxworks.filesctrl.nfs.NfsException
 import com.vknxworks.filesctrl.nfs.NfsNative
 import com.vknxworks.filesctrl.nfs.NfsSession
@@ -10,14 +10,12 @@ import java.io.InputStream
 import java.io.OutputStream
 
 /** A saved NFS share. Paths are absolute inside the export ("/" is the export itself). */
-class NfsVfs(val server: NfsServer) : Vfs {
+class NfsVfs(override val server: NetServer) : RemoteVfs {
     val session = NfsSession(server)
-    override val id = idFor(server.id)
+    override val id = RemoteVfs.idFor(server.id)
     override val title: String get() = server.title
-    override val isRemote = true
     override val canChmod = true
-
-    override fun rootOf(path: String) = "/" to server.title
+    override val connected: Boolean get() = session.isConnected
 
     private fun fromStat(path: String, name: String, st: LongArray, at: Int = 0, linkType: Boolean = false): FileEntry {
         // Some servers put extra bits above the file type; keep type + permissions only.
@@ -114,7 +112,7 @@ class NfsVfs(val server: NfsServer) : Vfs {
         session.ok(h, NfsNative.symlink(h, target, link), "Creating link", Paths.name(link)); Unit
     }
 
-    fun readlink(path: String): String? = session.callRetry { h -> NfsNative.readlink(h, path) }
+    override fun readlink(path: String): String? = session.callRetry { h -> NfsNative.readlink(h, path) }
 
     override fun space(path: String): Space? = try {
         session.callRetry { h ->
@@ -124,12 +122,10 @@ class NfsVfs(val server: NfsServer) : Vfs {
         }
     } catch (_: IOException) { null }
 
-    fun close() = session.close()
+    override fun close() = session.close()
 
-    companion object {
-        const val PREFIX = "nfs:"
-        fun idFor(serverId: String) = PREFIX + serverId
-    }
+    override fun openRandom(path: String, write: Boolean, truncate: Boolean): RandomFile =
+        NfsRandomFile(session, path, write, truncate)
 }
 
 private const val CHUNK = 1024 * 1024
@@ -258,6 +254,79 @@ class NfsOutputStream(private val session: NfsSession, private val path: String)
                     if (gen != session.generation) throw IOException("Connection lost while saving ${Paths.name(path)}")
                     session.ok(h, NfsNative.close(h, f), "Saving", Paths.name(path))
                 }
+            }
+        }
+    }
+}
+
+/** Random access over one NFS file handle; reopens it if the connection was re-established. */
+class NfsRandomFile(
+    private val session: NfsSession,
+    private val path: String,
+    private val write: Boolean,
+    truncate: Boolean,
+) : RandomFile {
+    private var fh = 0L
+    private var gen = 0
+    private var length = 0L
+
+    init {
+        val flags = when {
+            !write -> NfsNative.O_READ
+            truncate -> NfsNative.O_RDWR or NfsNative.O_CREATE or NfsNative.O_TRUNC
+            else -> NfsNative.O_RDWR or NfsNative.O_CREATE
+        }
+        session.callRetry { h ->
+            fh = NfsNative.open(h, path, flags, 0b110_100_100)
+            if (fh == 0L) session.fail(h, "Opening", Paths.name(path))
+            gen = session.generation
+            val st = LongArray(NfsNative.STAT_FIELDS)
+            if (NfsNative.fstat(h, fh, st) == 0) length = st[NfsNative.ST_SIZE]
+        }
+    }
+
+    private fun handle(h: Long): Long {
+        if (gen != session.generation) {
+            fh = NfsNative.open(h, path, if (write) NfsNative.O_RDWR else NfsNative.O_READ, 0)
+            if (fh == 0L) session.fail(h, "Opening", Paths.name(path))
+            gen = session.generation
+        }
+        return fh
+    }
+
+    override fun size() = length
+
+    override fun read(offset: Long, buf: ByteArray, len: Int): Int = session.callRetry { h ->
+        val f = handle(h)
+        var done = 0
+        while (done < len) {
+            val n = NfsNative.pread(h, f, offset + done, buf, done, len - done)
+            if (n < 0) session.ok(h, n, "Reading", Paths.name(path))
+            if (n <= 0) break
+            done += n
+        }
+        done
+    }
+
+    override fun write(offset: Long, buf: ByteArray, len: Int) {
+        session.callRetry { h ->
+            session.ok(h, NfsNative.pwrite(h, handle(h), offset, buf, 0, len), "Writing", Paths.name(path))
+        }
+        if (offset + len > length) length = offset + len
+    }
+
+    override fun sync() {
+        session.call { h ->
+            if (gen != session.generation) throw IOException("Connection lost while saving ${Paths.name(path)}")
+            session.ok(h, NfsNative.fsync(h, fh), "Saving", Paths.name(path))
+        }
+    }
+
+    override fun close() {
+        session.callIfConnected { h ->
+            if (gen == session.generation) {
+                if (write) NfsNative.fsync(h, fh)
+                NfsNative.close(h, fh)
             }
         }
     }

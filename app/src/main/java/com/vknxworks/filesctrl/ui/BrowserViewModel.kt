@@ -12,7 +12,7 @@ import com.vknxworks.filesctrl.fs.FileEntry
 import com.vknxworks.filesctrl.fs.LocalVfs
 import com.vknxworks.filesctrl.fs.Location
 import com.vknxworks.filesctrl.fs.Mime
-import com.vknxworks.filesctrl.fs.NfsVfs
+import com.vknxworks.filesctrl.fs.RemoteVfs
 import com.vknxworks.filesctrl.fs.Paths
 import com.vknxworks.filesctrl.ops.Ops
 import kotlinx.coroutines.Dispatchers
@@ -85,8 +85,8 @@ class BrowserViewModel : ViewModel() {
     val vfsTitle: String get() = App.vfs.find(location.vfsId)?.title ?: ""
     val isLocal: Boolean get() = location.vfsId == LocalVfs.ID
     val readOnly: Boolean
-        get() = location.vfsId.startsWith(NfsVfs.PREFIX) &&
-            App.servers.get(location.vfsId.removePrefix(NfsVfs.PREFIX))?.readOnly == true
+        get() = location.vfsId.startsWith(RemoteVfs.PREFIX) &&
+            App.servers.get(location.vfsId.removePrefix(RemoteVfs.PREFIX))?.readOnly == true
 
     /** Breadcrumb trail: (label, location) from the volume/share root to here. */
     fun crumbs(): List<Pair<String, Location>> {
@@ -170,7 +170,7 @@ class BrowserViewModel : ViewModel() {
                     val names = list.mapTo(HashSet()) { it.path }
                     selection.retainAll { it in names }
                 }
-                if (loc.vfsId.startsWith(NfsVfs.PREFIX)) {
+                if (loc.vfsId.startsWith(RemoteVfs.PREFIX)) {
                     val sp = withContext(Dispatchers.IO) { try { App.vfs.get(loc.vfsId).space(loc.path) } catch (_: Exception) { null } }
                     if (loc.vfsId == location.vfsId) { space = sp; spaceFor = loc.vfsId }
                 }

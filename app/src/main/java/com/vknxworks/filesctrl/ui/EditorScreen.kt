@@ -64,7 +64,7 @@ fun EditorScreen(loc: Location, onBack: () -> Unit) {
     var wrap by remember { mutableStateOf(true) }
     var askDiscard by remember { mutableStateOf(false) }
     val name = Paths.name(loc.path)
-    val readOnly = App.servers.get(loc.vfsId.removePrefix("nfs:"))?.readOnly == true
+    val readOnly = App.servers.get(loc.vfsId.removePrefix(com.vknxworks.filesctrl.fs.RemoteVfs.PREFIX))?.readOnly == true
 
     LaunchedEffect(loc) {
         try {
