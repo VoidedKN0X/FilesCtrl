@@ -107,7 +107,7 @@ fun DeleteDialog(items: List<FileEntry>, remote: Boolean, onDismiss: () -> Unit,
         title = { Text("Delete $what?") },
         text = {
             Text(
-                if (remote) "This deletes from the NFS share. There is no recycle bin." else "This can't be undone.",
+                if (remote) "This deletes from the server. There is no recycle bin." else "This can't be undone.",
             )
         },
         confirmButton = {
@@ -187,7 +187,7 @@ fun PropertiesDialog(entry: FileEntry, onDismiss: () -> Unit, onChanged: () -> U
             if (e.isDir) vfs?.space(e.path)?.let { s ->
                 space = "${Fmt.size(ctx, s.free)} free of ${Fmt.size(ctx, s.total)}"
             }
-            if (e.isLink && vfs is com.vknxworks.filesctrl.fs.NfsVfs) linkTarget = try { vfs.readlink(e.path) } catch (_: Exception) { null }
+            if (e.isLink && vfs is com.vknxworks.filesctrl.fs.RemoteVfs) linkTarget = try { vfs.readlink(e.path) } catch (_: Exception) { null }
             if (e.isLink && vfs is com.vknxworks.filesctrl.fs.LocalVfs) linkTarget = try { android.system.Os.readlink(e.path) } catch (_: Exception) { null }
         }
     }

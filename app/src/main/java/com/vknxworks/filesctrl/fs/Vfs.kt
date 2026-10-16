@@ -12,7 +12,10 @@ data class Location(val vfsId: String, val path: String) {
     companion object {
         fun fromKey(key: String): Location? {
             val i = key.indexOf('|')
-            return if (i <= 0) null else Location(key.substring(0, i), key.substring(i + 1))
+            if (i <= 0) return null
+            // Saved by older versions, when only NFS existed.
+            val vfs = key.substring(0, i).let { if (it.startsWith("nfs:")) "net:" + it.removePrefix("nfs:") else it }
+            return Location(vfs, key.substring(i + 1))
         }
     }
 }

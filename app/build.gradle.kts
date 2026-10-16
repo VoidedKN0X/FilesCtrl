@@ -71,6 +71,13 @@ android {
     packaging {
         jniLibs { useLegacyPackaging = false }
     }
+    testOptions {
+        // The protocol tests run on the JVM against real servers; Android calls just return defaults there.
+        unitTests.isReturnDefaultValues = true
+    }
+    packaging {
+        resources { excludes += listOf("META-INF/versions/9/OSGI-INF/MANIFEST.MF", "META-INF/DEPENDENCIES", "META-INF/LICENSE*", "META-INF/NOTICE*", "META-INF/INDEX.LIST") }
+    }
     lint {
         checkReleaseBuilds = false
         abortOnError = false
@@ -91,6 +98,18 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-service:2.8.7")
     implementation("androidx.navigation:navigation-compose:2.8.9")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.2")
+
+    // Network file systems (NFS is native, via libnfs).
+    implementation("com.hierynomus:smbj:0.13.0")
+    implementation("com.rapid7.client:dcerpc:0.12.13") // SMB share listing
+    implementation("com.hierynomus:sshj:0.38.0")
+    implementation("commons-net:commons-net:3.11.1")
+    implementation("com.squareup.okhttp3:okhttp:4.12.0")
+    implementation("org.bouncycastle:bcprov-jdk18on:1.78.1")
+    implementation("org.bouncycastle:bcpkix-jdk18on:1.78.1")
+
+    testImplementation("junit:junit:4.13.2")
+    testImplementation("org.slf4j:slf4j-simple:2.0.13")
 
     val coil = "3.1.0"
     implementation("io.coil-kt.coil3:coil-compose:$coil")

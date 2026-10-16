@@ -51,9 +51,9 @@
                 android:resource="@xml/file_paths" />
         </provider>
 
-        <!-- NFS shares, for other apps and Android's file picker. -->
+        <!-- Network locations, for other apps and Android's file picker. -->
         <provider
-            android:name=".provider.NfsDocumentsProvider"
+            android:name=".provider.NetDocumentsProvider"
             android:authorities="com.vknxworks.filesctrl.documents"
             android:exported="true"
             android:grantUriPermissions="true"

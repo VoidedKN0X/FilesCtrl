@@ -137,7 +137,7 @@ import com.vknxworks.filesctrl.data.SortBy
 import com.vknxworks.filesctrl.fs.FileEntry
 import com.vknxworks.filesctrl.fs.Location
 import com.vknxworks.filesctrl.fs.Mime
-import com.vknxworks.filesctrl.fs.NfsVfs
+import com.vknxworks.filesctrl.fs.RemoteVfs
 import com.vknxworks.filesctrl.fs.Paths
 import com.vknxworks.filesctrl.ops.Conflict
 import com.vknxworks.filesctrl.ops.Ops
@@ -310,7 +310,7 @@ fun BrowserScreen(vm: BrowserViewModel, showMenuButton: Boolean, openDrawer: () 
                 if (err != null) dlg = Dlg.Error("Couldn't rename", err) else vm.load(quiet = true)
             }
         }
-        is Dlg.Delete -> DeleteDialog(d.items, remote = d.items.firstOrNull()?.vfsId?.startsWith(NfsVfs.PREFIX) == true, onDismiss = { dlg = null }) {
+        is Dlg.Delete -> DeleteDialog(d.items, remote = d.items.firstOrNull()?.vfsId?.startsWith(RemoteVfs.PREFIX) == true, onDismiss = { dlg = null }) {
             dlg = null
             vm.selection.clear()
             Ops.delete(d.items)
@@ -493,7 +493,7 @@ private fun subtitle(vm: BrowserViewModel): String {
     if (vm.isLocal) return vm.vfsTitle
     val sp = vm.space
     if (sp != null && sp.total > 0) return "${Fmt.size(ctx, sp.total - sp.free)} of ${Fmt.size(ctx, sp.total)} used"
-    return App.servers.get(vm.location.vfsId.removePrefix(NfsVfs.PREFIX))?.host ?: vm.vfsTitle
+    return App.servers.get(vm.location.vfsId.removePrefix(RemoteVfs.PREFIX))?.host ?: vm.vfsTitle
 }
 
 @Composable
@@ -874,8 +874,8 @@ private fun ErrorState(message: String, vm: BrowserViewModel, nav: androidx.navi
     CenteredMessage(Icons.Outlined.CloudOff, "Couldn't open this folder", message) {
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             FilledTonalButton(onClick = { vm.load() }) { Text("Retry") }
-            if (vm.location.vfsId.startsWith(NfsVfs.PREFIX)) {
-                OutlinedButton(onClick = { nav.navigate("server/" + vm.location.vfsId.removePrefix(NfsVfs.PREFIX)) }) { Text("Edit server") }
+            if (vm.location.vfsId.startsWith(RemoteVfs.PREFIX)) {
+                OutlinedButton(onClick = { nav.navigate("server/" + vm.location.vfsId.removePrefix(RemoteVfs.PREFIX)) }) { Text("Edit server") }
             }
         }
     }

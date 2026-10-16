@@ -15,11 +15,14 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.Bookmark
 import androidx.compose.material.icons.outlined.Close
+import androidx.compose.material.icons.outlined.Cloud
 import androidx.compose.material.icons.outlined.Dns
+import androidx.compose.material.icons.outlined.Lan
+import androidx.compose.material.icons.outlined.SwapVert
+import androidx.compose.material.icons.outlined.Terminal
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.PhoneAndroid
-import androidx.compose.material.icons.outlined.Radar
 import androidx.compose.material.icons.outlined.SdCard
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.Sync
@@ -49,7 +52,7 @@ import androidx.compose.ui.unit.dp
 import com.vknxworks.filesctrl.App
 import com.vknxworks.filesctrl.fs.LocalVfs
 import com.vknxworks.filesctrl.fs.Location
-import com.vknxworks.filesctrl.fs.NfsVfs
+import com.vknxworks.filesctrl.fs.RemoteVfs
 import com.vknxworks.filesctrl.fs.Paths
 import com.vknxworks.filesctrl.fs.Space
 import com.vknxworks.filesctrl.ops.Ops
@@ -61,7 +64,6 @@ fun DrawerContent(
     current: Location,
     onOpen: (Location) -> Unit,
     onAddServer: () -> Unit,
-    onDiscover: () -> Unit,
     onEditServer: (String) -> Unit,
     onSettings: () -> Unit,
     onTasks: () -> Unit,
@@ -92,18 +94,18 @@ fun DrawerContent(
             )
         }
 
-        Section("NFS shares")
+        Section("Network")
         for (s in App.servers.all) {
-            val id = NfsVfs.idFor(s.id)
+            val id = RemoteVfs.idFor(s.id)
             // Storage use for shares that are connected; just the address otherwise (no connecting from the menu).
             var space by remember(s) { mutableStateOf<Space?>(null) }
             LaunchedEffect(s, current) {
-                val v = App.vfs.openNfs(s.id)
+                val v = App.vfs.connected(s.id)
                 if (v != null) space = withContext(Dispatchers.IO) { v.space("/") }
             }
             val sp = space?.takeIf { it.total > 0 }
             DrawerEntry(
-                icon = Icons.Outlined.Dns,
+                icon = protoIcon(s.type),
                 label = s.title,
                 sub = sp?.let { "${Fmt.size(ctx, it.total - it.free)} of ${Fmt.size(ctx, it.total)} used" } ?: s.host,
                 progress = sp?.let { 1f - it.free.toFloat() / it.total },
@@ -114,8 +116,7 @@ fun DrawerContent(
                 },
             )
         }
-        DrawerEntry(Icons.Outlined.Radar, "Find shares on network", selected = false, onClick = onDiscover)
-        DrawerEntry(Icons.Outlined.Add, "Add NFS share", selected = false, onClick = onAddServer)
+        DrawerEntry(Icons.Outlined.Add, "Add network", selected = false, onClick = onAddServer)
 
         if (App.bookmarks.all.isNotEmpty()) {
             Section("Bookmarks")
@@ -187,4 +188,13 @@ private fun DrawerEntry(
         onClick = onClick,
         modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding).height(if (sub != null || progress != null) 64.dp else 52.dp),
     )
+}
+
+/** Icon for a kind of network location. */
+fun protoIcon(p: com.vknxworks.filesctrl.data.Proto): androidx.compose.ui.graphics.vector.ImageVector = when (p) {
+    com.vknxworks.filesctrl.data.Proto.NFS -> Icons.Outlined.Dns
+    com.vknxworks.filesctrl.data.Proto.SMB -> Icons.Outlined.Lan
+    com.vknxworks.filesctrl.data.Proto.SFTP -> Icons.Outlined.Terminal
+    com.vknxworks.filesctrl.data.Proto.FTP -> Icons.Outlined.SwapVert
+    com.vknxworks.filesctrl.data.Proto.WEBDAV -> Icons.Outlined.Cloud
 }

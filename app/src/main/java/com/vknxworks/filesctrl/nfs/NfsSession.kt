@@ -2,7 +2,7 @@ package com.vknxworks.filesctrl.nfs
 
 import android.system.Os
 import android.system.OsConstants
-import com.vknxworks.filesctrl.data.NfsServer
+import com.vknxworks.filesctrl.data.NetServer
 import java.io.FileNotFoundException
 import java.io.IOException
 import java.util.concurrent.locks.ReentrantLock
@@ -15,7 +15,7 @@ class NfsException(val errno: Int, message: String) : IOException(message)
  * One connection (libnfs context) to a saved server. Connects lazily, serialises every call with a lock
  * (libnfs contexts aren't thread safe) and reconnects after connection-level failures.
  */
-class NfsSession(val server: NfsServer) {
+class NfsSession(val server: NetServer) {
     private val lock = ReentrantLock()
     private var ctx = 0L
     @Volatile private var closed = false

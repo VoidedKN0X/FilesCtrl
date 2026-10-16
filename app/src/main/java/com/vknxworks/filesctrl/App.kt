@@ -11,10 +11,10 @@ import coil3.video.VideoFrameDecoder
 import com.vknxworks.filesctrl.data.Bookmarks
 import com.vknxworks.filesctrl.data.ServerStore
 import com.vknxworks.filesctrl.data.Settings
-import com.vknxworks.filesctrl.fs.NfsVfs
+import com.vknxworks.filesctrl.fs.RemoteVfs
 import com.vknxworks.filesctrl.fs.VfsRegistry
 import com.vknxworks.filesctrl.ops.Ops
-import com.vknxworks.filesctrl.provider.NfsDocumentsProvider
+import com.vknxworks.filesctrl.provider.NetDocumentsProvider
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -39,14 +39,19 @@ object App {
     fun init(ctx: Context) {
         if (::context.isInitialized) return
         context = ctx.applicationContext
+        // SFTP needs the full BouncyCastle provider; Android ships a cut-down one under the same name.
+        try {
+            java.security.Security.removeProvider("BC")
+            java.security.Security.insertProviderAt(org.bouncycastle.jce.provider.BouncyCastleProvider(), 1)
+        } catch (_: Throwable) {}
         settings = Settings(context)
         servers = ServerStore(context)
         bookmarks = Bookmarks(context)
         vfs = VfsRegistry(context, servers)
         servers.onChange { id ->
-            if (servers.get(id) == null) bookmarks.removeVfs(NfsVfs.idFor(id))
+            if (servers.get(id) == null) bookmarks.removeVfs(RemoteVfs.idFor(id))
             // Let the system file picker see the new list of shares.
-            context.contentResolver.notifyChange(DocumentsContract.buildRootsUri(NfsDocumentsProvider.AUTHORITY), null)
+            context.contentResolver.notifyChange(DocumentsContract.buildRootsUri(NetDocumentsProvider.AUTHORITY), null)
         }
         Ops.init(context)
     }
