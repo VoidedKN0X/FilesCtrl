@@ -158,8 +158,40 @@ object Mime {
         }
     }
 
+    private val textExt = setOf(
+        "txt", "text", "md", "markdown", "rst", "log", "csv", "tsv", "conf", "cfg", "config", "ini", "env", "properties",
+        "prop", "toml", "yaml", "yml", "json", "jsonc", "json5", "ndjson", "xml", "plist", "html", "htm", "css", "scss",
+        "less", "js", "mjs", "cjs", "ts", "tsx", "jsx", "vue", "svelte", "kt", "kts", "java", "gradle", "groovy", "scala",
+        "c", "h", "cc", "cpp", "cxx", "hpp", "cs", "go", "rs", "swift", "dart", "py", "pyw", "rb", "php", "pl", "pm", "lua",
+        "r", "sql", "sh", "bash", "zsh", "fish", "ksh", "ps1", "psm1", "bat", "cmd", "service", "timer", "socket", "mount",
+        "rules", "desktop", "srt", "vtt", "ass", "ssa", "sub", "nfo", "cue", "m3u", "m3u8", "pls", "tex", "bib", "diff",
+        "patch", "gitignore", "gitattributes", "editorconfig", "dockerignore", "lock", "pem", "crt", "key", "pub", "asc",
+        "gpx", "kml", "svg", "ics", "vcf", "reg", "inf", "nix", "tf", "hcl", "proto", "graphql", "cmake", "mk", "gemspec",
+    )
+    private val textNames = setOf(
+        "dockerfile", "makefile", "readme", "license", "changelog", "authors", "hosts", "fstab", "crontab", "exports",
+        "passwd", "group", "shadow", "procfile", "gemfile", "rakefile", "vagrantfile", "jenkinsfile", "caddyfile",
+    )
+
+    /** Text files that usually have a better app (viewer, browser, calendar); tapping them opens that app. */
+    private val viewerFirst = setOf("svg", "html", "htm", "csv", "tsv", "ics", "vcf", "gpx", "kml", "m3u", "m3u8", "pls", "srt", "vtt", "ass", "ssa", "sub", "cue", "pem", "crt", "asc")
+
+    /** Tapping opens the built-in editor (other text files go to their usual app, with "Edit as text" in the menu). */
+    fun opensInEditor(e: FileEntry): Boolean = isTextLike(e) && e.ext !in viewerFirst
+
+    /** Files the built-in editor can open: anything that's usually text, by type, extension or well-known name. */
     fun isTextLike(e: FileEntry): Boolean {
+        if (e.isDir) return false
         val k = kind(e)
-        return k == Kind.Text || k == Kind.Code || e.mime == "application/json" || e.mime == "application/xml"
+        if (k == Kind.Text || k == Kind.Code) return true
+        val m = e.mime
+        if (m.startsWith("text/") || m.endsWith("+xml") || m.endsWith("+json") || m in setOf(
+                "application/json", "application/xml", "application/javascript", "application/x-sh", "application/yaml",
+                "application/x-yaml", "application/toml", "application/sql", "application/x-subrip",
+            )
+        ) return true
+        val lower = e.name.lowercase()
+        // Dotfiles like .bashrc and .env, and extensionless names like Dockerfile.
+        return e.ext in textExt || lower in textNames || (lower.startsWith(".") && !lower.substring(1).contains('.'))
     }
 }

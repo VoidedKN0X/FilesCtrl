@@ -216,7 +216,7 @@ fun BrowserScreen(vm: BrowserViewModel, islandSpace: Dp) {
 
     fun openEntry(e: FileEntry) {
         if (e.isDir) vm.navigate(e.location, currentIndex())
-        else if (Mime.isTextLike(e) && e.size < 4L * 1024 * 1024) nav.navigate(editorRoute(e))
+        else if (Mime.opensInEditor(e) && e.size < MAX_EDIT_BYTES) nav.navigate(editorRoute(e))
         else openFile(ctx, e)
     }
 
@@ -597,7 +597,7 @@ private fun ItemMenu(e: FileEntry, readOnly: Boolean, inSearch: Boolean, expande
         if (inSearch) entry("Show in folder", Icons.Outlined.FolderOpen, ItemAction.OpenLocation)
         if (!e.isDir) {
             entry("Open with", Icons.AutoMirrored.Outlined.OpenInNew, ItemAction.OpenWith)
-            if (e.size < 4L * 1024 * 1024) entry("Edit as text", Icons.Outlined.Edit, ItemAction.EditText)
+            if (e.size < MAX_EDIT_BYTES) entry("Edit as text", Icons.Outlined.Edit, ItemAction.EditText)
             entry("Share", Icons.Outlined.Share, ItemAction.Share)
         }
         entry("Copy", Icons.Outlined.ContentCopy, ItemAction.Copy)
