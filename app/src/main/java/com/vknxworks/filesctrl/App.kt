@@ -31,6 +31,8 @@ object App {
         private set
     lateinit var vfs: VfsRegistry
         private set
+    lateinit var lock: com.vknxworks.filesctrl.data.LockSettings
+        private set
 
     /** For work that outlives a screen (file operations). */
     val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -48,6 +50,7 @@ object App {
         servers = ServerStore(context)
         bookmarks = Bookmarks(context)
         vfs = VfsRegistry(context, servers)
+        lock = com.vknxworks.filesctrl.data.LockSettings(context)
         servers.onChange { id ->
             if (servers.get(id) == null) bookmarks.removeVfs(RemoteVfs.idFor(id))
             // Let the system file picker see the new list of shares.

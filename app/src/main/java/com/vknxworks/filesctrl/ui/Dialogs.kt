@@ -282,61 +282,6 @@ fun ChmodDialog(e: FileEntry, onDismiss: () -> Unit, onConfirm: (Int) -> Unit) {
     )
 }
 
-/** Running and finished file operations. */
-@Composable
-fun TasksSheet(onDismiss: () -> Unit) {
-    val ctx = LocalContext.current
-    ModalBottomSheet(onDismissRequest = onDismiss) {
-        Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp), verticalAlignment = Alignment.CenterVertically) {
-            Text("Operations", style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
-            if (Ops.tasks.any { it.state != TaskState.Running }) TextButton(onClick = { Ops.clearFinished() }) { Text("Clear finished") }
-        }
-        if (Ops.tasks.isEmpty()) {
-            Text(
-                "Nothing running.", Modifier.padding(20.dp),
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-        LazyColumn(Modifier.fillMaxWidth(), contentPadding = androidx.compose.foundation.layout.PaddingValues(bottom = 32.dp)) {
-            items(Ops.tasks, key = { it.id }) { t ->
-                Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 10.dp)) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Column(Modifier.weight(1f)) {
-                            Text(t.title, fontWeight = FontWeight.Medium)
-                            val sub = when (t.state) {
-                                TaskState.Running -> buildString {
-                                    append(t.detail)
-                                    if (t.bytesTotal > 0) append(" · ${Fmt.size(ctx, t.bytesDone)} of ${Fmt.size(ctx, t.bytesTotal)}")
-                                    else if (t.filesTotal > 0) append(" · ${t.filesDone} of ${t.filesTotal}")
-                                }
-                                TaskState.Failed -> t.error ?: "Failed"
-                                else -> t.detail
-                            }
-                            Text(
-                                sub, style = MaterialTheme.typography.bodySmall, maxLines = 3, overflow = TextOverflow.Ellipsis,
-                                color = if (t.state == TaskState.Failed) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        }
-                        if (t.state == TaskState.Running) {
-                            IconButton(onClick = { t.cancel() }) { Icon(Icons.Outlined.Close, "Cancel") }
-                        }
-                    }
-                    if (t.state == TaskState.Running) {
-                        Spacer(Modifier.height(6.dp))
-                        val p = t.progress
-                        if (p == null) LinearProgressIndicator(Modifier.fillMaxWidth())
-                        else LinearProgressIndicator(progress = { p }, modifier = Modifier.fillMaxWidth())
-                    }
-                    t.warnings.take(5).forEach {
-                        Text("• $it", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
-                }
-                HorizontalDivider(Modifier.padding(horizontal = 20.dp))
-            }
-        }
-    }
-}
-
 @Composable
 fun InfoDialog(title: String, text: String, onDismiss: () -> Unit) {
     AlertDialog(
