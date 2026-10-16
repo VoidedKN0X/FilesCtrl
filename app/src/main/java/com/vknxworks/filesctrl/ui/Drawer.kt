@@ -19,6 +19,7 @@ import androidx.compose.material.icons.outlined.Dns
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.PhoneAndroid
+import androidx.compose.material.icons.outlined.Radar
 import androidx.compose.material.icons.outlined.SdCard
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.Sync
@@ -60,6 +61,7 @@ fun DrawerContent(
     current: Location,
     onOpen: (Location) -> Unit,
     onAddServer: () -> Unit,
+    onDiscover: () -> Unit,
     onEditServer: (String) -> Unit,
     onSettings: () -> Unit,
     onTasks: () -> Unit,
@@ -104,6 +106,7 @@ fun DrawerContent(
                 },
             )
         }
+        DrawerEntry(Icons.Outlined.Radar, "Find shares on network", selected = false, onClick = onDiscover)
         DrawerEntry(Icons.Outlined.Add, "Add NFS share", selected = false, onClick = onAddServer)
 
         if (App.bookmarks.all.isNotEmpty()) {

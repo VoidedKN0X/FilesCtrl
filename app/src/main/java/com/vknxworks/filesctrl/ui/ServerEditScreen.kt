@@ -71,9 +71,13 @@ private sealed interface TestResult {
 
 /** Add or edit an NFS share. [serverId] null = new. */
 @Composable
-fun ServerEditScreen(serverId: String?, onDone: (openId: String?) -> Unit) {
+fun ServerEditScreen(serverId: String?, prefillHost: String? = null, prefillExport: String? = null, onDone: (openId: String?) -> Unit) {
     val existing = serverId?.let { App.servers.get(it) }
-    val base = existing ?: NfsServer()
+    val base = existing ?: NfsServer(
+        host = prefillHost.orEmpty(),
+        export = prefillExport ?: "/",
+        name = prefillExport?.trimEnd('/')?.substringAfterLast('/').orEmpty(),
+    )
     val scope = rememberCoroutineScope()
 
     var name by remember { mutableStateOf(base.name) }
