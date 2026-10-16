@@ -279,7 +279,7 @@ class SmbVfs(override val server: NetServer) : RemoteVfs {
                 NtStatus.STATUS_BAD_NETWORK_NAME -> IOException("The share doesn't exist on this server")
                 NtStatus.STATUS_ACCESS_DENIED -> IOException("$what failed: permission denied$name")
                 NtStatus.STATUS_LOGON_FAILURE -> IOException("Wrong username or password")
-                NtStatus.STATUS_ACCOUNT_DISABLED, NtStatus.STATUS_ACCOUNT_LOCKED_OUT -> IOException("This account is disabled or locked")
+                NtStatus.STATUS_ACCOUNT_DISABLED -> IOException("This account is disabled or locked")
                 NtStatus.STATUS_OBJECT_NAME_COLLISION -> IOException("$what failed: already exists$name")
                 NtStatus.STATUS_DIRECTORY_NOT_EMPTY -> IOException("$what failed: folder isn't empty$name")
                 NtStatus.STATUS_DISK_FULL -> IOException("$what failed: the share is full")
