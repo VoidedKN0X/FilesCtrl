@@ -40,14 +40,18 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
+import androidx.navigation.navArgument
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.vknxworks.filesctrl.fs.Location
 import com.vknxworks.filesctrl.fs.NfsVfs
 import com.vknxworks.filesctrl.ui.BrowserScreen
 import com.vknxworks.filesctrl.ui.BrowserViewModel
+import com.vknxworks.filesctrl.ui.DiscoverScreen
 import com.vknxworks.filesctrl.ui.DrawerContent
+import com.vknxworks.filesctrl.ui.newServerRoute
 import com.vknxworks.filesctrl.ui.EditorScreen
 import com.vknxworks.filesctrl.ui.FilesTheme
 import com.vknxworks.filesctrl.ui.LocalNav
@@ -109,9 +113,17 @@ private fun Root() {
             popExitTransition = { slideOutHorizontally(tween(280)) { it / 8 } + fadeOut(tween(150)) },
         ) {
             composable("browser") { BrowserWithDrawer(vm, onTasks = { tasksOpen = true }) }
-            composable("server/{id}") { entry ->
+            composable(
+                "server/{id}?host={host}&export={export}",
+                arguments = listOf(
+                    navArgument("host") { type = NavType.StringType; nullable = true; defaultValue = null },
+                    navArgument("export") { type = NavType.StringType; nullable = true; defaultValue = null },
+                ),
+            ) { entry ->
                 val id = entry.arguments?.getString("id")?.takeIf { it != "new" }
-                ServerEditScreen(id) { openId ->
+                val host = entry.arguments?.getString("host")?.takeIf { it.isNotBlank() }
+                val export = entry.arguments?.getString("export")
+                ServerEditScreen(id, prefillHost = host, prefillExport = export) { openId ->
                     nav.popBackStack()
                     if (openId != null) vm.navigate(Location(NfsVfs.idFor(openId), "/"))
                     else if (id != null && App.servers.get(id) == null && vm.location.vfsId == NfsVfs.idFor(id)) {
@@ -119,6 +131,13 @@ private fun Root() {
                         vm.navigate(Location(com.vknxworks.filesctrl.fs.LocalVfs.ID, App.vfs.local.primaryRoot), addToHistory = false)
                     } else if (id != null && vm.location.vfsId == NfsVfs.idFor(id)) vm.load()
                 }
+            }
+            composable("discover") {
+                DiscoverScreen(
+                    onBack = { nav.popBackStack() },
+                    onAdd = { host, export -> nav.navigate(newServerRoute(host, export)) },
+                    onEdit = { nav.navigate("server/$it") },
+                )
             }
             composable("settings") { SettingsScreen(onBack = { nav.popBackStack() }) }
             composable("edit?loc={loc}") { entry ->
@@ -145,6 +164,7 @@ private fun BrowserWithDrawer(vm: BrowserViewModel, onTasks: () -> Unit) {
                 current = vm.location,
                 onOpen = { close(); vm.jump(it, 0) },
                 onAddServer = { close(); nav.navigate("server/new") },
+                onDiscover = { close(); nav.navigate("discover") },
                 onEditServer = { close(); nav.navigate("server/$it") },
                 onSettings = { close(); nav.navigate("settings") },
                 onTasks = { close(); onTasks() },
