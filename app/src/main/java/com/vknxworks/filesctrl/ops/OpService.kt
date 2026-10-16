@@ -37,7 +37,14 @@ class OpService : Service() {
         super.onCreate()
         App.init(this)
         createChannels(this)
-        startForeground(NOTIF_ID, build("Starting…", null), ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC)
+        try {
+            startForeground(NOTIF_ID, build("Starting…", null), ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC)
+        } catch (_: Exception) {
+            // Android 15+ daily data-sync budget used up (or started from the background): tasks still run
+            // while the app is open, just without the keep-alive.
+            stopSelf()
+            return
+        }
         wake = getSystemService(PowerManager::class.java)
             .newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "FilesCtrl:ops").apply { acquire(6 * 60 * 60 * 1000L) }
         wifi = try {
@@ -64,13 +71,22 @@ class OpService : Service() {
         }
     }
 
+    /** Android 15+: the daily data-sync time budget ran out. Stop cleanly instead of being killed. */
+    override fun onTimeout(startId: Int, fgsType: Int) {
+        Ops.active.forEach { it.cancel() }
+        stopForeground(STOP_FOREGROUND_REMOVE)
+        stopSelf()
+    }
+
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         if (intent?.action == ACTION_CANCEL) {
             Ops.active.forEach { it.cancel() }
         } else {
             // Every startForegroundService() must be answered with startForeground(), even when already running.
             val first = Ops.active.firstOrNull()
-            startForeground(NOTIF_ID, build((first?.title ?: "Working…") + "\n" + (first?.detail ?: ""), first?.progress), ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC)
+            try {
+                startForeground(NOTIF_ID, build((first?.title ?: "Working…") + "\n" + (first?.detail ?: ""), first?.progress), ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC)
+            } catch (_: Exception) { stopSelf() }
         }
         return START_NOT_STICKY
     }

@@ -86,8 +86,15 @@ class NfsVfs(val server: NfsServer) : Vfs {
     }
 
     override fun rename(from: String, to: String) = session.callRetry { h ->
-        if (!from.equals(to, ignoreCase = true) && NfsNative.stat(h, to, false, LongArray(NfsNative.STAT_FIELDS)) == 0)
-            throw NfsException(OsConstants.EEXIST, "${Paths.name(to)} already exists")
+        if (from != to) {
+            // NFS is case-sensitive: "a" -> "A" must not overwrite a different existing "A".
+            val toSt = LongArray(NfsNative.STAT_FIELDS)
+            if (NfsNative.stat(h, to, false, toSt) == 0) {
+                val fromSt = LongArray(NfsNative.STAT_FIELDS)
+                val same = NfsNative.stat(h, from, false, fromSt) == 0 && fromSt[NfsNative.ST_INO] == toSt[NfsNative.ST_INO]
+                if (!same) throw NfsException(OsConstants.EEXIST, "${Paths.name(to)} already exists")
+            }
+        }
         session.ok(h, NfsNative.rename(h, from, to), "Renaming", Paths.name(from)); Unit
     }
 
@@ -135,6 +142,11 @@ class NfsInputStream(private val session: NfsSession, private val path: String) 
     private var closed = false
     private val one = ByteArray(1)
 
+    init {
+        // Open now, so a missing or unreadable source fails before anything is written anywhere.
+        session.callRetry { h -> handle(h) }
+    }
+
     private fun handle(h: Long): Long {
         if (fh == 0L || gen != session.generation) {
             fh = NfsNative.open(h, path, NfsNative.O_READ, 0)
@@ -167,9 +179,7 @@ class NfsInputStream(private val session: NfsSession, private val path: String) 
     override fun close() {
         if (closed) return
         closed = true
-        if (fh != 0L && gen == session.generation) {
-            try { session.call { h -> NfsNative.close(h, fh) } } catch (_: IOException) {}
-        }
+        if (fh != 0L) session.callIfConnected { h -> if (gen == session.generation) NfsNative.close(h, fh) }
         fh = 0L
     }
 }
@@ -240,10 +250,15 @@ class NfsOutputStream(private val session: NfsSession, private val path: String)
             flushBuffer()
         } finally {
             closed = true
-            if (fh != 0L && gen == session.generation) {
-                try { session.call { h -> NfsNative.close(h, fh) } } catch (_: IOException) {}
-            }
+            val f = fh
             fh = 0L
+            if (f != 0L) {
+                // On NFSv3 the close commits unstable writes: a failure here means the data isn't safely stored.
+                session.call { h ->
+                    if (gen != session.generation) throw IOException("Connection lost while saving ${Paths.name(path)}")
+                    session.ok(h, NfsNative.close(h, f), "Saving", Paths.name(path))
+                }
+            }
         }
     }
 }

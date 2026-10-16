@@ -82,6 +82,7 @@ class NfsDocumentsProvider : DocumentsProvider() {
         val (vfs, path) = split(documentId)
         val c = MatrixCursor(projection ?: DOC_COLUMNS)
         addRow(c, vfs.server.id, io { vfs.stat(path) }, vfs.server.readOnly)
+        c.setNotificationUri(context!!.contentResolver, DocumentsContract.buildDocumentUri(AUTHORITY, documentId))
         return c
     }
 
@@ -93,6 +94,8 @@ class NfsDocumentsProvider : DocumentsProvider() {
             if (!showHidden && e.hidden) continue
             addRow(c, vfs.server.id, e, vfs.server.readOnly)
         }
+        // Lets the picker refresh when notifyChildren() reports a change here.
+        c.setNotificationUri(context!!.contentResolver, DocumentsContract.buildChildDocumentsUri(AUTHORITY, parentDocumentId))
         return c
     }
 
@@ -194,17 +197,34 @@ class NfsDocumentsProvider : DocumentsProvider() {
             }
 
             override fun onFsync() {
-                errno { s.call { h -> if (gen == s.generation) NfsNative.fsync(h, fh) else 0 } }
+                errno {
+                    s.call { h ->
+                        if (gen != s.generation) throw ErrnoException("fsync", OsConstants.EIO)
+                        s.ok(h, NfsNative.fsync(h, fh), "Saving", Paths.name(path))
+                    }
+                }
             }
 
             override fun onRelease() {
-                try { s.call { h -> if (gen == s.generation) NfsNative.close(h, fh) } } catch (_: Exception) {}
+                // Commit writes before closing; onRelease can't report errors, but the data is at least flushed.
+                s.callIfConnected { h ->
+                    if (gen == s.generation) {
+                        if (write) NfsNative.fsync(h, fh)
+                        NfsNative.close(h, fh)
+                    }
+                }
                 thread.quitSafely()
                 if (write) notifyChildren(vfs.server.id, Paths.parent(path))
             }
         }
         val sm = context!!.getSystemService(StorageManager::class.java)
-        return sm.openProxyFileDescriptor(ParcelFileDescriptor.parseMode(mode), cb, Handler(thread.looper))
+        try {
+            return sm.openProxyFileDescriptor(ParcelFileDescriptor.parseMode(mode), cb, Handler(thread.looper))
+        } catch (e: Exception) {
+            s.callIfConnected { h -> if (gen == s.generation) NfsNative.close(h, fh) }
+            thread.quitSafely()
+            throw FileNotFoundException(e.message ?: "Couldn't open")
+        }
     }
 
     private fun notifyChildren(serverId: String, dir: String) {
