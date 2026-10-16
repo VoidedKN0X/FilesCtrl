@@ -35,6 +35,9 @@ class VfsRegistry(context: Context, private val servers: ServerStore) {
         return nfs.getOrPut(serverId) { NfsVfs(s) }
     }
 
+    /** The share's file system only if it's already been used (doesn't start a connection). */
+    fun openNfs(serverId: String): NfsVfs? = nfs[serverId]?.takeIf { it.session.isConnected }
+
     /** Drops idle connections (e.g. when the app goes to the background for a while). */
     fun disconnectAll() = nfs.values.forEach { it.session.disconnect() }
 }
