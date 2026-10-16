@@ -35,6 +35,29 @@ jobs:
             echo "::warning title=Unsigned build::No signing secrets set - APK is signed with the debug key"
           fi
 
+      - name: Check signing key
+        if: env.RELEASE_SIGNED == '1'
+        env:
+          SIGNING_STORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD || vars.KEYSTORE_PASSWORD }}
+          SIGNING_KEY_ALIAS: ${{ secrets.KEY_ALIAS || vars.KEY_ALIAS }}
+          SIGNING_KEY_PASSWORD: ${{ secrets.KEY_PASSWORD || vars.KEY_PASSWORD }}
+        run: |
+          # Fail early with a clear reason instead of a bare packageRelease failure.
+          if ! out=$(keytool -list -keystore "$SIGNING_KEYSTORE_PATH" -storepass "$SIGNING_STORE_PASSWORD" 2>&1); then
+            echo "::error title=Signing key::Can't open the keystore: $(echo "$out" | head -1). Check KEYSTORE_PASSWORD and that KEYSTORE_BASE64 is the whole base64 text."
+            exit 1
+          fi
+          aliases=$(echo "$out" | grep -iE "PrivateKeyEntry" | cut -d, -f1 | paste -sd ' ')
+          if [ -z "$SIGNING_KEY_ALIAS" ] || ! echo "$out" | grep -qi "^$SIGNING_KEY_ALIAS,"; then
+            echo "::error title=Signing key::KEY_ALIAS is '$SIGNING_KEY_ALIAS' but the keystore contains: $aliases"
+            exit 1
+          fi
+          if ! keytool -list -keystore "$SIGNING_KEYSTORE_PATH" -storepass "$SIGNING_STORE_PASSWORD" -alias "$SIGNING_KEY_ALIAS" -keypass "${SIGNING_KEY_PASSWORD:-$SIGNING_STORE_PASSWORD}" >/dev/null 2>&1; then
+            echo "::error title=Signing key::KEY_PASSWORD doesn't unlock key '$SIGNING_KEY_ALIAS'"
+            exit 1
+          fi
+          echo "Keystore OK, alias '$SIGNING_KEY_ALIAS'"
+
       - name: Build release APK
         env:
           SIGNING_STORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD || vars.KEYSTORE_PASSWORD }}
