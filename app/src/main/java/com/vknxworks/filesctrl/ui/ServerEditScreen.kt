@@ -100,6 +100,11 @@ fun ServerEditScreen(serverId: String?, onDone: (openId: String?) -> Unit) {
     var domain by remember { mutableStateOf(base.domain) }
     var privateKey by remember { mutableStateOf(base.privateKey) }
     var hostKey by remember { mutableStateOf(base.hostKey) }
+    var certPin by remember { mutableStateOf(base.certPin) }
+    var smbSigning by remember { mutableStateOf(base.smbSigning) }
+    var smbEncrypt by remember { mutableStateOf(base.smbEncrypt) }
+    var guest by remember { mutableStateOf(base.guest) }
+    var untrusted by remember { mutableStateOf<com.vknxworks.filesctrl.fs.UntrustedIdentityException?>(null) }
     var secure by remember { mutableStateOf(base.secure) }
     var insecureTls by remember { mutableStateOf(base.insecureTls) }
     var readOnly by remember { mutableStateOf(base.readOnly) }
@@ -140,6 +145,10 @@ fun ServerEditScreen(serverId: String?, onDone: (openId: String?) -> Unit) {
         domain = domain.trim(),
         privateKey = privateKey,
         hostKey = hostKey,
+        certPin = if (secure && insecureTls) certPin else "",
+        smbSigning = smbSigning,
+        smbEncrypt = smbEncrypt,
+        guest = type == Proto.SMB && guest,
         secure = secure,
         insecureTls = insecureTls,
         readOnly = readOnly,
@@ -150,7 +159,40 @@ fun ServerEditScreen(serverId: String?, onDone: (openId: String?) -> Unit) {
         mountPort = mountPort.toIntOrNull()?.coerceIn(0, 65535) ?: 0,
     )
 
-    val valid = host.isNotBlank() && (type != Proto.NFS || (uid.toIntOrNull() != null && gid.toIntOrNull() != null))
+    fun runTest(s: NetServer) {
+        test = TestResult.Running
+        scope.launch {
+            test = withContext(Dispatchers.IO) {
+                var learned: NetServer? = null
+                val v = RemoteVfs.create(s) { learned = it }
+                try {
+                    val items = v.list("/")
+                    val space = v.space("/")
+                    val what = when (v) {
+                        is com.vknxworks.filesctrl.fs.NfsVfs -> v.session.activeVersion.let { if (it == 42) "NFSv4.2" else "NFSv$it" }
+                        else -> s.type.label + if (s.secure && s.type == Proto.FTP) "S" else if (s.secure) " over HTTPS" else ""
+                    }
+                    val list = if (s.type == Proto.SMB && s.path.isBlank()) "share" else "item"
+                    TestResult.Ok(
+                        "Connected with $what. ${items.size} $list${if (items.size == 1) "" else "s"} found." +
+                            (space?.takeIf { it.total > 0 }?.let { "\n${Fmt.size(ctx, it.free)} free of ${Fmt.size(ctx, it.total)}." } ?: ""),
+                    )
+                } catch (e: com.vknxworks.filesctrl.fs.UntrustedIdentityException) {
+                    withContext(Dispatchers.Main) { untrusted = e }
+                    null
+                } catch (e: Exception) {
+                    TestResult.Failed(e.message ?: e.javaClass.simpleName)
+                } finally {
+                    v.close()
+                    // A remembered MD5 host key upgraded to SHA-256.
+                    learned?.let { l -> withContext(Dispatchers.Main) { hostKey = l.hostKey } }
+                }
+            }
+        }
+    }
+
+    val valid = host.isNotBlank() && (type != Proto.NFS || (uid.toIntOrNull() != null && gid.toIntOrNull() != null)) &&
+        (type != Proto.SMB || guest || username.isNotBlank())
     val hint = MaterialTheme.typography.bodySmall
     val hintColor = MaterialTheme.colorScheme.onSurfaceVariant
 
@@ -191,8 +233,12 @@ fun ServerEditScreen(serverId: String?, onDone: (openId: String?) -> Unit) {
                     if (existing != null) IconButton(onClick = { confirmDelete = true }) { Icon(Icons.Outlined.Delete, "Remove") }
                     TextButton(enabled = valid, onClick = {
                         val s = build()
-                        App.servers.save(s)
-                        onDone(if (existing == null) s.id else null)
+                        try {
+                            App.servers.save(s)
+                            onDone(if (existing == null) s.id else null)
+                        } catch (e: Exception) {
+                            message = e.message ?: "Couldn't save the server"
+                        }
                     }) { Text("Save") }
                 },
             )
@@ -300,7 +346,28 @@ fun ServerEditScreen(serverId: String?, onDone: (openId: String?) -> Unit) {
                     if (type == Proto.FTP) "Explicit TLS on the normal FTP port" else null,
                     secure,
                 ) { secure = it }
-                if (secure) SwitchRow("Accept self-signed certificates", "For your own server with a certificate it made itself", insecureTls) { insecureTls = it }
+                if (secure) SwitchRow(
+                    "Accept self-signed certificates",
+                    "For your own server with a certificate it made itself. You'll be asked to check its fingerprint once.",
+                    insecureTls,
+                ) { insecureTls = it }
+                if (secure && insecureTls && certPin.isNotBlank()) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Column(Modifier.weight(1f)) {
+                            Text("Trusted certificate (SHA-256)")
+                            Text(certPin, style = hint, color = hintColor, fontFamily = FontFamily.Monospace)
+                        }
+                        TextButton(onClick = { certPin = "" }) { Text("Forget") }
+                    }
+                }
+            }
+            if (type == Proto.SMB && !guest) {
+                SwitchRow(
+                    "Require signing",
+                    "On by default. Refuses servers that don't sign their messages; turn off only for very old NAS boxes that fail to connect.",
+                    smbSigning,
+                ) { smbSigning = it }
+                SwitchRow("Encrypt (SMB 3)", "Encrypt all traffic. The server must support SMB 3 encryption.", smbEncrypt) { smbEncrypt = it }
             }
 
             // ----- Sign-in -----
@@ -337,14 +404,21 @@ fun ServerEditScreen(serverId: String?, onDone: (openId: String?) -> Unit) {
                     style = hint, color = hintColor,
                 )
             } else {
-                OutlinedTextField(
+                if (type == Proto.SMB) {
+                    SwitchRow(
+                        "Guest",
+                        if (guest) "Connecting as guest, without an account. Messages can't be signed or encrypted." else "Connect without an account",
+                        guest,
+                    ) { guest = it }
+                }
+                if (type != Proto.SMB || !guest) OutlinedTextField(
                     value = username, onValueChange = { username = it },
                     label = { Text("Username") },
-                    placeholder = { Text(if (type == Proto.SMB) "empty for guest" else if (type == Proto.FTP) "empty for anonymous" else "") },
+                    placeholder = { Text(if (type == Proto.FTP) "empty for anonymous" else "") },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                 )
-                OutlinedTextField(
+                if (type != Proto.SMB || !guest) OutlinedTextField(
                     value = password, onValueChange = { password = it },
                     label = { Text(if (type == Proto.SFTP && privateKey.isNotBlank()) "Key passphrase" else "Password") },
                     singleLine = true,
@@ -424,31 +498,7 @@ fun ServerEditScreen(serverId: String?, onDone: (openId: String?) -> Unit) {
                 onClick = {
                     test = TestResult.Running
                     val s = build()
-                    scope.launch {
-                        test = withContext(Dispatchers.IO) {
-                            var learned: NetServer? = null
-                            val v = RemoteVfs.create(s) { learned = it }
-                            try {
-                                val items = v.list("/")
-                                val space = v.space("/")
-                                val what = when (v) {
-                                    is com.vknxworks.filesctrl.fs.NfsVfs -> v.session.activeVersion.let { if (it == 42) "NFSv4.2" else "NFSv$it" }
-                                    else -> s.type.label + if (s.secure && s.type == Proto.FTP) "S" else if (s.secure) " over HTTPS" else ""
-                                }
-                                val list = if (s.type == Proto.SMB && s.path.isBlank()) "share" else "item"
-                                TestResult.Ok(
-                                    "Connected with $what. ${items.size} $list${if (items.size == 1) "" else "s"} found." +
-                                        (space?.takeIf { it.total > 0 }?.let { "\n${Fmt.size(ctx, it.free)} free of ${Fmt.size(ctx, it.total)}." } ?: "") +
-                                        (learned?.let { "\nHost key trusted: ${it.hostKey}" } ?: ""),
-                                )
-                            } catch (e: Exception) {
-                                TestResult.Failed(e.message ?: e.javaClass.simpleName)
-                            } finally {
-                                v.close()
-                                learned?.let { l -> withContext(Dispatchers.Main) { hostKey = l.hostKey } }
-                            }
-                        }
-                    }
+                    runTest(s)
                 },
                 modifier = Modifier.fillMaxWidth(),
             ) {
@@ -484,6 +534,13 @@ fun ServerEditScreen(serverId: String?, onDone: (openId: String?) -> Unit) {
         )
     }
     message?.let { m -> InfoDialog("Network", m) { message = null } }
+    untrusted?.let { u ->
+        TrustDialog(u, host.trim(), onDismiss = { untrusted = null }) {
+            untrusted = null
+            if (u is com.vknxworks.filesctrl.fs.HostKeyUnknownException) hostKey = u.fingerprint else certPin = u.fingerprint
+            runTest(build())
+        }
+    }
 }
 
 @Composable

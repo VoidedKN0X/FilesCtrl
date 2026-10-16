@@ -51,6 +51,23 @@ class BrowserViewModel : ViewModel() {
     private var spaceFor: String? = null
     var error by mutableStateOf<String?>(null)
         private set
+    /** Set when the server's host key / certificate needs the user's OK before connecting. */
+    var untrusted by mutableStateOf<com.vknxworks.filesctrl.fs.UntrustedIdentityException?>(null)
+
+    /** Saves the identity the user accepted on the current server and loads again. */
+    fun trustAndRetry() {
+        val u = untrusted ?: return
+        untrusted = null
+        val id = location.vfsId.removePrefix(RemoteVfs.PREFIX)
+        val s = App.servers.get(id) ?: return
+        try {
+            App.servers.save(trusted(s, u))
+        } catch (e: Exception) {
+            error = e.message ?: e.javaClass.simpleName
+            return
+        }
+        load()
+    }
     /** Bumped on every finished load, so the UI can react (e.g. scroll the breadcrumbs). */
     var loadCount by mutableStateOf(0)
         private set
@@ -183,6 +200,7 @@ class BrowserViewModel : ViewModel() {
                 if (loc == location) {
                     entries = emptyList()
                     error = e.message ?: e.javaClass.simpleName
+                    if (e is com.vknxworks.filesctrl.fs.UntrustedIdentityException) untrusted = e
                 }
             } finally {
                 if (loc == location) { loading = false; loadCount++ }

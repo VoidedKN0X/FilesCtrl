@@ -19,14 +19,10 @@ import java.io.IOException
 import java.io.InputStream
 import java.io.OutputStream
 import java.net.URLDecoder
-import java.security.SecureRandom
-import java.security.cert.X509Certificate
 import java.text.SimpleDateFormat
 import java.util.Locale
 import java.util.TimeZone
 import java.util.concurrent.TimeUnit
-import javax.net.ssl.SSLContext
-import javax.net.ssl.X509TrustManager
 import javax.xml.parsers.DocumentBuilderFactory
 import kotlin.concurrent.thread
 
@@ -38,6 +34,13 @@ class WebDavVfs(override val server: NetServer) : RemoteVfs {
     @Volatile private var used = false
     override val connected: Boolean get() = used
 
+    /** Set when the user accepted a self-signed certificate; checks it by SHA-256. */
+    private val pinTm: TlsPin.PinningTrustManager? =
+        if (server.secure && server.insecureTls) TlsPin.PinningTrustManager(server.certPin) else null
+
+    /** Credentials go only to the configured server (same scheme, host and port), never to a redirect elsewhere. */
+    private fun sameServer(u: HttpUrl) = u.scheme == base.scheme && u.host.equals(base.host, ignoreCase = true) && u.port == base.port
+
     private val client: OkHttpClient by lazy {
         val t = server.timeoutSec.coerceIn(2, 120).toLong()
         val b = OkHttpClient.Builder()
@@ -48,17 +51,17 @@ class WebDavVfs(override val server: NetServer) : RemoteVfs {
         if (server.username.isNotBlank()) {
             // Answer challenges, and send credentials up front so PUT bodies aren't sent twice.
             val cred = Credentials.basic(server.username, server.password, Charsets.UTF_8)
-            b.authenticator { _, resp -> if (resp.request.header("Authorization") != null) null else resp.request.newBuilder().header("Authorization", cred).build() }
-            b.addInterceptor { chain -> chain.proceed(chain.request().newBuilder().header("Authorization", cred).build()) }
-        }
-        if (server.secure && server.insecureTls) {
-            val trustAll = object : X509TrustManager {
-                override fun checkClientTrusted(chain: Array<out X509Certificate>?, authType: String?) {}
-                override fun checkServerTrusted(chain: Array<out X509Certificate>?, authType: String?) {}
-                override fun getAcceptedIssuers(): Array<X509Certificate> = emptyArray()
+            b.authenticator { _, resp ->
+                if (resp.request.header("Authorization") != null || !sameServer(resp.request.url)) null
+                else resp.request.newBuilder().header("Authorization", cred).build()
             }
-            val ctx = SSLContext.getInstance("TLS").apply { init(null, arrayOf(trustAll), SecureRandom()) }
-            b.sslSocketFactory(ctx.socketFactory, trustAll).hostnameVerifier { _, _ -> true }
+            b.addInterceptor { chain ->
+                val req = chain.request()
+                chain.proceed(if (sameServer(req.url)) req.newBuilder().header("Authorization", cred).build() else req.newBuilder().removeHeader("Authorization").build())
+            }
+        }
+        pinTm?.let { tm ->
+            b.sslSocketFactory(tm.sslContext().socketFactory, tm).hostnameVerifier(tm.hostnameVerifier(server.host.trim()))
         }
         b.build()
     }
@@ -82,13 +85,14 @@ class WebDavVfs(override val server: NetServer) : RemoteVfs {
         val resp = try {
             client.newCall(req).execute()
         } catch (e: IOException) {
+            pinTm?.explain()?.let { throw it }
             throw friendly(e, what)
         }
         if (resp.isSuccessful) return resp
         // Many servers redirect "/folder" to "/folder/"; follow that one kind of redirect, keeping the method.
         if (resp.code in setOf(301, 302, 307, 308)) {
             val target = resp.header("Location")?.let { req.url.resolve(it) }
-            if (target != null && target.host == req.url.host && target.encodedPath.trimEnd('/') == req.url.encodedPath.trimEnd('/') &&
+            if (target != null && sameServer(target) && target.encodedPath.trimEnd('/') == req.url.encodedPath.trimEnd('/') &&
                 target.encodedPath != req.url.encodedPath
             ) {
                 resp.close()
@@ -160,6 +164,13 @@ class WebDavVfs(override val server: NetServer) : RemoteVfs {
         return raw.split('/').joinToString("/") { URLDecoder.decode(it.replace("+", "%2B"), "UTF-8") }.trimEnd('/')
     }
 
+    /** The decoded last segment of an href, or "" if it can't be decoded. */
+    private fun hrefName(href: String): String {
+        val raw = if (href.startsWith("http://") || href.startsWith("https://")) href.toHttpUrl().encodedPath else href
+        val last = raw.trimEnd('/').substringAfterLast('/')
+        return try { URLDecoder.decode(last.replace("+", "%2B"), "UTF-8") } catch (_: Exception) { "" }
+    }
+
     private fun entryOf(path: String, name: String, p: Prop) =
         FileEntry(id, path, name, p.dir, if (p.dir) 0 else p.size, p.modified, if (p.dir) 0x4000 or 0b111_101_101 else 0x8000 or 0b110_100_100)
 
@@ -168,8 +179,9 @@ class WebDavVfs(override val server: NetServer) : RemoteVfs {
         return propfind(dir, 1, true).mapNotNull { p ->
             val hp = hrefPath(p.href)
             if (hp == self || hp.isEmpty()) return@mapNotNull null
-            val name = hp.substringAfterLast('/')
-            if (name.isEmpty()) null else entryOf(Paths.join(dir, name), name, p)
+            // Decoding can turn "%2E%2E" or "%2F" into ".." or a slash; never accept those names.
+            val name = hrefName(p.href)
+            if (!Paths.isSafeName(name)) null else entryOf(Paths.join(dir, name), name, p)
         }
     }
 
@@ -254,7 +266,7 @@ class WebDavVfs(override val server: NetServer) : RemoteVfs {
     private fun friendly(e: IOException, what: String): IOException = when (e) {
         is javax.net.ssl.SSLException -> IOException(
             if (server.insecureTls) "$what failed: TLS error (${e.message})"
-            else "$what failed: the server's certificate isn't trusted. Turn on \"Accept self-signed certificates\" if it's your own server.",
+            else "$what failed: the server's certificate isn't trusted or doesn't match ${server.host}. Turn on \"Accept self-signed certificates\" if it's your own server.",
         )
         is java.net.SocketTimeoutException -> IOException("$what failed: the server stopped responding")
         is java.net.ConnectException -> IOException("Couldn't reach ${server.host} on port ${server.effectivePort}")

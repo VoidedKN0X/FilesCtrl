@@ -291,3 +291,31 @@ fun InfoDialog(title: String, text: String, onDismiss: () -> Unit) {
         confirmButton = { TextButton(onClick = onDismiss) { Text("OK") } },
     )
 }
+
+/** The server with the host key / certificate from [e] marked as trusted. */
+fun trusted(s: com.vknxworks.filesctrl.data.NetServer, e: com.vknxworks.filesctrl.fs.UntrustedIdentityException) =
+    if (e is com.vknxworks.filesctrl.fs.HostKeyUnknownException) s.copy(hostKey = e.fingerprint) else s.copy(certPin = e.fingerprint)
+
+/** Asks before trusting a server's SSH host key or self-signed certificate for the first time. */
+@Composable
+fun TrustDialog(e: com.vknxworks.filesctrl.fs.UntrustedIdentityException, host: String, onDismiss: () -> Unit, onTrust: () -> Unit) {
+    val ssh = e is com.vknxworks.filesctrl.fs.HostKeyUnknownException
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(if (ssh) "Trust this server?" else "Trust this certificate?") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(
+                    if (ssh) "This is the first connection to $host. Check that its host key fingerprint matches the server's " +
+                        "(ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub) before trusting it."
+                    else "$host uses a certificate this phone doesn't trust. Only continue if this SHA-256 fingerprint " +
+                        "matches your server's certificate.",
+                )
+                SelectionContainer { Text(e.fingerprint, fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace, style = MaterialTheme.typography.bodySmall) }
+                Text("No password is sent until you trust it.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        },
+        confirmButton = { TextButton(onClick = onTrust) { Text("Trust") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+    )
+}

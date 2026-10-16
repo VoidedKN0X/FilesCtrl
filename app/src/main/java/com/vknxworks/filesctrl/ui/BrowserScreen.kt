@@ -358,6 +358,10 @@ fun BrowserScreen(vm: BrowserViewModel, islandSpace: Dp) {
         }
         is Dlg.Error -> InfoDialog(d.title, d.message) { dlg = null }
     }
+    vm.untrusted?.let { u ->
+        val host = App.servers.get(vm.location.vfsId.removePrefix(RemoteVfs.PREFIX))?.host ?: ""
+        TrustDialog(u, host, onDismiss = { vm.untrusted = null }, onTrust = { vm.trustAndRetry() })
+    }
 }
 
 // ---------- Top bars ----------
@@ -553,7 +557,7 @@ private fun SelectionBar(vm: BrowserViewModel, readOnly: Boolean, onDialog: (Dlg
 
 // ---------- Item actions ----------
 
-enum class ItemAction { Open, OpenWith, EditText, Share, Copy, Cut, Rename, Delete, Compress, Extract, Bookmark, CopyPath, Properties, OpenLocation }
+enum class ItemAction { Open, OpenWith, EditWith, EditText, Share, Copy, Cut, Rename, Delete, Compress, Extract, Bookmark, CopyPath, Properties, OpenLocation }
 
 private fun handleItemAction(
     ctx: android.content.Context,
@@ -566,6 +570,7 @@ private fun handleItemAction(
     when (a) {
         ItemAction.Open -> if (e.isDir) vm.navigate(e.location) else openFile(ctx, e)
         ItemAction.OpenWith -> openFile(ctx, e, chooser = true)
+        ItemAction.EditWith -> openFile(ctx, e, chooser = true, edit = true)
         ItemAction.EditText -> nav.navigate(editorRoute(e))
         ItemAction.Share -> shareFiles(ctx, listOf(e))
         ItemAction.Copy -> { FileClipboard.items = listOf(e); FileClipboard.cut = false }
@@ -597,6 +602,7 @@ private fun ItemMenu(e: FileEntry, readOnly: Boolean, inSearch: Boolean, expande
         if (inSearch) entry("Show in folder", Icons.Outlined.FolderOpen, ItemAction.OpenLocation)
         if (!e.isDir) {
             entry("Open with", Icons.AutoMirrored.Outlined.OpenInNew, ItemAction.OpenWith)
+            if (!readOnly) entry("Edit with", Icons.Outlined.Edit, ItemAction.EditWith)
             if (e.size < MAX_EDIT_BYTES) entry("Edit as text", Icons.Outlined.Edit, ItemAction.EditText)
             entry("Share", Icons.Outlined.Share, ItemAction.Share)
         }

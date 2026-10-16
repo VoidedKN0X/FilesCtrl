@@ -44,8 +44,16 @@ data class NetServer(
     val domain: String = "",
     /** SFTP only: private key text (OpenSSH/PEM); [password] is its passphrase when set. */
     val privateKey: String = "",
-    /** SFTP only: fingerprint of the server's host key, remembered on first connect. */
+    /** SFTP only: fingerprint of the server's host key ("SHA256:…"), saved once the user confirms it. */
     val hostKey: String = "",
+    /** FTPS / WebDAV over HTTPS with [insecureTls]: SHA-256 of the self-signed certificate the user accepted. */
+    val certPin: String = "",
+    /** SMB only: refuse servers that don't sign messages (protects against tampering). */
+    val smbSigning: Boolean = true,
+    /** SMB only: encrypt traffic (SMB 3). */
+    val smbEncrypt: Boolean = false,
+    /** SMB only: connect as guest, without a username. */
+    val guest: Boolean = false,
     /** FTP: FTPS (explicit TLS). WebDAV: HTTPS. */
     val secure: Boolean = false,
     /** Accept self-signed / untrusted TLS certificates (FTPS, WebDAV over HTTPS). */
@@ -85,7 +93,8 @@ data class NetServer(
     fun toJson(seal: (String) -> String): JSONObject = JSONObject()
         .put("id", id).put("type", type.name).put("name", name).put("host", host).put("port", port)
         .put("path", path).put("username", username).put("password", seal(password)).put("domain", domain)
-        .put("privateKey", seal(privateKey)).put("hostKey", hostKey).put("secure", secure)
+        .put("privateKey", seal(privateKey)).put("hostKey", hostKey).put("certPin", certPin).put("secure", secure)
+        .put("smbSigning", smbSigning).put("smbEncrypt", smbEncrypt).put("guest", guest)
         .put("insecureTls", insecureTls).put("readOnly", readOnly).put("timeoutSec", timeoutSec)
         .put("version", version).put("uid", uid).put("gid", gid).put("mountPort", mountPort)
 
@@ -105,6 +114,11 @@ data class NetServer(
                 domain = o.optString("domain"),
                 privateKey = open(o.optString("privateKey")),
                 hostKey = o.optString("hostKey"),
+                certPin = o.optString("certPin"),
+                smbSigning = o.optBoolean("smbSigning", true),
+                smbEncrypt = o.optBoolean("smbEncrypt", false),
+                // Older versions connected SMB servers without a username as guest; keep them working.
+                guest = if (o.has("guest")) o.optBoolean("guest", false) else type == Proto.SMB && o.optString("username").isBlank(),
                 secure = o.optBoolean("secure", false),
                 insecureTls = o.optBoolean("insecureTls", false),
                 readOnly = o.optBoolean("readOnly", false),
@@ -137,19 +151,25 @@ class ServerStore(context: Context) {
     /** Called with a server id whenever that server is changed or removed. */
     fun onChange(l: (String) -> Unit) { listeners += l }
 
+    /**
+     * Saves [s]. Throws [java.io.IOException] (and changes nothing) if its password or key can't be encrypted,
+     * rather than silently saving it without them.
+     */
     fun save(s: NetServer) {
         val i = all.indexOfFirst { it.id == s.id }
+        val next = all.toMutableList().apply { if (i >= 0) set(i, s) else add(s) }
+        val json = serialize(next)
         if (i >= 0) all[i] = s else all += s
-        persist()
+        write(json)
         listeners.forEach { it(s.id) }
     }
 
-    /** Stores a field learned while connecting (e.g. an SFTP host key) without dropping the connection. */
+    /** Stores a field learned while connecting (e.g. an upgraded host key) without dropping the connection. */
     fun remember(s: NetServer) {
         val i = all.indexOfFirst { it.id == s.id }
         if (i < 0) return
         all[i] = s
-        persist()
+        try { persist() } catch (_: java.io.IOException) {} // Kept in memory; saved with the next change.
     }
 
     /** Forgets every saved password and key (servers stay). Used when the app lock PIN is forgotten. */
@@ -161,15 +181,19 @@ class ServerStore(context: Context) {
 
     fun remove(id: String) {
         all.removeAll { it.id == id }
-        persist()
+        try { persist() } catch (_: java.io.IOException) {}
         listeners.forEach { it(id) }
     }
 
-    private fun persist() {
+    private fun persist() = write(serialize(all))
+
+    private fun serialize(list: List<NetServer>): String {
         val arr = JSONArray()
-        all.forEach { arr.put(it.toJson(::encrypt)) }
-        sp.edit().putString("list", arr.toString()).apply()
+        list.forEach { arr.put(it.toJson(::encrypt)) }
+        return arr.toString()
     }
+
+    private fun write(json: String) { sp.edit().putString("list", json).apply() }
 
     // --- Keystore AES-GCM for secrets ---
     private val alias = "filesctrl_servers"
@@ -193,7 +217,9 @@ class ServerStore(context: Context) {
             val c = Cipher.getInstance("AES/GCM/NoPadding")
             c.init(Cipher.ENCRYPT_MODE, key())
             "v1:" + Base64.encodeToString(c.iv + c.doFinal(plain.toByteArray()), Base64.NO_WRAP)
-        } catch (_: Exception) { "" }
+        } catch (e: Exception) {
+            throw java.io.IOException("Couldn't encrypt the password with the phone's key store (${e.javaClass.simpleName}). Nothing was saved.", e)
+        }
     }
 
     private fun decrypt(stored: String): String {

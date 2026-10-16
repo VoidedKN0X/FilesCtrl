@@ -45,8 +45,10 @@ class NetDocumentsProvider : DocumentsProvider() {
     private fun split(docId: String): Pair<RemoteVfs, String> {
         val i = docId.indexOf(':')
         if (i <= 0) throw FileNotFoundException("Bad document id")
+        // Normalise the path and refuse "." / ".." segments, so an id can never climb out of a granted folder.
+        val path = Paths.normalize(docId.substring(i + 1).ifEmpty { "/" }) ?: throw FileNotFoundException("Bad document id")
         val vfs = App.vfs.remote(docId.substring(0, i)) ?: throw FileNotFoundException("Server was removed")
-        return vfs to docId.substring(i + 1).ifEmpty { "/" }
+        return vfs to path
     }
 
     override fun queryRoots(projection: Array<out String>?): Cursor {
@@ -102,8 +104,8 @@ class NetDocumentsProvider : DocumentsProvider() {
     }
 
     override fun isChildDocument(parentDocumentId: String, documentId: String): Boolean {
-        val (pv, pp) = split(parentDocumentId)
-        val (cv, cp) = split(documentId)
+        val (pv, pp) = try { split(parentDocumentId) } catch (_: FileNotFoundException) { return false }
+        val (cv, cp) = try { split(documentId) } catch (_: FileNotFoundException) { return false }
         return pv.server.id == cv.server.id && Paths.isWithin(cp, pp)
     }
 
@@ -115,7 +117,10 @@ class NetDocumentsProvider : DocumentsProvider() {
 
     override fun createDocument(parentDocumentId: String, mimeType: String, displayName: String): String {
         val (vfs, dir) = split(parentDocumentId)
-        val name = Paths.unique(dir, displayName.replace('/', '_')) { vfs.exists(it) }
+        if (vfs.server.readOnly) throw FileNotFoundException("The share is read-only")
+        val clean = displayName.replace('/', '_')
+        Paths.validName(clean)?.let { throw IllegalArgumentException(it) }
+        val name = Paths.unique(dir, clean) { vfs.exists(it) }
         val path = Paths.join(dir, name)
         io { if (mimeType == Document.MIME_TYPE_DIR) vfs.mkdir(path) else vfs.createFile(path) }
         notifyChildren(vfs.server.id, dir)
@@ -124,6 +129,8 @@ class NetDocumentsProvider : DocumentsProvider() {
 
     override fun deleteDocument(documentId: String) {
         val (vfs, path) = split(documentId)
+        if (vfs.server.readOnly) throw FileNotFoundException("The share is read-only")
+        if (path == "/") throw FileNotFoundException("The top folder can't be deleted")
         io { deleteTree(vfs, vfs.stat(path)) }
         notifyChildren(vfs.server.id, Paths.parent(path))
     }
@@ -135,7 +142,10 @@ class NetDocumentsProvider : DocumentsProvider() {
 
     override fun renameDocument(documentId: String, displayName: String): String {
         val (vfs, path) = split(documentId)
-        val target = Paths.join(Paths.parent(path), displayName.replace('/', '_'))
+        if (vfs.server.readOnly) throw FileNotFoundException("The share is read-only")
+        if (path == "/") throw FileNotFoundException("The top folder can't be renamed")
+        Paths.validName(displayName)?.let { throw IllegalArgumentException(it) }
+        val target = Paths.join(Paths.parent(path), displayName)
         io { vfs.rename(path, target) }
         notifyChildren(vfs.server.id, Paths.parent(path))
         return docId(vfs.server.id, target)

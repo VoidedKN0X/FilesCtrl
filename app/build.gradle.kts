@@ -14,7 +14,7 @@ android {
         targetSdk = 35
         // CI passes the run number so every build installs over the previous one.
         versionCode = System.getenv("VERSION_CODE")?.toIntOrNull() ?: 1
-        versionName = "1.0.0"
+        versionName = "1.0.1"
 
         // The NFS client (libnfs) is native; phones are arm64, emulators x86_64.
         ndk { abiFilters += listOf("arm64-v8a", "x86_64") }
@@ -30,10 +30,18 @@ android {
         }
     }
 
-    // Release signing from env (GitHub secrets); falls back to the debug key so the APK is always installable.
+    // Release signing from env (GitHub secrets). Local builds fall back to the debug key; CI must never publish
+    // a debug-signed release, so it fails instead.
     val ksPath = System.getenv("SIGNING_KEYSTORE_PATH")
+    val onCi = System.getenv("CI") == "true" || System.getenv("GITHUB_ACTIONS") == "true"
+    val haveReleaseKey = !ksPath.isNullOrBlank() && file(ksPath).exists() &&
+        !System.getenv("SIGNING_STORE_PASSWORD").isNullOrBlank() && !System.getenv("SIGNING_KEY_ALIAS").isNullOrBlank()
+    val wantsRelease = gradle.startParameter.taskNames.any { it.contains("Release", ignoreCase = true) }
+    if (onCi && wantsRelease && !haveReleaseKey) {
+        throw GradleException("Release signing values are missing on CI; refusing to sign the release with the debug key.")
+    }
     signingConfigs {
-        if (!ksPath.isNullOrBlank() && file(ksPath).exists()) {
+        if (haveReleaseKey) {
             create("release") {
                 storeFile = file(ksPath)
                 storePassword = System.getenv("SIGNING_STORE_PASSWORD")

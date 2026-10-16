@@ -53,12 +53,16 @@ class SmbVfs(override val server: NetServer) : RemoteVfs {
             .withTimeout(t, TimeUnit.SECONDS)
             .withSoTimeout(t, TimeUnit.SECONDS)
             .withMultiProtocolNegotiate(true)
+            // Guest sessions have no key to sign or encrypt with, so these only apply to signed-in users.
+            .withSigningRequired(server.smbSigning && !server.guest)
+            .withEncryptData(server.smbEncrypt && !server.guest)
             .build()
         val c = SMBClient(cfg)
         try {
             val cn = c.connect(server.host.trim(), server.effectivePort)
             val auth = when {
-                server.username.isBlank() -> AuthenticationContext.guest()
+                server.guest -> AuthenticationContext.guest()
+                server.username.isBlank() -> throw IOException("Enter a username, or turn on \"Guest\" in the server's settings")
                 else -> AuthenticationContext(server.username, server.password.toCharArray(), server.domain.ifBlank { null })
             }
             val s = cn.authenticate(auth)
@@ -123,7 +127,7 @@ class SmbVfs(override val server: NetServer) : RemoteVfs {
         val (shareName, inner) = split(dir)
         if (shareName.isEmpty()) return listShares()
         return call("Listing", dir) {
-            share(shareName).list(inner).filter { it.fileName != "." && it.fileName != ".." }.map {
+            share(shareName).list(inner).filter { Paths.isSafeName(it.fileName) && !it.fileName.contains('\\') }.map {
                 entry(Paths.join(dir, it.fileName), it.fileName, it.fileAttributes, it.endOfFile, it.lastWriteTime.toEpochMillis())
             }
         }
@@ -133,7 +137,7 @@ class SmbVfs(override val server: NetServer) : RemoteVfs {
         val transport = SMBTransportFactories.SRVSVC.getTransport(session())
         ServerService(transport).shares1
             // Disk shares only (type 0), and not the hidden admin ones like C$ and IPC$.
-            .filter { (it.type and 0x0FFFFFFF) == 0 && !it.netName.endsWith("$") }
+            .filter { (it.type and 0x0FFFFFFF) == 0 && !it.netName.endsWith("$") && Paths.isSafeName(it.netName) }
             .map { FileEntry(id, "/" + it.netName, it.netName, true, 0, 0, 0x4000 or 0b111_101_101) }
     }
 

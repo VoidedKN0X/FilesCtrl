@@ -1,6 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <paths>
-    <!-- Any local file the user opens or shares (internal storage, SD cards, USB drives). -->
-    <root-path name="root" path="." />
+    <!-- Internal storage (/storage/emulated/0). -->
+    <external-path name="internal" path="." />
+    <!-- SD cards and USB drives, mounted at /storage/XXXX-XXXX. Only /storage, never / or /data. -->
+    <root-path name="volumes" path="storage" />
     <cache-path name="cache" path="." />
+    <files-path name="files" path="." />
 </paths>

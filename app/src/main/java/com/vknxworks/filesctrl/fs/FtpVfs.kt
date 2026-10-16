@@ -6,7 +6,6 @@ import org.apache.commons.net.ftp.FTPClient
 import org.apache.commons.net.ftp.FTPFile
 import org.apache.commons.net.ftp.FTPReply
 import org.apache.commons.net.ftp.FTPSClient
-import org.apache.commons.net.util.TrustManagerUtils
 import java.io.FileNotFoundException
 import java.io.FilterInputStream
 import java.io.FilterOutputStream
@@ -38,8 +37,20 @@ class FtpVfs(override val server: NetServer) : RemoteVfs {
 
     private fun newClient(): FTPClient {
         val s = server
+        var pinTm: TlsPin.PinningTrustManager? = null
         val c: FTPClient = if (s.secure) FTPSClient(false).apply {
-            if (s.insecureTls) trustManager = TrustManagerUtils.getAcceptAllTrustManager()
+            if (s.insecureTls) {
+                // Self-signed: accept the certificate the user confirmed (by SHA-256), for this host only.
+                val tm = TlsPin.PinningTrustManager(s.certPin)
+                pinTm = tm
+                trustManager = tm
+                hostnameVerifier = tm.hostnameVerifier(s.host.trim())
+            } else {
+                // System-trusted certificates only, and they must name this host.
+                trustManager = TlsPin.systemTrustManager()
+                isEndpointCheckingEnabled = true
+                hostnameVerifier = javax.net.ssl.HttpsURLConnection.getDefaultHostnameVerifier()
+            }
         } else FTPClient()
         val t = s.timeoutSec.coerceIn(2, 120)
         c.connectTimeout = t * 1000
@@ -62,6 +73,7 @@ class FtpVfs(override val server: NetServer) : RemoteVfs {
             return c
         } catch (e: Exception) {
             try { if (c.isConnected) c.disconnect() } catch (_: Exception) {}
+            pinTm?.explain()?.let { throw it }
             throw friendly(e, "Connecting")
         }
     }
@@ -83,6 +95,7 @@ class FtpVfs(override val server: NetServer) : RemoteVfs {
         } catch (e: FtpReplyException) {
             throw e
         } catch (e: Exception) {
+            TlsPin.identityError(e)?.let { throw it }
             quit(c); ctl = null
             val c2 = newClient().also { ctl = it }
             return try { block(c2) } catch (e2: Exception) { throw friendly(e2, what, path) }
@@ -120,8 +133,11 @@ class FtpVfs(override val server: NetServer) : RemoteVfs {
             if (c.replyCode == 550) throw FileNotFoundException("$dir: not found")
             throw FtpReplyException("Listing failed: ${c.replyString.trim()}")
         }
-        files.filterNotNull().filter { it.name != "." && it.name != ".." && it.name.isNotEmpty() }
-            .map { entry(Paths.join(dir, it.name.substringAfterLast('/')), it) }
+        // Some servers send full paths as names; keep the last part. Then drop "." / ".." and anything with NUL,
+        // so a hostile server can't make a copy escape the destination folder.
+        files.filterNotNull().onEach { it.name = it.name.orEmpty().substringAfterLast('/') }
+            .filter { Paths.isSafeName(it.name) }
+            .map { entry(Paths.join(dir, it.name), it) }
     }
 
     override fun stat(path: String): FileEntry {
@@ -218,11 +234,11 @@ class FtpVfs(override val server: NetServer) : RemoteVfs {
 
     override fun space(path: String): Space? = null
 
-    private fun friendly(e: Exception, what: String, path: String? = null): IOException = when (e) {
+    private fun friendly(e: Exception, what: String, path: String? = null): IOException = TlsPin.identityError(e) ?: when (e) {
         is FileNotFoundException -> e
         is javax.net.ssl.SSLException -> IOException(
             if (server.insecureTls) "$what failed: TLS error (${e.message})"
-            else "$what failed: the server's certificate isn't trusted. Turn on \"Accept self-signed certificates\" if it's your own server.",
+            else "$what failed: the server's certificate isn't trusted or doesn't match ${server.host}. Turn on \"Accept self-signed certificates\" if it's your own server.",
         )
         is java.net.SocketTimeoutException -> IOException("$what failed: the server stopped responding")
         is java.net.ConnectException -> IOException("Couldn't reach ${server.host} on port ${server.effectivePort}. Is the FTP server running?")
