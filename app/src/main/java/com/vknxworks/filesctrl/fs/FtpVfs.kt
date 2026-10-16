@@ -31,6 +31,8 @@ class FtpVfs(override val server: NetServer) : RemoteVfs {
     private val lock = Any()
     private var ctl: FTPClient? = null
     @Volatile private var mlsd: Boolean? = null
+    /** The login folder, used as the starting point when no folder is set. */
+    @Volatile private var home: String? = null
 
     override val connected: Boolean get() = ctl?.isConnected == true
 
@@ -56,6 +58,7 @@ class FtpVfs(override val server: NetServer) : RemoteVfs {
             c.setFileType(FTP.BINARY_FILE_TYPE)
             c.enterLocalPassiveMode()
             if (mlsd == null) mlsd = try { c.hasFeature("MLST") } catch (_: Exception) { false }
+            if (home == null) home = try { c.printWorkingDirectory() } catch (_: Exception) { null } ?: "/"
             return c
         } catch (e: Exception) {
             try { if (c.isConnected) c.disconnect() } catch (_: Exception) {}
@@ -86,7 +89,7 @@ class FtpVfs(override val server: NetServer) : RemoteVfs {
         }
     }
 
-    private fun remote(path: String) = RemoteVfs.join(server.path, path)
+    private fun remote(path: String) = RemoteVfs.join(server.path.ifBlank { home ?: "/" }, path)
 
     private fun entry(path: String, f: FTPFile): FileEntry {
         var mode = 0
@@ -122,9 +125,9 @@ class FtpVfs(override val server: NetServer) : RemoteVfs {
     }
 
     override fun stat(path: String): FileEntry {
-        val r = remote(path)
-        if (r == "/") return FileEntry(id, path, Paths.name(path), true, 0, 0)
         return call("Reading", path) { c ->
+            val r = remote(path)
+            if (r == "/" || path == "/") return@call FileEntry(id, path, Paths.name(path), true, 0, 0)
             val f = if (mlsd == true) c.mlistFile(r) else null
             if (f != null) return@call entry(path, f.also { it.name = Paths.name(path) })
             // No MLST: look the name up in its folder.

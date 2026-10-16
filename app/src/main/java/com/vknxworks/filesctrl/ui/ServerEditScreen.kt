@@ -276,7 +276,7 @@ fun ServerEditScreen(serverId: String?, onDone: (openId: String?) -> Unit) {
                             Proto.NFS -> "For NFSv4 this is the path in the server's NFSv4 tree, often the same as for v3."
                             Proto.SMB -> "Leave empty to see every share on the server."
                             Proto.WEBDAV -> "The WebDAV address on the server. Nextcloud: /remote.php/dav/files/USERNAME"
-                            else -> "Where to start browsing. Empty starts at the top."
+                            else -> "Where to start browsing. Empty starts in your home folder."
                         })
                     },
                     singleLine = true,
