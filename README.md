@@ -8,7 +8,7 @@ FilesCtrl is a Material You file manager for Android, in the spirit of [Material
 
 Part of the [Ctrl series](#the-ctrl-series) by VKNXWorks.
 
-<a href="https://apps.obtainium.imranr.dev/redirect?r=obtainium://add/https://github.com/VoidedKN0X/FilesCtrl"><img src=".github/assets/badge_obtainium.png" alt="Get it on Obtainium" height="80"></a>
+<a href="https://apps.obtainium.imranr.dev/redirect?r=obtainium://add/https://github.com/VoidedKN0X/FilesCtrl"><img src=".github/assets/badge_obtainium.png" alt="Get it on Obtainium" height="80"></a> <a href="https://voidedkn0x.github.io/CtrlF-Droid/"><img src="https://img.shields.io/badge/Add%20to-F--Droid-1976D2?style=for-the-badge&logo=fdroid&logoColor=white" alt="Add the CtrlF-Droid repo to F-Droid" height="56"></a>
 
 ## Features
 
@@ -32,11 +32,14 @@ Part of the [Ctrl series](#the-ctrl-series) by VKNXWorks.
 2. Open it on your phone. Android may ask you to allow installing apps from your browser or file manager.
 3. Updates install over the old version. Your settings and login are kept.
 
-**Automatic updates with Obtainium:** install [Obtainium](https://github.com/ImranR98/Obtainium), then tap the button below on your phone. Obtainium adds FilesCtrl and installs every new release for you.
+**Automatic updates:** on your phone, tap one of the buttons below.
 
-<a href="https://apps.obtainium.imranr.dev/redirect?r=obtainium://add/https://github.com/VoidedKN0X/FilesCtrl"><img src=".github/assets/badge_obtainium.png" alt="Get it on Obtainium" height="80"></a>
+- **Obtainium:** install [Obtainium](https://github.com/ImranR98/Obtainium) first. The button adds FilesCtrl and installs every new release for you.
+- **F-Droid:** adds the [CtrlF-Droid repo](https://voidedkn0x.github.io/CtrlF-Droid/) to F-Droid, Droid-ify or Neo Store, with every Ctrl app and automatic updates.
 
-If the button doesn't open Obtainium, add `https://github.com/VoidedKN0X/FilesCtrl` in Obtainium by hand.
+<a href="https://apps.obtainium.imranr.dev/redirect?r=obtainium://add/https://github.com/VoidedKN0X/FilesCtrl"><img src=".github/assets/badge_obtainium.png" alt="Get it on Obtainium" height="80"></a> <a href="https://voidedkn0x.github.io/CtrlF-Droid/"><img src="https://img.shields.io/badge/Add%20to-F--Droid-1976D2?style=for-the-badge&logo=fdroid&logoColor=white" alt="Add the CtrlF-Droid repo to F-Droid" height="56"></a>
+
+If the Obtainium button doesn't open the app, add `https://github.com/VoidedKN0X/FilesCtrl` in Obtainium by hand.
 
 ## Getting started
 
