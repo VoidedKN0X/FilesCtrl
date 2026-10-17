@@ -3,8 +3,15 @@ name: Build APK
 on:
   push:
     branches: [main]
-    paths-ignore:
-      - "**.md"
+    # Only changes to the app itself make a new release. README, licence, badges
+    # and CI edits don't, so Obtainium and the F-Droid repo only see real updates.
+    paths:
+      - "app/**"
+      - "gradle/**"
+      - "*.gradle.kts"
+      - "gradle.properties"
+      - "gradlew"
+      - "gradlew.bat"
   workflow_dispatch:
 
 permissions:
@@ -127,6 +134,18 @@ jobs:
     permissions:
       contents: write
     steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+          fetch-depth: 0   # full history and tags, for the release notes
+
+      - name: Write release notes
+        env:
+          TAG: ${{ needs.build.outputs.tag }}
+        run: |
+          bash .github/scripts/release-notes.sh "$TAG" "$GITHUB_SHA" > "$RUNNER_TEMP/notes.md"
+          cat "$RUNNER_TEMP/notes.md"
+
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: FilesCtrl-apk
@@ -139,9 +158,4 @@ jobs:
           target_commitish: ${{ github.sha }}
           make_latest: true
           files: ${{ needs.build.outputs.apk }}
-          body: |
-            **FilesCtrl ${{ needs.build.outputs.version }}**, build ${{ github.run_number }}
-
-            Download **${{ needs.build.outputs.apk }}** below and open it on your phone to install or update.
-
-            Changes in this build: ${{ github.event.head_commit.message || 'manual build' }}
+          body_path: ${{ runner.temp }}/notes.md
