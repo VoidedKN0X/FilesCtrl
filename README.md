@@ -8,7 +8,7 @@ FilesCtrl is a Material You file manager for Android, in the spirit of [Material
 
 Part of the [Ctrl series](#the-ctrl-series) by VKNXWorks.
 
-<a href="https://apps.obtainium.imranr.dev/redirect?r=obtainium://add/https://github.com/VoidedKN0X/FilesCtrl"><img src=".github/assets/badge_obtainium.png" alt="Get it on Obtainium" height="48"></a>
+<a href="https://apps.obtainium.imranr.dev/redirect?r=obtainium://add/https://github.com/VoidedKN0X/FilesCtrl"><img src=".github/assets/badge_obtainium.png" alt="Get it on Obtainium" height="80"></a>
 
 ## Features
 
@@ -34,7 +34,7 @@ Part of the [Ctrl series](#the-ctrl-series) by VKNXWorks.
 
 **Automatic updates with Obtainium:** install [Obtainium](https://github.com/ImranR98/Obtainium), then tap the button below on your phone. Obtainium adds FilesCtrl and installs every new release for you.
 
-<a href="https://apps.obtainium.imranr.dev/redirect?r=obtainium://add/https://github.com/VoidedKN0X/FilesCtrl"><img src=".github/assets/badge_obtainium.png" alt="Get it on Obtainium" height="48"></a>
+<a href="https://apps.obtainium.imranr.dev/redirect?r=obtainium://add/https://github.com/VoidedKN0X/FilesCtrl"><img src=".github/assets/badge_obtainium.png" alt="Get it on Obtainium" height="80"></a>
 
 If the button doesn't open Obtainium, add `https://github.com/VoidedKN0X/FilesCtrl` in Obtainium by hand.
 
