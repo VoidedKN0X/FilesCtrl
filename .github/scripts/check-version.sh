@@ -47,5 +47,16 @@ if [ "$code" -le "$max_code" ]; then
   exit 1
 fi
 
+# Every release needs a written CHANGELOG.md entry: "## <version>" (or "## v<version> (date)").
+entry=$(awk -v v="$name" '
+  /^## / { if (on) exit; h = $0; sub(/^## +\[?v?/, "", h); sub(/[] (].*$/, "", h); if (h == v) { on = 1; next } }
+  on && NF { n++ }
+  END { print n + 0 }
+' CHANGELOG.md 2>/dev/null || echo 0)
+if [ "$entry" -eq 0 ]; then
+  echo "::error title=Changelog missing::Add a \"## $name\" section to CHANGELOG.md describing what changed, then push again."
+  exit 1
+fi
+
 echo "::notice title=New release::$tag (versionCode $code)"
 echo "release=true" >> "$out"

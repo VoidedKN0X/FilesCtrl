@@ -58,7 +58,7 @@ if [ -f CHANGELOG.md ]; then
       if (h == v) { on = 1; next }
     }
     on { print }
-  ' | sed -e '/./,$!d' | sed -e ':a' -e '/^\n*$/{$d;N;ba' -e '}')
+  ' | sed -e '/./,$!d' | sed -e ':a' -e '/^\n*$/{$d;N;ba' -e '}' || true)
 fi
 
 if [ -n "$section" ]; then
