@@ -46,7 +46,26 @@ changes=$(git log --no-merges --format='%H' "$range" -- "${existing[@]}" | while
   fi
 done)
 
-if [ -n "$changes" ] && [ -z "$prev" ]; then
+# A CHANGELOG.md section for this version ("## 1.2.2", "## v0.1.8 (date)",
+# "## [2.4.1] - date") is written for users, so it wins over the commit list.
+version="${tag#v}"
+section=""
+if [ -f CHANGELOG.md ]; then
+  section=$(git show "$ref:CHANGELOG.md" 2>/dev/null | awk -v v="$version" '
+    /^## / {
+      if (on) exit
+      h = $0; sub(/^## +\[?v?/, "", h); sub(/[] (].*$/, "", h)
+      if (h == v) { on = 1; next }
+    }
+    on { print }
+  ' | sed -e '/./,$!d' | sed -e ':a' -e '/^\n*$/{$d;N;ba' -e '}')
+fi
+
+if [ -n "$section" ]; then
+  echo "## What's new"
+  echo
+  echo "$section"
+elif [ -n "$changes" ] && [ -z "$prev" ]; then
   echo "## First release"
   echo
   echo "$changes"
