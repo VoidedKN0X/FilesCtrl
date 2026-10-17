@@ -18,7 +18,26 @@ permissions:
   contents: read
 
 jobs:
+  # A release is published only when versionName (and versionCode) in
+  # app/build.gradle.kts are bumped. Other pushes just build to check the code.
+  version:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.v.outputs.version }}
+      tag: ${{ steps.v.outputs.tag }}
+      release: ${{ steps.v.outputs.release }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+          fetch-depth: 0   # tags, to see whether this version is already released
+
+      - name: Check for a version bump
+        id: v
+        run: bash .github/scripts/check-version.sh
+
   build:
+    needs: version
     runs-on: ubuntu-latest
     outputs:
       signed: ${{ steps.apk.outputs.signed }}
@@ -79,7 +98,6 @@ jobs:
           SIGNING_STORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD || vars.KEYSTORE_PASSWORD }}
           SIGNING_KEY_ALIAS: ${{ secrets.KEY_ALIAS || vars.KEY_ALIAS }}
           SIGNING_KEY_PASSWORD: ${{ secrets.KEY_PASSWORD || vars.KEY_PASSWORD }}
-          VERSION_CODE: ${{ github.run_number }}
         run: |
           chmod +x gradlew
           set -o pipefail
@@ -94,7 +112,7 @@ jobs:
         id: apk
         run: |
           VERSION=$(grep -oP 'versionName = "\K[^"]+' app/build.gradle.kts)
-          TAG="v${VERSION}-build.${{ github.run_number }}"
+          TAG="v${VERSION}"
           APK="FilesCtrl-${TAG}.apk"
           cp app/build/outputs/apk/release/app-release.apk "$APK"
           echo "VERSION=$VERSION" >> "$GITHUB_ENV"
@@ -128,8 +146,8 @@ jobs:
 
   release:
     # Publishes only a release-signed APK; the only job allowed to write to the repository.
-    needs: build
-    if: needs.build.outputs.signed == '1'
+    needs: [version, build]
+    if: needs.version.outputs.release == 'true' && needs.build.outputs.signed == '1'
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -154,7 +172,7 @@ jobs:
         uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2
         with:
           tag_name: ${{ needs.build.outputs.tag }}
-          name: FilesCtrl ${{ needs.build.outputs.version }} (build ${{ github.run_number }})
+          name: FilesCtrl ${{ needs.build.outputs.version }}
           target_commitish: ${{ github.sha }}
           make_latest: true
           files: ${{ needs.build.outputs.apk }}
