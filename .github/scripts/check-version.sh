@@ -21,7 +21,8 @@ echo "version=$name" >> "$out"
 echo "tag=$tag" >> "$out"
 echo "code=$code" >> "$out"
 
-if git rev-parse -q --verify "refs/tags/$tag" >/dev/null; then
+# Older releases were tagged v<version>-build.<n>; those count as released too.
+if [ -n "$(git tag --list "$tag" "$tag-build.*")" ]; then
   echo "::notice title=No new release::$tag is already released. Bump versionName and versionCode in $gradle to publish a new version."
   echo "release=false" >> "$out"
   exit 0
