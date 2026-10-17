@@ -30,7 +30,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Folder
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.Storage
-import androidx.compose.material.icons.outlined.SwapVert
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
@@ -76,7 +75,6 @@ import com.vknxworks.filesctrl.ui.PlacesTab
 import com.vknxworks.filesctrl.ui.ServerEditScreen
 import com.vknxworks.filesctrl.ui.SettingsTab
 import com.vknxworks.filesctrl.ui.TabIsland
-import com.vknxworks.filesctrl.ui.TransfersTab
 import com.vknxworks.filesctrl.ui.VfsTextSource
 import com.vknxworks.filesctrl.ui.isAppInDarkTheme
 import com.vknxworks.filesctrl.ui.lock.AppLockViewModel
@@ -122,8 +120,7 @@ class MainActivity : FragmentActivity() {
 object MainTab {
     const val FILES = 0
     const val PLACES = 1
-    const val TRANSFERS = 2
-    const val SETTINGS = 3
+    const val SETTINGS = 2
     var selected by mutableIntStateOf(FILES)
 }
 
@@ -241,11 +238,9 @@ private fun Root(activity: FragmentActivity, lockVm: AppLockViewModel = viewMode
 @Composable
 private fun MainShell(vm: BrowserViewModel) {
     val nav = LocalNav.current
-    val running = Ops.active.size
     val tabs = listOf(
         IslandTab(MainTab.FILES, Icons.Outlined.Folder, "Files"),
         IslandTab(MainTab.PLACES, Icons.Outlined.Storage, "Places"),
-        IslandTab(MainTab.TRANSFERS, Icons.Outlined.SwapVert, "Transfers", running),
         IslandTab(MainTab.SETTINGS, Icons.Outlined.Settings, "Settings"),
     )
 
@@ -265,7 +260,6 @@ private fun MainShell(vm: BrowserViewModel) {
                             onEditServer = { nav.navigate("server/$it") },
                         )
                     }
-                    MainTab.TRANSFERS -> Box(Modifier.statusBarsPadding()) { TransfersTab() }
                     MainTab.SETTINGS -> Box(Modifier.statusBarsPadding()) { SettingsTab() }
                     else -> BrowserScreen(vm, islandSpace = if (rail) 0.dp else 82.dp)
                 }
