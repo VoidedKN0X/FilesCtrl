@@ -79,6 +79,8 @@ object Ops {
     private fun launch(title: String, touched: List<Location>, work: suspend (OpTask) -> Unit): OpTask {
         val t = OpTask(nextId++, title)
         tasks.add(0, t)
+        // Keep only a few finished ones around (the notification is where results are shown now).
+        tasks.filter { it.state != TaskState.Running }.drop(10).forEach { tasks.remove(it) }
         try {
             appContext.startForegroundService(Intent(appContext, OpService::class.java))
         } catch (_: Exception) {
@@ -98,6 +100,16 @@ object Ops {
                 t.detail = "Failed"
             } finally {
                 touched.distinct().forEach { _changed.tryEmit(it) }
+                // With the app open there's no notification for the result, so say when something went wrong.
+                if (t.state == TaskState.Failed || (t.state == TaskState.Done && t.warnings.isNotEmpty())) {
+                    val msg = if (t.state == TaskState.Failed) "${t.title} failed: ${t.error}"
+                    else "${t.title}: ${t.warnings.size} skipped (${t.warnings.first()})"
+                    android.os.Handler(android.os.Looper.getMainLooper()).post {
+                        if (com.vknxworks.filesctrl.MainActivity.inForeground) {
+                            android.widget.Toast.makeText(appContext, msg, android.widget.Toast.LENGTH_LONG).show()
+                        }
+                    }
+                }
             }
         }
         return t

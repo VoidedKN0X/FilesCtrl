@@ -14,7 +14,7 @@ A Material You file manager for Android, in the spirit of [Material Files](https
   - Passwords and keys are encrypted with the Android Keystore; reconnects automatically after Wi-Fi drops
 - **Open network files in any app** — files stream through Android's document provider, so video players can seek in large files without downloading them first
 - **Network locations in the system file picker** — saved servers show up under "Browse" in any app that opens or saves files
-- Copy, move, delete, rename, between local storage and any network location in any direction, in the background with a progress notification and cancel
+- Copy, move, delete, rename, between local storage and any network location in any direction, in the background with a progress notification and cancel button
 - Paste conflict handling (keep both / replace and merge / skip)
 - Zip compress and extract (on either side)
 - Breadcrumb path bar, list and grid views, sort by name (natural order) / size / date / type, folders first, hidden files
