@@ -1,60 +1,101 @@
 # FilesCtrl
 
-A Material You file manager for Android, in the spirit of [Material Files](https://github.com/zhanghai/MaterialFiles), with built-in network file systems: **NFS** (v3, v4.0, v4.2), **SMB** (2/3), **SFTP**, **FTP/FTPS** and **WebDAV**.
+**A file manager that opens your network shares.**
+
+[![Latest release](https://img.shields.io/github/v/release/VoidedKN0X/FilesCtrl?label=download)](https://github.com/VoidedKN0X/FilesCtrl/releases/latest) ![Android 13+](https://img.shields.io/badge/Android-13%2B-3DDC84?logo=android&logoColor=white) [![License: GPL-3.0](https://img.shields.io/badge/license-GPL--3.0-blue)](LICENSE) [![Sponsor](https://img.shields.io/badge/sponsor-GitHub-ea4aaa?logo=githubsponsors&logoColor=white)](https://github.com/sponsors/VoidedKN0X)
+
+FilesCtrl is a Material You file manager for Android, in the spirit of [Material Files](https://github.com/zhanghai/MaterialFiles), with network storage built in: **NFS, SMB, SFTP, FTP and WebDAV**. No root needed.
+
+Part of the [Ctrl series](#the-ctrl-series) by VKNXWorks.
+
+<a href="https://apps.obtainium.imranr.dev/redirect?r=obtainium://add/https://github.com/VoidedKN0X/FilesCtrl"><img src=".github/assets/badge_obtainium.png" alt="Get it on Obtainium" height="48"></a>
 
 ## Features
 
-- **Local storage** — internal storage, SD cards and USB drives, with free-space shown in the menu
-- **Network locations**, all from one "Add network" screen, no root needed:
-  - **NFS** v3/v4 via [libnfs](https://github.com/sahlberg/libnfs): export listing, server scan, per-share uid/gid, custom ports
-  - **SMB** 2/3 via smbj: guest or user login, domain, lists all shares when none is given
-  - **SFTP** via sshj: password or private key, host key remembered on first connect and checked after
-  - **FTP / FTPS** via Apache Commons Net (explicit TLS, optional self-signed certificates)
-  - **WebDAV** over HTTP/HTTPS (Nextcloud, ownCloud, Apache/nginx)
-  - Passwords and keys are encrypted with the Android Keystore; reconnects automatically after Wi-Fi drops
-- **Open network files in any app** — files stream through Android's document provider, so video players can seek in large files without downloading them first
-- **Network locations in the system file picker** — saved servers show up under "Browse" in any app that opens or saves files
-- Copy, move, delete, rename, between local storage and any network location in any direction, in the background with a progress notification and cancel button
-- Paste conflict handling (keep both / replace and merge / skip)
-- Zip compress and extract (on either side)
-- Breadcrumb path bar, list and grid views, sort by name (natural order) / size / date / type, folders first, hidden files
-- Multi-select with copy, cut, delete, share, compress
-- Filter as you type, or search subfolders recursively
-- Image and video thumbnails (images on NFS too)
-- Properties with folder size, permissions and owner; change permissions (chmod) on NFS
-- Built-in text editor for config files and notes
-- Bookmarks, back-history with scroll position restore
-- Tablet / unfolded layout with a permanent drawer
-- Material You colours, light/dark/pure black
+- **Local storage**: internal storage, SD cards and USB drives
+- **Network storage** from one *Add network* button: NFS (v3 and v4), SMB (2/3), SFTP, FTP/FTPS and WebDAV (Nextcloud, ownCloud and others)
+- **Open network files in any app**: videos stream and can be skipped through without downloading first
+- **Your servers in the system file picker**, so other apps can open and save files on them
+- **Copy, move, rename and delete** between your phone and any server, in the background
+- **Zip** and unzip, multi-select, search, bookmarks
+- **Thumbnails** for photos and videos, list and grid views, sorting and hidden files
+- **Built-in text editor** for config files and notes
+- Passwords are stored encrypted; light, dark and pure black themes; tablet layout
 
-## NFS server notes
+## Requirements
 
-- **`insecure` export option.** Android apps can't bind privileged ports (< 1024). Linux `knfsd` exports need `insecure` for FilesCtrl to mount, e.g.
+- Android 13 or newer
 
-  ```
-  /srv/share  192.168.1.0/24(rw,insecure,no_subtree_check)
-  ```
+## Install
 
-  On Synology: *Shared Folder → Edit → NFS Permissions → "Allow connections from non-privileged ports"*. On TrueNAS: enable *Allow non-root mount* on the share.
-- **uid/gid.** NFS (AUTH_SYS) trusts the IDs the client sends. Set the share's uid/gid in FilesCtrl to the owner of your files on the server (often 1000 on Linux, 1026+ on Synology).
-- **NFSv4 paths** are relative to the server's NFSv4 pseudo-root. With a Linux `fsid=0` export, use paths below it.
+1. Download the latest `.apk` file from the [Releases page](https://github.com/VoidedKN0X/FilesCtrl/releases/latest).
+2. Open it on your phone. Android may ask you to allow installing apps from your browser or file manager.
+3. Updates install over the old version. Your settings and login are kept.
 
-## Tests
+**Automatic updates with Obtainium:** install [Obtainium](https://github.com/ImranR98/Obtainium), then tap the button below on your phone. Obtainium adds FilesCtrl and installs every new release for you.
 
-The *Network tests* workflow runs the same file operations (create, 3 MB write and read-back, ranged and random reads, in-place edits, rename, delete) against Samba, SFTP, FTP and WebDAV servers in Docker on every push. NFS is tested against userspace NFSv3/v4 servers.
+<a href="https://apps.obtainium.imranr.dev/redirect?r=obtainium://add/https://github.com/VoidedKN0X/FilesCtrl"><img src=".github/assets/badge_obtainium.png" alt="Get it on Obtainium" height="48"></a>
 
-## Building
+If the button doesn't open Obtainium, add `https://github.com/VoidedKN0X/FilesCtrl` in Obtainium by hand.
 
-The APK is built by GitHub Actions on every push to `main` and published as a release. Locally:
+## Getting started
 
-```
-./gradlew assembleRelease
-```
+1. Tap **Add network**.
+2. Choose the type (NFS, SMB, SFTP, FTP or WebDAV) and enter your server's address and login.
+3. Your server now appears next to your phone's storage.
 
-Needs the Android SDK with NDK and CMake 3.22.1 (Gradle installs them). libnfs is fetched by CMake at build time.
+## Tips and troubleshooting
 
-Optional signing secrets: `KEYSTORE_BASE64`, `KEYSTORE_PASSWORD`, `KEY_ALIAS`, `KEY_PASSWORD`. Without them the APK is signed with the debug key.
+**NFS server setup.** Android apps can't use privileged ports, so your NFS export must allow them:
 
-## Licence
+- **Linux:** add `insecure` to the export, e.g. `/srv/share 192.168.1.0/24(rw,insecure,no_subtree_check)`
+- **Synology:** *Shared Folder → Edit → NFS Permissions →* allow connections from non-privileged ports
+- **TrueNAS:** turn on *Allow non-root mount* for the share
 
-libnfs is LGPL-2.1 (library) / BSD. smbj, sshj and Commons Net are Apache-2.0.
+Set the share's **uid/gid** in FilesCtrl to the owner of your files on the server (often `1000` on Linux, `1026` or higher on Synology).
+
+## Build from source
+
+You need [Android Studio](https://developer.android.com/studio), or JDK 17 and the Android SDK.
+
+1. Clone the repo:
+   ```bash
+   git clone https://github.com/VoidedKN0X/FilesCtrl.git
+   cd FilesCtrl
+   ```
+2. Build the app:
+   ```bash
+   ./gradlew assembleDebug
+   ```
+   On Windows, use `gradlew.bat assembleDebug`.
+3. The APK is in `app/build/outputs/apk/debug/`. Copy it to your phone and install it.
+
+Or open the folder in Android Studio and press **Run** with your phone connected.
+
+Gradle downloads the Android NDK and CMake it needs automatically on the first build, so the first build takes a little longer.
+
+## Support the project
+
+FilesCtrl is free and open source. If it's useful to you, you can support development on [GitHub Sponsors](https://github.com/sponsors/VoidedKN0X). Starring the repo and [reporting bugs](https://github.com/VoidedKN0X/FilesCtrl/issues) helps too.
+
+## The Ctrl series
+
+Native Android apps for self-hosted services and everyday tools, all with the same Material You design.
+
+| App | What it's for |
+| --- | --- |
+| [BeamCtrl](https://github.com/VoidedKN0X/BeamCtrl) | TV remote for phones with an IR blaster |
+| [CraftyCtrl](https://github.com/VoidedKN0X/CraftyCtrl) | Manage Minecraft servers on Crafty Controller |
+| [ElementCtrl](https://github.com/VoidedKN0X/ElementCtrl) | Matrix chat client for matrix.org and self-hosted Synapse |
+| **FilesCtrl** (this app) | File manager with NFS, SMB, SFTP, FTP and WebDAV |
+| [FrigateCtrl](https://github.com/VoidedKN0X/FrigateCtrl) | Watch and review your Frigate NVR cameras |
+| [ImmichCtrl](https://github.com/VoidedKN0X/ImmichCtrl) | Photos and backup for your Immich server |
+| [JellyCtrl](https://github.com/VoidedKN0X/JellyCtrl) | Movies, shows, music and Live TV from Jellyfin |
+| [NaviCtrl](https://github.com/VoidedKN0X/NaviCtrl) | Music player for Navidrome servers |
+| [SeerrCtrl](https://github.com/VoidedKN0X/SeerrCtrl) | Request movies and shows on Seerr / Jellyseerr |
+
+## License
+
+FilesCtrl is licensed under the [GNU General Public License v3.0](LICENSE). © VKNXWorks
+
+FilesCtrl uses libnfs (LGPL-2.1), smbj, sshj and Apache Commons Net (Apache-2.0).
