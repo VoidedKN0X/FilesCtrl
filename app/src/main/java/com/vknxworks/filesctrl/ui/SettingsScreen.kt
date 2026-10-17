@@ -1,5 +1,6 @@
 package com.vknxworks.filesctrl.ui
 
+import android.widget.Toast
 import android.content.Intent
 import android.net.Uri
 import android.os.Environment
@@ -61,6 +62,7 @@ import com.vknxworks.filesctrl.data.ThemeMode
 import com.vknxworks.filesctrl.ui.lock.PIN_MAX
 import com.vknxworks.filesctrl.ui.lock.PIN_MIN
 import com.vknxworks.filesctrl.ui.lock.biometricAvailable
+import com.vknxworks.filesctrl.ui.lock.clearBiometricKey
 import com.vknxworks.filesctrl.ui.lock.showBiometricPrompt
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -163,8 +165,14 @@ fun SettingsTab() {
                         lock.biometricEnabled, enabled = bioAvailable,
                     ) { on ->
                         val act = ctx as? FragmentActivity
-                        if (on && act != null) showBiometricPrompt(act, "Confirm to turn on") { lock.biometricEnabled = true }
-                        else lock.biometricEnabled = false
+                        if (on && act != null) showBiometricPrompt(
+                            act, "Confirm to turn on", enrol = true,
+                            onUnavailable = { Toast.makeText(ctx, "Fingerprint unlock isn't available on this phone", Toast.LENGTH_SHORT).show() },
+                        ) { lock.biometricEnabled = true }
+                        else {
+                            lock.biometricEnabled = false
+                            clearBiometricKey()
+                        }
                     }
                     ItemDivider()
                     val afters = listOf(0, 30, 60, 300)

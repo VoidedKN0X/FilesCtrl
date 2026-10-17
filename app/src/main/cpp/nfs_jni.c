@@ -25,6 +25,8 @@
 
 #define STAT_FIELDS 10
 #define IO_CHUNK (1024 * 1024)
+/* Most entries list(), exports() and findServers() return. A server can't make us allocate without bound. */
+#define MAX_ENTRIES 1000000
 
 typedef struct {
     struct nfs_context *nfs;
@@ -35,22 +37,47 @@ typedef struct {
 #define FH(h) ((struct nfsfh *)(intptr_t)(h))
 /* A zero handle would crash inside libnfs; refuse it instead. */
 #define NEED_FH(fh) do { if ((fh) == 0) return -EBADF; } while (0)
+/* Same for a missing context. */
+#define NEED_CTX(h) do { if (!CTX(h) || !CTX(h)->nfs) return -EBADF; } while (0)
+#define NEED_CTX_NULL(h) do { if (!CTX(h) || !CTX(h)->nfs) return NULL; } while (0)
+/* A path string JNI couldn't give us (out of memory) would be a NULL path inside libnfs. */
+#define NEED_STR(p) do { if (!(p)) return -ENOMEM; } while (0)
 
 static int neg(int rc) { return rc < 0 ? rc : -EIO; }
+
+/*
+ * Seconds + sub-second part from the server -> milliseconds, without signed overflow (undefined
+ * behaviour in C) for absurd values a broken or hostile server may send. Out-of-range times clamp.
+ */
+#define MAX_SEC ((int64_t)(INT64_MAX / 1000 - 1))
+static jlong to_ms(int64_t sec, int64_t sub_ms) {
+    if (sec > MAX_SEC) sec = MAX_SEC;
+    if (sec < -MAX_SEC) sec = -MAX_SEC;
+    if (sub_ms < 0 || sub_ms > 999) sub_ms = 0;
+    return (jlong)(sec * 1000 + sub_ms);
+}
+static jlong u64_to_jlong(uint64_t v) { return v > (uint64_t)INT64_MAX ? (jlong)INT64_MAX : (jlong)v; }
+
+/* True if [off, off + len) lies inside the Java array (len > 0). */
+static int in_bounds(JNIEnv *env, jbyteArray buf, jint off, jint len) {
+    if (!buf || off < 0 || len <= 0) return 0;
+    jsize n = (*env)->GetArrayLength(env, buf);
+    return off <= n && len <= n - off;
+}
 
 /* Fill out[] = {mode, size, mtimeMs, atimeMs, ctimeMs, uid, gid, nlink, ino, blocks*512(used)} */
 static void put_stat64(JNIEnv *env, jlongArray out, const struct nfs_stat_64 *st) {
     jlong v[STAT_FIELDS];
-    v[0] = (jlong)st->nfs_mode;
-    v[1] = (jlong)st->nfs_size;
-    v[2] = (jlong)st->nfs_mtime * 1000 + (jlong)(st->nfs_mtime_nsec / 1000000);
-    v[3] = (jlong)st->nfs_atime * 1000 + (jlong)(st->nfs_atime_nsec / 1000000);
-    v[4] = (jlong)st->nfs_ctime * 1000 + (jlong)(st->nfs_ctime_nsec / 1000000);
+    v[0] = (jlong)(st->nfs_mode & 0xFFFFFFFFu);
+    v[1] = u64_to_jlong(st->nfs_size);
+    v[2] = to_ms((int64_t)u64_to_jlong(st->nfs_mtime), (int64_t)(st->nfs_mtime_nsec / 1000000));
+    v[3] = to_ms((int64_t)u64_to_jlong(st->nfs_atime), (int64_t)(st->nfs_atime_nsec / 1000000));
+    v[4] = to_ms((int64_t)u64_to_jlong(st->nfs_ctime), (int64_t)(st->nfs_ctime_nsec / 1000000));
     v[5] = (jlong)st->nfs_uid;
     v[6] = (jlong)st->nfs_gid;
-    v[7] = (jlong)st->nfs_nlink;
+    v[7] = u64_to_jlong(st->nfs_nlink);
     v[8] = (jlong)st->nfs_ino;
-    v[9] = (jlong)st->nfs_used;
+    v[9] = u64_to_jlong(st->nfs_used);
     (*env)->SetLongArrayRegion(env, out, 0, STAT_FIELDS, v);
 }
 
@@ -121,7 +148,7 @@ JNIEXPORT jstring JNICALL FN(error)(JNIEnv *env, jobject thiz, jlong h) {
     return safe_string(env, e);
 }
 
-JNIEXPORT jint JNICALL FN(lastError)(JNIEnv *env, jobject thiz, jlong h) { return CTX(h)->last; }
+JNIEXPORT jint JNICALL FN(lastError)(JNIEnv *env, jobject thiz, jlong h) { return CTX(h) ? CTX(h)->last : -EBADF; }
 
 /*
  * version: 3 or 4. nfsPort / mountPort 0 = ask the portmapper (v3) or use 2049 (v4).
@@ -130,7 +157,9 @@ JNIEXPORT jint JNICALL FN(lastError)(JNIEnv *env, jobject thiz, jlong h) { retur
 JNIEXPORT jint JNICALL FN(mount)(JNIEnv *env, jobject thiz, jlong h, jstring jserver, jstring jexport,
                                  jint version, jint uid, jint gid, jint nfsPort, jint mountPort,
                                  jint timeoutMs, jboolean readOnly, jboolean traverseMounts) {
+    NEED_CTX(h);
     ctx_t *c = CTX(h);
+    if (!jserver || !jexport) return -EINVAL;
     /* 3 = NFS_V3, 4 = NFS_V4 (4.0), 42 = NFS_V4_2 */
     int rcv = nfs_set_version(c->nfs, version == 4 || version == 42 ? version : 3);
     if (rcv < 0) return rcv;
@@ -145,15 +174,18 @@ JNIEXPORT jint JNICALL FN(mount)(JNIEnv *env, jobject thiz, jlong h, jstring jse
     nfs_set_auto_traverse_mounts(c->nfs, traverseMounts ? 1 : 0);
     const char *server = jstr(env, jserver);
     const char *export = jstr(env, jexport);
-    int rc = nfs_mount(c->nfs, server, export);
+    int rc = (server && export) ? nfs_mount(c->nfs, server, export) : -ENOMEM;
     jstr_rel(env, jserver, server);
     jstr_rel(env, jexport, export);
     return rc;
 }
 
 JNIEXPORT jint JNICALL FN(stat)(JNIEnv *env, jobject thiz, jlong h, jstring jpath, jboolean follow, jlongArray out) {
+    NEED_CTX(h);
     struct nfs_stat_64 st;
+    memset(&st, 0, sizeof st);
     const char *p = jstr(env, jpath);
+    NEED_STR(p);
     int rc = follow ? nfs_stat64(CTX(h)->nfs, p, &st) : nfs_lstat64(CTX(h)->nfs, p, &st);
     jstr_rel(env, jpath, p);
     if (rc == 0) put_stat64(env, out, &st);
@@ -161,8 +193,10 @@ JNIEXPORT jint JNICALL FN(stat)(JNIEnv *env, jobject thiz, jlong h, jstring jpat
 }
 
 JNIEXPORT jint JNICALL FN(fstat)(JNIEnv *env, jobject thiz, jlong h, jlong fh, jlongArray out) {
+    NEED_CTX(h);
     NEED_FH(fh);
     struct nfs_stat_64 st;
+    memset(&st, 0, sizeof st);
     int rc = nfs_fstat64(CTX(h)->nfs, FH(fh), &st);
     if (rc == 0) put_stat64(env, out, &st);
     return rc;
@@ -173,17 +207,21 @@ JNIEXPORT jint JNICALL FN(fstat)(JNIEnv *env, jobject thiz, jlong h, jlong fh, j
  * STAT_FIELDS longs per entry (same layout as stat) plus one more: the NF3 type (5 = symlink).
  */
 JNIEXPORT jobjectArray JNICALL FN(list)(JNIEnv *env, jobject thiz, jlong h, jstring jpath) {
+    NEED_CTX_NULL(h);
     ctx_t *c = CTX(h);
     struct nfsdir *dir = NULL;
     const char *p = jstr(env, jpath);
+    if (!p) { c->last = -ENOMEM; return NULL; }
     int rc = nfs_opendir(c->nfs, p, &dir);
     jstr_rel(env, jpath, p);
-    if (rc < 0) { c->last = rc; return NULL; }
+    if (rc < 0 || !dir) { c->last = neg(rc); return NULL; }
 
+    /* The entry count comes from the server: cap it so n * per below can't overflow an int. */
     int n = 0;
     struct nfsdirent *e;
     while ((e = nfs_readdir(c->nfs, dir)) != NULL) {
-        if (strcmp(e->name, ".") && strcmp(e->name, "..")) n++;
+        if (e->name && strcmp(e->name, ".") && strcmp(e->name, "..")) n++;
+        if (n > MAX_ENTRIES) { nfs_closedir(c->nfs, dir); c->last = -E2BIG; return NULL; }
     }
     nfs_rewinddir(c->nfs, dir);
 
@@ -191,12 +229,16 @@ JNIEXPORT jobjectArray JNICALL FN(list)(JNIEnv *env, jobject thiz, jlong h, jstr
     jclass strCls = (*env)->FindClass(env, "java/lang/String");
     jobjectArray names = (*env)->NewObjectArray(env, n, strCls, NULL);
     jlongArray data = (*env)->NewLongArray(env, n * per);
-    jlong *d = malloc(sizeof(jlong) * (size_t)(n > 0 ? n * per : 1));
-    if (!names || !data || !d) { free(d); nfs_closedir(c->nfs, dir); c->last = -ENOMEM; return NULL; }
+    jlong *d = calloc((size_t)(n > 0 ? n : 1) * (size_t)per, sizeof(jlong));
+    if (!strCls || !names || !data || !d) {
+        free(d); nfs_closedir(c->nfs, dir); c->last = -ENOMEM;
+        (*env)->ExceptionClear(env); /* the caller reads lastError() instead */
+        return NULL;
+    }
 
     int i = 0;
     while ((e = nfs_readdir(c->nfs, dir)) != NULL && i < n) {
-        if (!strcmp(e->name, ".") || !strcmp(e->name, "..")) continue;
+        if (!e->name || !strcmp(e->name, ".") || !strcmp(e->name, "..")) continue;
         /* A name that isn't UTF-8 can't be opened again by path; mark it but keep it unique. */
         jstring s;
         if (valid_utf8((const unsigned char *)e->name)) s = (*env)->NewStringUTF(env, e->name);
@@ -205,19 +247,20 @@ JNIEXPORT jobjectArray JNICALL FN(list)(JNIEnv *env, jobject thiz, jlong h, jstr
             snprintf(tmp, sizeof tmp, "?unreadable-name-%llu", (unsigned long long)e->inode);
             s = (*env)->NewStringUTF(env, tmp);
         }
+        if (!s) { (*env)->ExceptionClear(env); continue; } /* out of memory: skip the entry rather than crash */
         (*env)->SetObjectArrayElement(env, names, i, s);
         (*env)->DeleteLocalRef(env, s);
-        jlong *v = d + i * per;
-        v[0] = e->mode;
-        v[1] = (jlong)e->size;
-        v[2] = (jlong)e->mtime.tv_sec * 1000 + e->mtime.tv_usec / 1000;
-        v[3] = (jlong)e->atime.tv_sec * 1000 + e->atime.tv_usec / 1000;
-        v[4] = (jlong)e->ctime.tv_sec * 1000 + e->ctime.tv_usec / 1000;
+        jlong *v = d + (size_t)i * per;
+        v[0] = (jlong)(e->mode & 0xFFFFFFFFu);
+        v[1] = u64_to_jlong(e->size);
+        v[2] = to_ms((int64_t)e->mtime.tv_sec, (int64_t)(e->mtime.tv_usec / 1000));
+        v[3] = to_ms((int64_t)e->atime.tv_sec, (int64_t)(e->atime.tv_usec / 1000));
+        v[4] = to_ms((int64_t)e->ctime.tv_sec, (int64_t)(e->ctime.tv_usec / 1000));
         v[5] = e->uid;
         v[6] = e->gid;
-        v[7] = e->nlink;
+        v[7] = (jlong)e->nlink;
         v[8] = (jlong)e->inode;
-        v[9] = (jlong)e->used;
+        v[9] = u64_to_jlong(e->used);
         v[10] = e->type;
         i++;
     }
@@ -226,10 +269,11 @@ JNIEXPORT jobjectArray JNICALL FN(list)(JNIEnv *env, jobject thiz, jlong h, jstr
     free(d);
 
     jclass objCls = (*env)->FindClass(env, "java/lang/Object");
-    jobjectArray res = (*env)->NewObjectArray(env, 3, objCls, NULL);
+    jobjectArray res = objCls ? (*env)->NewObjectArray(env, 3, objCls, NULL) : NULL;
+    jintArray count = (*env)->NewIntArray(env, 1);
+    if (!res || !count) { (*env)->ExceptionClear(env); c->last = -ENOMEM; return NULL; }
     (*env)->SetObjectArrayElement(env, res, 0, names);
     (*env)->SetObjectArrayElement(env, res, 1, data);
-    jintArray count = (*env)->NewIntArray(env, 1);
     jint ci = i;
     (*env)->SetIntArrayRegion(env, count, 0, 1, &ci);
     (*env)->SetObjectArrayElement(env, res, 2, count);
@@ -246,9 +290,12 @@ static int map_flags(jint f) {
 }
 
 JNIEXPORT jlong JNICALL FN(open)(JNIEnv *env, jobject thiz, jlong h, jstring jpath, jint flags, jint mode) {
+    if (!CTX(h)) return 0;
     ctx_t *c = CTX(h);
+    if (!c->nfs) { c->last = -EBADF; return 0; }
     struct nfsfh *fh = NULL;
     const char *p = jstr(env, jpath);
+    if (!p) { c->last = -ENOMEM; return 0; }
     int rc = nfs_open2(c->nfs, p, map_flags(flags), mode, &fh);
     jstr_rel(env, jpath, p);
     if (rc < 0 || !fh) { c->last = neg(rc); return 0; }
@@ -256,9 +303,12 @@ JNIEXPORT jlong JNICALL FN(open)(JNIEnv *env, jobject thiz, jlong h, jstring jpa
 }
 
 JNIEXPORT jlong JNICALL FN(creat)(JNIEnv *env, jobject thiz, jlong h, jstring jpath, jint mode) {
+    if (!CTX(h)) return 0;
     ctx_t *c = CTX(h);
+    if (!c->nfs) { c->last = -EBADF; return 0; }
     struct nfsfh *fh = NULL;
     const char *p = jstr(env, jpath);
+    if (!p) { c->last = -ENOMEM; return 0; }
     int rc = nfs_creat(c->nfs, p, mode, &fh);
     jstr_rel(env, jpath, p);
     if (rc < 0 || !fh) { c->last = neg(rc); return 0; }
@@ -266,6 +316,7 @@ JNIEXPORT jlong JNICALL FN(creat)(JNIEnv *env, jobject thiz, jlong h, jstring jp
 }
 
 JNIEXPORT jint JNICALL FN(close)(JNIEnv *env, jobject thiz, jlong h, jlong fh) {
+    NEED_CTX(h);
     NEED_FH(fh);
     return nfs_close(CTX(h)->nfs, FH(fh));
 }
@@ -273,17 +324,26 @@ JNIEXPORT jint JNICALL FN(close)(JNIEnv *env, jobject thiz, jlong h, jlong fh) {
 /* Reads up to len bytes at offset into buf[off..]; returns bytes read (0 at EOF) or -errno. */
 JNIEXPORT jint JNICALL FN(pread)(JNIEnv *env, jobject thiz, jlong h, jlong fh, jlong offset,
                                  jbyteArray buf, jint off, jint len) {
+    NEED_CTX(h);
     NEED_FH(fh);
     if (len <= 0) return 0;
     if (len > IO_CHUNK) len = IO_CHUNK;
-    char *tmp = malloc((size_t)len);
+    if (offset < 0 || !in_bounds(env, buf, off, len)) return -EINVAL;
+    /*
+     * Zeroed, so a reply that claims more bytes than it carried can't hand stale heap memory back to
+     * Java (where it would end up in the downloaded file).
+     */
+    char *tmp = calloc(1, (size_t)len);
     if (!tmp) return -ENOMEM;
     int total = 0;
     /* libnfs may return short reads (server rsize); loop until full or EOF. */
     while (total < len) {
+        if (offset > INT64_MAX - total) break;
         int rc = nfs_pread(CTX(h)->nfs, FH(fh), tmp + total, (size_t)(len - total), (uint64_t)(offset + total));
         if (rc < 0) { if (total == 0) { free(tmp); return rc; } break; }
         if (rc == 0) break;
+        /* Never trust a count larger than what was asked for. */
+        if (rc > len - total) { free(tmp); return -EIO; }
         total += rc;
     }
     if (total > 0) (*env)->SetByteArrayRegion(env, buf, off, total, (const jbyte *)tmp);
@@ -294,16 +354,20 @@ JNIEXPORT jint JNICALL FN(pread)(JNIEnv *env, jobject thiz, jlong h, jlong fh, j
 /* Writes len bytes from buf[off..] at offset; returns bytes written or -errno. */
 JNIEXPORT jint JNICALL FN(pwrite)(JNIEnv *env, jobject thiz, jlong h, jlong fh, jlong offset,
                                   jbyteArray buf, jint off, jint len) {
+    NEED_CTX(h);
     NEED_FH(fh);
     if (len <= 0) return 0;
+    if (offset < 0 || offset > INT64_MAX - len || !in_bounds(env, buf, off, len)) return -EINVAL;
     char *tmp = malloc((size_t)len);
     if (!tmp) return -ENOMEM;
     (*env)->GetByteArrayRegion(env, buf, off, len, (jbyte *)tmp);
+    /* Never send uninitialised memory to the server if the copy failed. */
+    if ((*env)->ExceptionCheck(env)) { free(tmp); return -EINVAL; }
     int total = 0;
     while (total < len) {
         int rc = nfs_pwrite(CTX(h)->nfs, FH(fh), tmp + total, (size_t)(len - total), (uint64_t)(offset + total));
         if (rc < 0) { free(tmp); return rc; }
-        if (rc == 0) { free(tmp); return -EIO; }
+        if (rc == 0 || rc > len - total) { free(tmp); return -EIO; }
         total += rc;
     }
     free(tmp);
@@ -311,18 +375,23 @@ JNIEXPORT jint JNICALL FN(pwrite)(JNIEnv *env, jobject thiz, jlong h, jlong fh, 
 }
 
 JNIEXPORT jint JNICALL FN(fsync)(JNIEnv *env, jobject thiz, jlong h, jlong fh) {
+    NEED_CTX(h);
     NEED_FH(fh);
     return nfs_fsync(CTX(h)->nfs, FH(fh));
 }
 
 JNIEXPORT jint JNICALL FN(ftruncate)(JNIEnv *env, jobject thiz, jlong h, jlong fh, jlong length) {
+    NEED_CTX(h);
     NEED_FH(fh);
+    if (length < 0) return -EINVAL;
     return nfs_ftruncate(CTX(h)->nfs, FH(fh), (uint64_t)length);
 }
 
 #define PATH_OP(name, call)                                                                 \
     JNIEXPORT jint JNICALL FN(name)(JNIEnv *env, jobject thiz, jlong h, jstring jpath) {    \
+        NEED_CTX(h);                                                                        \
         const char *p = jstr(env, jpath);                                                   \
+        NEED_STR(p);                                                                        \
         int rc = call(CTX(h)->nfs, p);                                                      \
         jstr_rel(env, jpath, p);                                                            \
         return rc;                                                                          \
@@ -333,40 +402,50 @@ PATH_OP(rmdir, nfs_rmdir)
 PATH_OP(unlink, nfs_unlink)
 
 JNIEXPORT jint JNICALL FN(rename)(JNIEnv *env, jobject thiz, jlong h, jstring jfrom, jstring jto) {
+    NEED_CTX(h);
     const char *a = jstr(env, jfrom), *b = jstr(env, jto);
-    int rc = nfs_rename(CTX(h)->nfs, a, b);
+    int rc = (a && b) ? nfs_rename(CTX(h)->nfs, a, b) : -ENOMEM;
     jstr_rel(env, jfrom, a);
     jstr_rel(env, jto, b);
     return rc;
 }
 
 JNIEXPORT jint JNICALL FN(symlink)(JNIEnv *env, jobject thiz, jlong h, jstring jtarget, jstring jlink) {
+    NEED_CTX(h);
     const char *a = jstr(env, jtarget), *b = jstr(env, jlink);
-    int rc = nfs_symlink(CTX(h)->nfs, a, b);
+    int rc = (a && b) ? nfs_symlink(CTX(h)->nfs, a, b) : -ENOMEM;
     jstr_rel(env, jtarget, a);
     jstr_rel(env, jlink, b);
     return rc;
 }
 
 JNIEXPORT jstring JNICALL FN(readlink)(JNIEnv *env, jobject thiz, jlong h, jstring jpath) {
+    NEED_CTX_NULL(h);
     char buf[4096];
     const char *p = jstr(env, jpath);
+    if (!p) { CTX(h)->last = -ENOMEM; return NULL; }
     memset(buf, 0, sizeof buf);
+    /* One byte short of the buffer, so the target is always NUL-terminated whatever the server sends. */
     int rc = nfs_readlink(CTX(h)->nfs, p, buf, sizeof buf - 1);
     jstr_rel(env, jpath, p);
     if (rc < 0) { CTX(h)->last = rc; return NULL; }
+    buf[sizeof buf - 1] = 0;
     return safe_string(env, buf);
 }
 
 JNIEXPORT jint JNICALL FN(chmod)(JNIEnv *env, jobject thiz, jlong h, jstring jpath, jint mode) {
+    NEED_CTX(h);
     const char *p = jstr(env, jpath);
+    NEED_STR(p);
     int rc = nfs_chmod(CTX(h)->nfs, p, mode);
     jstr_rel(env, jpath, p);
     return rc;
 }
 
 JNIEXPORT jint JNICALL FN(chown)(JNIEnv *env, jobject thiz, jlong h, jstring jpath, jint uid, jint gid) {
+    NEED_CTX(h);
     const char *p = jstr(env, jpath);
+    NEED_STR(p);
     int rc = nfs_chown(CTX(h)->nfs, p, uid, gid);
     jstr_rel(env, jpath, p);
     return rc;
@@ -374,10 +453,13 @@ JNIEXPORT jint JNICALL FN(chown)(JNIEnv *env, jobject thiz, jlong h, jstring jpa
 
 /* Sets access and modification time (milliseconds since the epoch). */
 JNIEXPORT jint JNICALL FN(utimes)(JNIEnv *env, jobject thiz, jlong h, jstring jpath, jlong atimeMs, jlong mtimeMs) {
+    NEED_CTX(h);
+    if (atimeMs < 0 || mtimeMs < 0) return -EINVAL;
     struct timeval tv[2];
     tv[0].tv_sec = atimeMs / 1000; tv[0].tv_usec = (atimeMs % 1000) * 1000;
     tv[1].tv_sec = mtimeMs / 1000; tv[1].tv_usec = (mtimeMs % 1000) * 1000;
     const char *p = jstr(env, jpath);
+    NEED_STR(p);
     int rc = nfs_utimes(CTX(h)->nfs, p, tv);
     jstr_rel(env, jpath, p);
     return rc;
@@ -385,35 +467,44 @@ JNIEXPORT jint JNICALL FN(utimes)(JNIEnv *env, jobject thiz, jlong h, jstring jp
 
 /* out = {fragment size, total blocks, free blocks, available blocks} */
 JNIEXPORT jint JNICALL FN(statvfs)(JNIEnv *env, jobject thiz, jlong h, jstring jpath, jlongArray out) {
+    NEED_CTX(h);
     struct statvfs sv;
+    memset(&sv, 0, sizeof sv);
     const char *p = jstr(env, jpath);
+    NEED_STR(p);
     int rc = nfs_statvfs(CTX(h)->nfs, p, &sv);
     jstr_rel(env, jpath, p);
     if (rc == 0) {
-        jlong v[4] = { (jlong)(sv.f_frsize ? sv.f_frsize : sv.f_bsize), (jlong)sv.f_blocks, (jlong)sv.f_bfree, (jlong)sv.f_bavail };
+        jlong v[4] = { u64_to_jlong(sv.f_frsize ? sv.f_frsize : sv.f_bsize), u64_to_jlong(sv.f_blocks),
+                       u64_to_jlong(sv.f_bfree), u64_to_jlong(sv.f_bavail) };
         (*env)->SetLongArrayRegion(env, out, 0, 4, v);
     }
     return rc;
 }
 
 JNIEXPORT jlong JNICALL FN(readMax)(JNIEnv *env, jobject thiz, jlong h) {
+    if (!CTX(h) || !CTX(h)->nfs) return 0;
     return (jlong)nfs_get_readmax(CTX(h)->nfs);
 }
 
 /* Exports offered by an NFSv3 server's mount daemon, or null if it couldn't be asked. */
 JNIEXPORT jobjectArray JNICALL FN(exports)(JNIEnv *env, jobject thiz, jstring jserver, jint mountPort, jint timeoutSec) {
     const char *s = jstr(env, jserver);
+    if (!s) return NULL;
     struct exportnode *list = mountPort > 0 ? mount_getexports_mountport(s, mountPort)
                                             : mount_getexports_timeout(s, (timeoutSec > 0 ? timeoutSec : 5) * 1000); /* ms */
     jstr_rel(env, jserver, s);
     if (!list) return NULL;
+    /* The list comes from the server: cap it. */
     int n = 0;
-    for (struct exportnode *e = list; e; e = e->ex_next) n++;
+    for (struct exportnode *e = list; e && n < MAX_ENTRIES; e = e->ex_next) n++;
     jclass strCls = (*env)->FindClass(env, "java/lang/String");
-    jobjectArray arr = (*env)->NewObjectArray(env, n, strCls, NULL);
+    jobjectArray arr = strCls ? (*env)->NewObjectArray(env, n, strCls, NULL) : NULL;
+    if (!arr) { (*env)->ExceptionClear(env); mount_free_export_list(list); return NULL; }
     int i = 0;
-    for (struct exportnode *e = list; e; e = e->ex_next) {
+    for (struct exportnode *e = list; e && i < n; e = e->ex_next) {
         jstring js = safe_string(env, e->ex_dir ? e->ex_dir : "");
+        if (!js) { (*env)->ExceptionClear(env); break; }
         (*env)->SetObjectArrayElement(env, arr, i++, js);
         (*env)->DeleteLocalRef(env, js);
     }
@@ -424,13 +515,16 @@ JNIEXPORT jobjectArray JNICALL FN(exports)(JNIEnv *env, jobject thiz, jstring js
 /* NFS servers that answer a portmapper broadcast on the local networks. */
 JNIEXPORT jobjectArray JNICALL FN(findServers)(JNIEnv *env, jobject thiz) {
     struct nfs_server_list *list = nfs_find_local_servers();
+    /* Anyone on the network can answer the broadcast: cap the list and check every string. */
     int n = 0;
-    for (struct nfs_server_list *s = list; s; s = s->next) n++;
+    for (struct nfs_server_list *s = list; s && n < 1024; s = s->next) n++;
     jclass strCls = (*env)->FindClass(env, "java/lang/String");
-    jobjectArray arr = (*env)->NewObjectArray(env, n, strCls, NULL);
+    jobjectArray arr = strCls ? (*env)->NewObjectArray(env, n, strCls, NULL) : NULL;
+    if (!arr) { (*env)->ExceptionClear(env); if (list) free_nfs_srvr_list(list); return NULL; }
     int i = 0;
-    for (struct nfs_server_list *s = list; s; s = s->next) {
-        jstring js = (*env)->NewStringUTF(env, s->addr ? s->addr : "");
+    for (struct nfs_server_list *s = list; s && i < n; s = s->next) {
+        jstring js = safe_string(env, s->addr ? s->addr : "");
+        if (!js) { (*env)->ExceptionClear(env); break; }
         (*env)->SetObjectArrayElement(env, arr, i++, js);
         (*env)->DeleteLocalRef(env, js);
     }

@@ -4,6 +4,5 @@
     <external-path name="internal" path="." />
     <!-- SD cards and USB drives, mounted at /storage/XXXX-XXXX. Only /storage, never / or /data. -->
     <root-path name="volumes" path="storage" />
-    <cache-path name="cache" path="." />
-    <files-path name="files" path="." />
+    <!-- Nothing from FilesCtrl's private folders (saved settings, temporary copies) is ever handed out. -->
 </paths>

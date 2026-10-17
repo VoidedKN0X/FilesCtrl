@@ -6,8 +6,10 @@ include(FetchContent)
 FetchContent_Declare(
     libnfs
     GIT_REPOSITORY https://github.com/sahlberg/libnfs.git
-    GIT_TAG libnfs-8.0.0
-    GIT_SHALLOW TRUE
+    # Pinned to an exact commit (a tag can be moved). This is libnfs 8.0.0 plus the upstream fix that makes
+    # the XDR decoder enforce size limits ("ZDR: enforce the maxsize bound"); without it a malicious server
+    # could overflow fixed-size buffers such as NFSv4 file handles.
+    GIT_TAG 7613236464317bee2d9636f087f995148de4db27
 )
 set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
 set(ENABLE_TLS OFF CACHE STRING "" FORCE)

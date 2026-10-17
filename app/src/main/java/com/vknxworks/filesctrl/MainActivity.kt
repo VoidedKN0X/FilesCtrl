@@ -71,6 +71,9 @@ import com.vknxworks.filesctrl.ui.EditorScreen
 import com.vknxworks.filesctrl.ui.FilesTheme
 import com.vknxworks.filesctrl.ui.IslandTab
 import com.vknxworks.filesctrl.ui.LocalNav
+import com.vknxworks.filesctrl.ui.back
+import com.vknxworks.filesctrl.ui.close
+import com.vknxworks.filesctrl.ui.go
 import com.vknxworks.filesctrl.ui.PlacesTab
 import com.vknxworks.filesctrl.ui.ServerEditScreen
 import com.vknxworks.filesctrl.ui.SettingsTab
@@ -211,7 +214,8 @@ private fun Root(activity: FragmentActivity, lockVm: AppLockViewModel = viewMode
             composable("server/{id}") { entry ->
                 val id = entry.arguments?.getString("id")?.takeIf { it != "new" }
                 ServerEditScreen(id) { openId ->
-                    nav.popBackStack()
+                    // Guarded: a second call (double tap) or one after the screen already closed does nothing.
+                    if (!nav.close("server/{id}")) return@ServerEditScreen
                     if (openId != null) {
                         vm.navigate(Location(RemoteVfs.idFor(openId), "/"))
                         MainTab.selected = MainTab.FILES
@@ -224,8 +228,8 @@ private fun Root(activity: FragmentActivity, lockVm: AppLockViewModel = viewMode
             composable("edit?loc={loc}") { entry ->
                 val raw = entry.arguments?.getString("loc").orEmpty()
                 val loc = Location.fromKey(raw)
-                if (loc == null) LaunchedEffect(Unit) { nav.popBackStack() }
-                else EditorScreen(remember(loc) { VfsTextSource(loc) }, onBack = { nav.popBackStack() })
+                if (loc == null) LaunchedEffect(Unit) { nav.close("edit?loc={loc}") }
+                else EditorScreen(remember(loc) { VfsTextSource(loc) }, onBack = { nav.back() })
             }
         }
     }
@@ -256,8 +260,8 @@ private fun MainShell(vm: BrowserViewModel) {
                         PlacesTab(
                             current = vm.location,
                             onOpen = { vm.jump(it, 0); MainTab.selected = MainTab.FILES },
-                            onAddServer = { nav.navigate("server/new") },
-                            onEditServer = { nav.navigate("server/$it") },
+                            onAddServer = { nav.go("server/new") },
+                            onEditServer = { nav.go("server/$it") },
                         )
                     }
                     MainTab.SETTINGS -> Box(Modifier.statusBarsPadding()) { SettingsTab() }

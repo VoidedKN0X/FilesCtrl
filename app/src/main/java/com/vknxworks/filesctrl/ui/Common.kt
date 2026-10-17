@@ -59,6 +59,28 @@ import java.io.File
 
 val LocalNav = staticCompositionLocalOf<NavHostController> { error("No nav controller") }
 
+/**
+ * Back from a screen the user is looking at. Repeat taps while a screen change is still animating are ignored,
+ * and the main screen at the bottom is never popped (that emptied the screen stack and left a black screen
+ * until the app was restarted). Returns true if a screen was closed.
+ */
+fun NavHostController.back(): Boolean {
+    val current = currentBackStackEntry ?: return false
+    if (previousBackStackEntry == null) return false
+    if (!current.lifecycle.currentState.isAtLeast(androidx.lifecycle.Lifecycle.State.RESUMED)) return false
+    return popBackStack()
+}
+
+/** Closes [route] if it's on top, for screens that finish on their own (not from a tap). Returns true if closed. */
+fun NavHostController.close(route: String): Boolean =
+    previousBackStackEntry != null && currentBackStackEntry?.destination?.route == route && popBackStack()
+
+/** Opens a screen from a tap, ignoring taps on a screen that's already on its way out or not shown yet. */
+fun NavHostController.go(route: String) {
+    if (currentBackStackEntry?.lifecycle?.currentState?.isAtLeast(androidx.lifecycle.Lifecycle.State.RESUMED) == false) return
+    navigate(route)
+}
+
 object Fmt {
     fun size(ctx: Context, bytes: Long): String = Formatter.formatFileSize(ctx, bytes)
 

@@ -4,6 +4,26 @@ What changed in each FilesCtrl version. Every release on the [Releases page](htt
 
 To publish a new version: bump `versionCode` and `versionName` in `app/build.gradle.kts`, add a section here, and push to `main`. Pushes without a version bump only build; they don't make a release.
 
+## 1.0.3 (2026-10-18)
+
+### Fixed
+- Going back (from the server settings or the text editor) could leave an empty black screen when back was tapped twice quickly or while a screen was still sliding in. Extra taps are now ignored and the main screen is never closed by accident
+- Opening a server or the editor twice by double-tapping no longer stacks two copies of the same screen
+
+### Security
+- **NFS:** the NFS client library is updated with the upstream fix that makes it check the size of every field a server sends; before, a malicious NFS server could overflow memory in the app
+- **NFS:** the app's own NFS code now checks every length, count and offset coming from the server or the system: no reading or writing past a buffer, no counting overflows on huge folders, no stale memory ending up in downloaded files if a server lies about how much it sent, and huge folder or export lists are refused instead of crashing the app
+- **NFS:** a file opened by another app through the file picker can no longer be closed twice, which could corrupt memory
+- **App lock:** too many wrong PINs now locks you out for real: changing the phone's date or time no longer ends the wait early, and it carries on after a restart
+- **App lock:** fingerprint unlock now uses a key in the phone's secure hardware that only a real fingerprint match can unlock. If you used fingerprint unlock, turn it on again once in Settings → App lock (it also turns itself off when a new fingerprint is added to the phone)
+- **Text editor:** when another app opens a file in FilesCtrl's editor, only files in shared storage are accepted, never FilesCtrl's own private files. The editor is also hidden from the Recents screen
+- **Sharing:** FilesCtrl's private folders can no longer be handed to other apps at all; only phone storage, SD cards and USB drives can be opened or shared
+- **WebDAV:** server replies that try XML entity tricks are refused, very large replies are rejected instead of filling memory, and a redirect loop no longer crashes the app
+- **Notifications:** copy and move notifications no longer show file names on a secure lock screen, and with the app lock on they're hidden from the lock screen entirely
+- Temporary copies made while another app edits a file on FTP or WebDAV are deleted if the edit fails, and leftovers from a crash are cleaned up
+- The FTP and WebDAV settings now say plainly when a password and files would travel unencrypted, and picking a huge file as an SFTP key no longer freezes the app
+- Release builds are signed only with the signing key from encrypted repository secrets, and the key passwords are never put on a command line during the build
+
 ## 1.0.2 (2026-10-18)
 
 - Version numbers are now plain, with no build number on the end, and a new version only comes out when something in the app actually changes. Nothing else in the app has changed.

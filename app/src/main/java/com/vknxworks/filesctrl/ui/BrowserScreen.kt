@@ -216,7 +216,7 @@ fun BrowserScreen(vm: BrowserViewModel, islandSpace: Dp) {
 
     fun openEntry(e: FileEntry) {
         if (e.isDir) vm.navigate(e.location, currentIndex())
-        else if (Mime.opensInEditor(e) && e.size < MAX_EDIT_BYTES) nav.navigate(editorRoute(e))
+        else if (Mime.opensInEditor(e) && e.size < MAX_EDIT_BYTES) nav.go(editorRoute(e))
         else openFile(ctx, e)
     }
 
@@ -571,7 +571,7 @@ private fun handleItemAction(
         ItemAction.Open -> if (e.isDir) vm.navigate(e.location) else openFile(ctx, e)
         ItemAction.OpenWith -> openFile(ctx, e, chooser = true)
         ItemAction.EditWith -> openFile(ctx, e, chooser = true, edit = true)
-        ItemAction.EditText -> nav.navigate(editorRoute(e))
+        ItemAction.EditText -> nav.go(editorRoute(e))
         ItemAction.Share -> shareFiles(ctx, listOf(e))
         ItemAction.Copy -> { FileClipboard.items = listOf(e); FileClipboard.cut = false }
         ItemAction.Cut -> { FileClipboard.items = listOf(e); FileClipboard.cut = true }
@@ -896,7 +896,7 @@ private fun ErrorState(message: String, vm: BrowserViewModel, nav: androidx.navi
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             FilledTonalButton(onClick = { vm.load() }) { Text("Retry") }
             if (vm.location.vfsId.startsWith(RemoteVfs.PREFIX)) {
-                OutlinedButton(onClick = { nav.navigate("server/" + vm.location.vfsId.removePrefix(RemoteVfs.PREFIX)) }) { Text("Edit server") }
+                OutlinedButton(onClick = { nav.go("server/" + vm.location.vfsId.removePrefix(RemoteVfs.PREFIX)) }) { Text("Edit server") }
             }
         }
     }
