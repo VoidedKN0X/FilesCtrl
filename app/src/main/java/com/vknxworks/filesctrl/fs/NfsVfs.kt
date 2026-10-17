@@ -272,6 +272,7 @@ class NfsRandomFile(
     private var fh = 0L
     private var gen = 0
     private var length = 0L
+    @Volatile private var closed = false
 
     init {
         val flags = when {
@@ -289,6 +290,7 @@ class NfsRandomFile(
     }
 
     private fun handle(h: Long): Long {
+        if (closed) throw IOException("File closed")
         if (gen != session.generation) {
             fh = NfsNative.open(h, path, if (write) NfsNative.O_RDWR else NfsNative.O_READ, 0)
             if (fh == 0L) session.fail(h, "Opening", Paths.name(path))
@@ -320,16 +322,23 @@ class NfsRandomFile(
 
     override fun sync() {
         session.call { h ->
+            if (closed) throw IOException("File closed")
             if (gen != session.generation) throw IOException("Connection lost while saving ${Paths.name(path)}")
             session.ok(h, NfsNative.fsync(h, fh), "Saving", Paths.name(path))
         }
     }
 
     override fun close() {
+        // Closing twice would free the native handle twice (memory corruption), so forget it first.
+        if (closed) return
+        closed = true
+        val f = fh
+        fh = 0L
+        if (f == 0L) return
         session.callIfConnected { h ->
             if (gen == session.generation) {
-                if (write) NfsNative.fsync(h, fh)
-                NfsNative.close(h, fh)
+                if (write) NfsNative.fsync(h, f)
+                NfsNative.close(h, f)
             }
         }
     }

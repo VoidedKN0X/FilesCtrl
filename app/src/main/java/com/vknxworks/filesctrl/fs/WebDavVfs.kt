@@ -80,7 +80,7 @@ class WebDavVfs(override val server: NetServer) : RemoteVfs {
 
     override fun close() { used = false }
 
-    private fun exec(req: Request, what: String, path: String): Response {
+    private fun exec(req: Request, what: String, path: String, redirects: Int = 0): Response {
         used = true
         val resp = try {
             client.newCall(req).execute()
@@ -92,11 +92,11 @@ class WebDavVfs(override val server: NetServer) : RemoteVfs {
         // Many servers redirect "/folder" to "/folder/"; follow that one kind of redirect, keeping the method.
         if (resp.code in setOf(301, 302, 307, 308)) {
             val target = resp.header("Location")?.let { req.url.resolve(it) }
-            if (target != null && sameServer(target) && target.encodedPath.trimEnd('/') == req.url.encodedPath.trimEnd('/') &&
+            if (redirects < 3 && target != null && sameServer(target) && target.encodedPath.trimEnd('/') == req.url.encodedPath.trimEnd('/') &&
                 target.encodedPath != req.url.encodedPath
             ) {
                 resp.close()
-                return exec(req.newBuilder().url(target).build(), what, path)
+                return exec(req.newBuilder().url(target).build(), what, path, redirects + 1)
             }
         }
         val code = resp.code
@@ -115,6 +115,23 @@ class WebDavVfs(override val server: NetServer) : RemoteVfs {
         }
     }
 
+    private companion object {
+        const val MAX_PROPFIND_BYTES = 64 * 1024 * 1024
+        private val DOCTYPE = "<!doctype".toByteArray(Charsets.US_ASCII)
+
+        /** Finds "<!DOCTYPE" in any case, skipping NUL bytes so UTF-16 documents are caught too. */
+        fun containsDoctype(b: ByteArray): Boolean {
+            var m = 0
+            for (x in b) {
+                if (x == 0.toByte()) continue
+                val c = if (x in 'A'.code.toByte()..'Z'.code.toByte()) (x + 32).toByte() else x
+                m = if (c == DOCTYPE[m]) m + 1 else if (c == DOCTYPE[0]) 1 else 0
+                if (m == DOCTYPE.size) return true
+            }
+            return false
+        }
+    }
+
     private val propfindBody = """<?xml version="1.0" encoding="utf-8"?>
 <d:propfind xmlns:d="DAV:"><d:prop><d:resourcetype/><d:getcontentlength/><d:getlastmodified/><d:quota-available-bytes/><d:quota-used-bytes/></d:prop></d:propfind>"""
 
@@ -126,12 +143,35 @@ class WebDavVfs(override val server: NetServer) : RemoteVfs {
             .header("Depth", depth.toString())
             .build()
         val resp = exec(req, if (depth == 0) "Reading" else "Listing", path)
-        return resp.use { parse(it.body!!.byteStream()) }
+        return resp.use { parse(readCapped(it.body!!.byteStream())) }
     }
 
-    private fun parse(xml: InputStream): List<Prop> {
-        val f = DocumentBuilderFactory.newInstance().apply { isNamespaceAware = true }
-        val doc = f.newDocumentBuilder().parse(xml)
+    /** Reads a PROPFIND reply, refusing absurdly large ones (a hostile server could otherwise exhaust memory). */
+    private fun readCapped(input: InputStream): ByteArray {
+        val out = java.io.ByteArrayOutputStream()
+        val buf = ByteArray(64 * 1024)
+        while (true) {
+            val n = input.read(buf)
+            if (n < 0) break
+            out.write(buf, 0, n)
+            if (out.size() > MAX_PROPFIND_BYTES) throw IOException("Listing failed: the server's reply is too large")
+        }
+        return out.toByteArray()
+    }
+
+    private fun parse(xml: ByteArray): List<Prop> {
+        // WebDAV replies never need a DOCTYPE. Refusing one rules out entity tricks (XXE, "billion laughs").
+        if (containsDoctype(xml)) throw IOException("Listing failed: the server sent an unexpected reply")
+        val f = DocumentBuilderFactory.newInstance().apply {
+            isNamespaceAware = true
+            isExpandEntityReferences = false
+            for (feature in listOf("http://apache.org/xml/features/disallow-doctype-decl" to true,
+                "http://xml.org/sax/features/external-general-entities" to false,
+                "http://xml.org/sax/features/external-parameter-entities" to false)) {
+                try { setFeature(feature.first, feature.second) } catch (_: Exception) {}
+            }
+        }
+        val doc = f.newDocumentBuilder().parse(java.io.ByteArrayInputStream(xml))
         val out = ArrayList<Prop>()
         val responses = doc.getElementsByTagNameNS("DAV:", "response")
         val dateFmt = SimpleDateFormat("EEE, dd MMM yyyy HH:mm:ss zzz", Locale.US).apply { timeZone = TimeZone.getTimeZone("GMT") }

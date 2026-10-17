@@ -14,8 +14,8 @@ android {
         targetSdk = 35
         // CI passes the run number so every build installs over the previous one.
         // Bump both to publish a new release (see CHANGELOG.md).
-        versionCode = 20
-        versionName = "1.0.2"
+        versionCode = 21
+        versionName = "1.0.3"
 
         // The NFS client (libnfs) is native; phones are arm64, emulators x86_64.
         ndk { abiFilters += listOf("arm64-v8a", "x86_64") }

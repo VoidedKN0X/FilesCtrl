@@ -111,6 +111,7 @@ class OpService : Service() {
             .addAction(0, "Cancel", cancel)
             .setProgress(100, ((progress ?: 0f) * 100).toInt(), progress == null)
             .setForegroundServiceBehavior(NotificationCompat.FOREGROUND_SERVICE_IMMEDIATE)
+            .lockScreenSafe(CHANNEL, "File operation in progress")
             .build()
     }
 
@@ -126,12 +127,27 @@ class OpService : Service() {
                 .setContentText(text)
                 .setAutoCancel(true)
                 .setContentIntent(PendingIntent.getActivity(this, 0, Intent(this, MainActivity::class.java), PendingIntent.FLAG_IMMUTABLE))
+                .lockScreenSafe(CHANNEL_DONE, "File operation finished")
                 .build()
             if (!MainActivity.inForeground) nm.notify(DONE_ID, n)
         }
         stopForeground(STOP_FOREGROUND_REMOVE)
         stopSelf()
     }
+
+    /**
+     * File and folder names stay off the lock screen: a secure lock screen shows only [generic]. With the app
+     * lock on, the notification isn't shown on the lock screen at all.
+     */
+    private fun NotificationCompat.Builder.lockScreenSafe(channel: String, generic: String): NotificationCompat.Builder =
+        setVisibility(if (App.lock.pinSet) NotificationCompat.VISIBILITY_SECRET else NotificationCompat.VISIBILITY_PRIVATE)
+            .setPublicVersion(
+                NotificationCompat.Builder(this@OpService, channel)
+                    .setSmallIcon(R.drawable.ic_stat_files)
+                    .setContentTitle(getString(R.string.app_name))
+                    .setContentText(generic)
+                    .build(),
+            )
 
     override fun onDestroy() {
         scope.cancel()

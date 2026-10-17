@@ -128,8 +128,10 @@ fun ServerEditScreen(serverId: String?, onDone: (openId: String?) -> Unit) {
     val keyPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri: Uri? ->
         if (uri == null) return@rememberLauncherForActivityResult
         try {
-            val text = ctx.contentResolver.openInputStream(uri)!!.use { it.readBytes().toString(Charsets.UTF_8) }
-            if (!text.contains("PRIVATE KEY")) message = "That doesn't look like a private key file."
+            // Key files are a few KB; don't read a huge file someone picked by mistake into memory.
+            val bytes = ctx.contentResolver.openInputStream(uri)!!.use { it.readNBytes(MAX_KEY_BYTES + 1) }
+            val text = bytes.toString(Charsets.UTF_8)
+            if (bytes.size > MAX_KEY_BYTES || !text.contains("PRIVATE KEY")) message = "That doesn't look like a private key file."
             else privateKey = text
         } catch (e: Exception) { message = "Couldn't read the key: ${e.message}" }
     }
@@ -343,7 +345,11 @@ fun ServerEditScreen(serverId: String?, onDone: (openId: String?) -> Unit) {
             if (type == Proto.FTP || type == Proto.WEBDAV) {
                 SwitchRow(
                     if (type == Proto.FTP) "Encrypt (FTPS)" else "Use HTTPS",
-                    if (type == Proto.FTP) "Explicit TLS on the normal FTP port" else null,
+                    when {
+                        !secure -> "Off: your password and files travel unencrypted"
+                        type == Proto.FTP -> "Explicit TLS on the normal FTP port"
+                        else -> null
+                    },
                     secure,
                 ) { secure = it }
                 if (secure) SwitchRow(
@@ -572,3 +578,5 @@ private fun ResultCard(ok: Boolean, text: String) {
         }
     }
 }
+
+private const val MAX_KEY_BYTES = 64 * 1024

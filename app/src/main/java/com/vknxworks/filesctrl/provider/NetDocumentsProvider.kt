@@ -39,6 +39,8 @@ class NetDocumentsProvider : DocumentsProvider() {
 
     override fun onCreate(): Boolean {
         App.init(context!!)
+        // Temporary copies of edited network files left by a crash: nothing can be using them in a new process.
+        try { context!!.cacheDir.listFiles { f -> f.name.startsWith("edit") && f.name.endsWith(".tmp") }?.forEach { it.delete() } } catch (_: Exception) {}
         return true
     }
 

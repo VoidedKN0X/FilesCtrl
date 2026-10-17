@@ -133,15 +133,20 @@ class TempCopyFile(
     private var dirty = truncate
 
     init {
-        if (!truncate) {
-            try {
-                vfs.openRead(path).use { input -> tmp.outputStream().use { input.copyTo(it, 1 shl 20) } }
-            } catch (_: java.io.FileNotFoundException) {
-                dirty = true // New file.
+        raf = try {
+            if (!truncate) {
+                try {
+                    vfs.openRead(path).use { input -> tmp.outputStream().use { input.copyTo(it, 1 shl 20) } }
+                } catch (_: java.io.FileNotFoundException) {
+                    dirty = true // New file.
+                }
             }
+            RandomAccessFile(tmp, "rw").also { if (truncate) it.setLength(0) }
+        } catch (e: Throwable) {
+            // Don't leave a partial copy of the server's file behind.
+            tmp.delete()
+            throw e
         }
-        raf = RandomAccessFile(tmp, "rw")
-        if (truncate) raf.setLength(0)
     }
 
     @Synchronized override fun size() = raf.length()

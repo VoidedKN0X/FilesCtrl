@@ -35,9 +35,18 @@ class EditorActivity : FragmentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         App.init(this)
+        // Keep the file's contents out of the recent-apps thumbnail.
+        setRecentsScreenshotEnabled(false)
         val uri = intent?.data
         if (uri == null) {
             Toast.makeText(this, "No file to open", Toast.LENGTH_SHORT).show()
+            finish()
+            return
+        }
+        // Any app can start the editor. FilesCtrl may read (and write) more than the sender can, so only accept
+        // content:// URIs, and file:// paths in shared storage, never FilesCtrl's own private files.
+        if (!acceptable(uri)) {
+            Toast.makeText(this, "FilesCtrl can't open this file", Toast.LENGTH_SHORT).show()
             finish()
             return
         }
@@ -88,5 +97,17 @@ class EditorActivity : FragmentActivity() {
                 }
             }
         }
+    }
+
+    private fun acceptable(uri: android.net.Uri): Boolean = when (uri.scheme?.lowercase()) {
+        "content" -> true
+        "file" -> {
+            val path = uri.path
+            val canonical = try { path?.let { java.io.File(it).canonicalPath } } catch (_: Exception) { null }
+            canonical != null && (canonical.startsWith("/storage/") || canonical.startsWith("/sdcard/")) &&
+                !canonical.startsWith(java.io.File(applicationInfo.dataDir).canonicalPath) &&
+                !canonical.contains("/Android/data/")
+        }
+        else -> false
     }
 }
