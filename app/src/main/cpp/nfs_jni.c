@@ -226,10 +226,11 @@ JNIEXPORT jobjectArray JNICALL FN(list)(JNIEnv *env, jobject thiz, jlong h, jstr
     nfs_rewinddir(c->nfs, dir);
 
     const int per = STAT_FIELDS + 1;
+    /* Each JNI allocation only runs if the one before it worked: calling JNI with an exception pending aborts. */
     jclass strCls = (*env)->FindClass(env, "java/lang/String");
-    jobjectArray names = (*env)->NewObjectArray(env, n, strCls, NULL);
-    jlongArray data = (*env)->NewLongArray(env, n * per);
-    jlong *d = calloc((size_t)(n > 0 ? n : 1) * (size_t)per, sizeof(jlong));
+    jobjectArray names = strCls ? (*env)->NewObjectArray(env, n, strCls, NULL) : NULL;
+    jlongArray data = names ? (*env)->NewLongArray(env, n * per) : NULL;
+    jlong *d = data ? calloc((size_t)(n > 0 ? n : 1) * (size_t)per, sizeof(jlong)) : NULL;
     if (!strCls || !names || !data || !d) {
         free(d); nfs_closedir(c->nfs, dir); c->last = -ENOMEM;
         (*env)->ExceptionClear(env); /* the caller reads lastError() instead */
@@ -270,7 +271,7 @@ JNIEXPORT jobjectArray JNICALL FN(list)(JNIEnv *env, jobject thiz, jlong h, jstr
 
     jclass objCls = (*env)->FindClass(env, "java/lang/Object");
     jobjectArray res = objCls ? (*env)->NewObjectArray(env, 3, objCls, NULL) : NULL;
-    jintArray count = (*env)->NewIntArray(env, 1);
+    jintArray count = res ? (*env)->NewIntArray(env, 1) : NULL;
     if (!res || !count) { (*env)->ExceptionClear(env); c->last = -ENOMEM; return NULL; }
     (*env)->SetObjectArrayElement(env, res, 0, names);
     (*env)->SetObjectArrayElement(env, res, 1, data);

@@ -14,8 +14,8 @@ android {
         targetSdk = 35
         // CI passes the run number so every build installs over the previous one.
         // Bump both to publish a new release (see CHANGELOG.md).
-        versionCode = 21
-        versionName = "1.0.3"
+        versionCode = 22
+        versionName = "1.0.4"
 
         // The NFS client (libnfs) is native; phones are arm64, emulators x86_64.
         ndk { abiFilters += listOf("arm64-v8a", "x86_64") }
@@ -120,8 +120,8 @@ dependencies {
     implementation("com.hierynomus:sshj:0.38.0")
     implementation("commons-net:commons-net:3.11.1")
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
-    implementation("org.bouncycastle:bcprov-jdk18on:1.78.1")
-    implementation("org.bouncycastle:bcpkix-jdk18on:1.78.1")
+    implementation("org.bouncycastle:bcprov-jdk18on:1.86")
+    implementation("org.bouncycastle:bcpkix-jdk18on:1.86")
 
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.slf4j:slf4j-simple:2.0.13")

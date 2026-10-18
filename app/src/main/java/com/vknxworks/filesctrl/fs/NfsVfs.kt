@@ -273,6 +273,7 @@ class NfsRandomFile(
     private var gen = 0
     private var length = 0L
     @Volatile private var closed = false
+    private val closing = java.util.concurrent.atomic.AtomicBoolean(false)
 
     init {
         val flags = when {
@@ -329,17 +330,19 @@ class NfsRandomFile(
     }
 
     override fun close() {
-        // Closing twice would free the native handle twice (memory corruption), so forget it first.
-        if (closed) return
+        // Closing twice would free the native handle twice (memory corruption), so only the first close counts.
+        if (!closing.compareAndSet(false, true)) return
         closed = true
-        val f = fh
-        fh = 0L
-        if (f == 0L) return
+        // Take the handle under the session lock: a read or write still running may reopen it after a reconnect,
+        // and the handle it ends up with is the one to close (never one from an older, destroyed connection).
         session.callIfConnected { h ->
-            if (gen == session.generation) {
+            val f = fh
+            fh = 0L
+            if (f != 0L && gen == session.generation) {
                 if (write) NfsNative.fsync(h, f)
                 NfsNative.close(h, f)
             }
         }
+        fh = 0L
     }
 }

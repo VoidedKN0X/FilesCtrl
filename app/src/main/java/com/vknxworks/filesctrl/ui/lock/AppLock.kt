@@ -209,14 +209,16 @@ class AppLockViewModel : ViewModel() {
 
     fun submitPin(pin: String, onWrong: () -> Unit) {
         if (checking || settings.lockoutRemaining() > 0) return
+        checking = true
+        // Count the attempt before checking it: killing the app while the PIN is being checked must not give
+        // a free try. A correct PIN resets the counter again in unlock().
+        val fails = settings.failedAttempts + 1
+        settings.failedAttempts = fails
         viewModelScope.launch {
-            checking = true
             // PBKDF2 takes a moment; keep it off the main thread.
             val ok = withContext(Dispatchers.Default) { settings.checkPin(pin) }
             checking = false
             if (ok) { unlock(); return@launch }
-            val fails = settings.failedAttempts + 1
-            settings.failedAttempts = fails
             if (fails >= MAX_TRIES) {
                 // 30 s, doubling for every further batch of wrong PINs, capped at 15 minutes.
                 val wait = (30_000L shl ((fails - MAX_TRIES) / MAX_TRIES).coerceAtMost(5)).coerceAtMost(900_000L)
