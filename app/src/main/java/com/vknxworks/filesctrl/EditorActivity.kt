@@ -104,9 +104,11 @@ class EditorActivity : FragmentActivity() {
         "file" -> {
             val path = uri.path
             val canonical = try { path?.let { java.io.File(it).canonicalPath } } catch (_: Exception) { null }
-            canonical != null && (canonical.startsWith("/storage/") || canonical.startsWith("/sdcard/")) &&
+            // Shared storage ignores letter case, so "/ANDROID/DATA/" must be caught as well.
+            val lower = canonical?.lowercase()
+            canonical != null && lower != null && (lower.startsWith("/storage/") || lower.startsWith("/sdcard/")) &&
                 !canonical.startsWith(java.io.File(applicationInfo.dataDir).canonicalPath) &&
-                !canonical.contains("/Android/data/")
+                !lower.contains("/android/data/") && !lower.contains("/android/obb/")
         }
         else -> false
     }

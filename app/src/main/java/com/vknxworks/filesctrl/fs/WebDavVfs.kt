@@ -167,11 +167,16 @@ class WebDavVfs(override val server: NetServer) : RemoteVfs {
             isExpandEntityReferences = false
             for (feature in listOf("http://apache.org/xml/features/disallow-doctype-decl" to true,
                 "http://xml.org/sax/features/external-general-entities" to false,
-                "http://xml.org/sax/features/external-parameter-entities" to false)) {
+                "http://xml.org/sax/features/external-parameter-entities" to false,
+                javax.xml.XMLConstants.FEATURE_SECURE_PROCESSING to true)) {
                 try { setFeature(feature.first, feature.second) } catch (_: Exception) {}
             }
         }
-        val doc = f.newDocumentBuilder().parse(java.io.ByteArrayInputStream(xml))
+        val builder = f.newDocumentBuilder().apply {
+            // Android's parser ignores most of the features above, so also refuse to load any external entity or DTD.
+            setEntityResolver { _, _ -> throw org.xml.sax.SAXException("External entities are not allowed") }
+        }
+        val doc = builder.parse(java.io.ByteArrayInputStream(xml))
         val out = ArrayList<Prop>()
         val responses = doc.getElementsByTagNameNS("DAV:", "response")
         val dateFmt = SimpleDateFormat("EEE, dd MMM yyyy HH:mm:ss zzz", Locale.US).apply { timeZone = TimeZone.getTimeZone("GMT") }

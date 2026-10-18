@@ -4,6 +4,16 @@ What changed in each FilesCtrl version. Every release on the [Releases page](htt
 
 To publish a new version: bump `versionCode` and `versionName` in `app/build.gradle.kts`, add a section here, and push to `main`. Pushes without a version bump only build; they don't make a release.
 
+## 1.0.4 (2026-10-18)
+
+### Security
+- **App lock:** a wrong PIN now counts the moment you enter it, before it's checked. Before, closing the app while a PIN was being checked didn't count that try, which could be used to get around the lockout
+- **SFTP:** the encryption library used for SFTP keys and connections (BouncyCastle) is updated from 1.78.1 to 1.86, which fixes a known flaw (CVE-2025-8916) where specially crafted certificate or key data could make the app use excessive memory
+- **WebDAV:** on top of refusing replies that contain a document type declaration, the XML reader now also refuses to load anything external a reply points to, as a second safeguard against XML entity attacks
+- **NFS:** a file opened by another app is now closed safely even if it's being read at the same moment the connection is re-established; before, a rare timing could close a handle from an older connection that no longer exists
+- **NFS:** if the phone runs out of memory while listing a huge NFS folder, the listing now fails cleanly instead of crashing the app
+- **Text editor:** when another app opens a file:// path in FilesCtrl's editor, other apps' private folders (Android/data and Android/obb) are refused however the path is capitalised
+
 ## 1.0.3 (2026-10-18)
 
 ### Fixed
