@@ -136,6 +136,7 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.vknxworks.filesctrl.App
 import com.vknxworks.filesctrl.data.Bookmark
 import com.vknxworks.filesctrl.data.SortBy
+import com.vknxworks.filesctrl.fs.ArchiveVfs
 import com.vknxworks.filesctrl.fs.FileEntry
 import com.vknxworks.filesctrl.fs.Location
 import com.vknxworks.filesctrl.fs.Mime
@@ -156,6 +157,7 @@ private sealed interface Dlg {
     data class Delete(val items: List<FileEntry>) : Dlg
     data class Props(val e: FileEntry) : Dlg
     data class Compress(val items: List<FileEntry>) : Dlg
+    data class Extract(val archive: FileEntry, val dest: Location) : Dlg
     data class Conflicts(val names: List<String>, val items: List<FileEntry>, val dest: Location, val move: Boolean) : Dlg
     data class Error(val title: String, val message: String) : Dlg
 }
@@ -216,6 +218,7 @@ fun BrowserScreen(vm: BrowserViewModel, islandSpace: Dp) {
 
     fun openEntry(e: FileEntry) {
         if (e.isDir) vm.navigate(e.location, currentIndex())
+        else if (Mime.isArchive(e)) vm.openArchive(e, currentIndex())
         else if (Mime.opensInEditor(e) && e.size < MAX_EDIT_BYTES) nav.go(editorRoute(e))
         else openFile(ctx, e)
     }
@@ -301,6 +304,15 @@ fun BrowserScreen(vm: BrowserViewModel, islandSpace: Dp) {
     }
 
     // ---------- Dialogs ----------
+    vm.lockedArchive?.let { ex ->
+        if (!vm.passwordPromptHidden) {
+            PasswordDialog(
+                title = "Password for ${vm.title}",
+                wrong = ex.wrong,
+                onDismiss = { vm.passwordPromptHidden = true },
+            ) { pw -> vm.unlockArchive(pw) }
+        }
+    }
     when (val d = dlg) {
         null -> {}
         is Dlg.New -> NameDialog(
@@ -341,16 +353,15 @@ fun BrowserScreen(vm: BrowserViewModel, islandSpace: Dp) {
             Ops.delete(d.items)
         }
         is Dlg.Props -> PropertiesDialog(d.e, onDismiss = { dlg = null }, onChanged = { vm.load(quiet = true) })
-        is Dlg.Compress -> NameDialog(
-            "Compress to zip",
-            (if (d.items.size == 1) d.items[0].name.substringBeforeLast('.').ifEmpty { d.items[0].name } else vm.title) + ".zip",
-            "Compress",
+        is Dlg.Compress -> CompressDialog(
+            (if (d.items.size == 1) d.items[0].name.substringBeforeLast('.').ifEmpty { d.items[0].name } else vm.title),
             onDismiss = { dlg = null },
-        ) { name ->
+        ) { name, format, password ->
             dlg = null
             vm.selection.clear()
-            Ops.compress(d.items, vm.location, if (name.endsWith(".zip", true)) name else "$name.zip")
+            Ops.compress(d.items, vm.location, name, format, password)
         }
+        is Dlg.Extract -> ExtractFlow(d.archive, d.dest, onDone = { dlg = null }, onError = { t, m -> dlg = Dlg.Error(t, m) })
         is Dlg.Conflicts -> ConflictDialog(d.names, onDismiss = { dlg = null }) { choice ->
             dlg = null
             Ops.paste(d.items, d.dest, d.move, choice)
@@ -403,7 +414,7 @@ private fun MainBar(vm: BrowserViewModel, onDialog: (Dlg) -> Unit) {
                 Column {
                     Text(vm.title, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     Text(
-                        subtitle(vm) + if (vm.readOnly) " · read-only" else "",
+                        subtitle(vm) + if (vm.readOnly && !vm.isArchive) " · read-only" else "",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1,
@@ -485,6 +496,16 @@ private fun MainBar(vm: BrowserViewModel, onDialog: (Dlg) -> Unit) {
                             menu = false
                         },
                     )
+                    vm.archiveFile?.let { arc ->
+                        DropdownMenuItem(
+                            text = { Text("Extract all") },
+                            leadingIcon = { Icon(Icons.Outlined.Unarchive, null) },
+                            onClick = {
+                                menu = false
+                                onDialog(Dlg.Extract(FileEntry(arc.vfsId, arc.path, Paths.name(arc.path), false, 0, 0), Location(arc.vfsId, Paths.parent(arc.path))))
+                            },
+                        )
+                    }
                     DropdownMenuItem(
                         text = { Text("Folder properties") },
                         leadingIcon = { Icon(Icons.Outlined.Info, null) },
@@ -505,6 +526,10 @@ private fun MainBar(vm: BrowserViewModel, onDialog: (Dlg) -> Unit) {
 private fun subtitle(vm: BrowserViewModel): String {
     val ctx = LocalContext.current
     if (vm.isLocal) return vm.vfsTitle
+    if (vm.isArchive) {
+        val label = (App.vfs.find(vm.location.vfsId) as? ArchiveVfs)?.loadedFormatLabel
+        return (label?.let { "$it archive" } ?: "Archive") + " · read-only"
+    }
     val sp = vm.space
     if (sp != null && sp.total > 0) return "${Fmt.size(ctx, sp.total - sp.free)} of ${Fmt.size(ctx, sp.total)} used"
     return App.servers.get(vm.location.vfsId.removePrefix(RemoteVfs.PREFIX))?.host ?: vm.vfsTitle
@@ -537,8 +562,8 @@ private fun SelectionBar(vm: BrowserViewModel, readOnly: Boolean, onDialog: (Dlg
                         onClick = { menu = false; vm.selection.clear(); onDialog(Dlg.Rename(single)) })
                     if (!readOnly) DropdownMenuItem(text = { Text("Compress") }, leadingIcon = { Icon(Icons.Outlined.FolderZip, null) },
                         onClick = { menu = false; onDialog(Dlg.Compress(sel)) })
-                    if (single != null && single.ext == "zip" && !readOnly) DropdownMenuItem(text = { Text("Extract here") }, leadingIcon = { Icon(Icons.Outlined.Unarchive, null) },
-                        onClick = { menu = false; vm.selection.clear(); Ops.extract(single, vm.location) })
+                    if (single != null && Mime.canBrowseAsArchive(single) && !readOnly) DropdownMenuItem(text = { Text("Extract here") }, leadingIcon = { Icon(Icons.Outlined.Unarchive, null) },
+                        onClick = { menu = false; vm.selection.clear(); onDialog(Dlg.Extract(single, vm.location)) })
                     if (single != null && !single.isDir) DropdownMenuItem(text = { Text("Open with") }, leadingIcon = { Icon(Icons.AutoMirrored.Outlined.OpenInNew, null) },
                         onClick = { menu = false; openFile(ctx, single, chooser = true) })
                     DropdownMenuItem(text = { Text("Copy path") }, leadingIcon = { Icon(Icons.Outlined.Link, null) },
@@ -557,7 +582,7 @@ private fun SelectionBar(vm: BrowserViewModel, readOnly: Boolean, onDialog: (Dlg
 
 // ---------- Item actions ----------
 
-enum class ItemAction { Open, OpenWith, EditWith, EditText, Share, Copy, Cut, Rename, Delete, Compress, Extract, Bookmark, CopyPath, Properties, OpenLocation }
+enum class ItemAction { Open, OpenWith, EditWith, EditText, Share, Copy, Cut, Rename, Delete, Compress, Extract, Browse, Bookmark, CopyPath, Properties, OpenLocation }
 
 private fun handleItemAction(
     ctx: android.content.Context,
@@ -578,7 +603,8 @@ private fun handleItemAction(
         ItemAction.Rename -> onDialog(Dlg.Rename(e))
         ItemAction.Delete -> if (App.settings.confirmDelete) onDialog(Dlg.Delete(listOf(e))) else Ops.delete(listOf(e))
         ItemAction.Compress -> onDialog(Dlg.Compress(listOf(e)))
-        ItemAction.Extract -> Ops.extract(e, vm.location)
+        ItemAction.Extract -> onDialog(Dlg.Extract(e, vm.location))
+        ItemAction.Browse -> vm.openArchive(e, 0)
         ItemAction.Bookmark -> {
             if (App.bookmarks.contains(e.location)) App.bookmarks.remove(e.location)
             else App.bookmarks.add(Bookmark(e.name, e.location))
@@ -612,8 +638,10 @@ private fun ItemMenu(e: FileEntry, readOnly: Boolean, inSearch: Boolean, expande
             entry("Rename", Icons.Outlined.DriveFileRenameOutline, ItemAction.Rename)
             entry("Delete", Icons.Outlined.Delete, ItemAction.Delete)
             entry("Compress", Icons.Outlined.FolderZip, ItemAction.Compress)
-            if (e.ext == "zip") entry("Extract here", Icons.Outlined.Unarchive, ItemAction.Extract)
+            if (Mime.canBrowseAsArchive(e)) entry("Extract here", Icons.Outlined.Unarchive, ItemAction.Extract)
         }
+        // Zip-based files with their own app (APKs, e-books, office files) open normally; look inside from here.
+        if (Mime.canBrowseAsArchive(e) && !Mime.isArchive(e)) entry("Browse contents", Icons.Outlined.FolderZip, ItemAction.Browse)
         if (e.isDir) entry(
             if (App.bookmarks.contains(e.location)) "Remove bookmark" else "Bookmark",
             if (App.bookmarks.contains(e.location)) Icons.Outlined.BookmarkRemove else Icons.Outlined.BookmarkAdd,
@@ -894,7 +922,8 @@ private fun EmptyState(filtered: Boolean) {
 private fun ErrorState(message: String, vm: BrowserViewModel, nav: androidx.navigation.NavHostController) {
     CenteredMessage(Icons.Outlined.CloudOff, "Couldn't open this folder", message) {
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            FilledTonalButton(onClick = { vm.load() }) { Text("Retry") }
+            if (vm.lockedArchive != null) FilledTonalButton(onClick = { vm.passwordPromptHidden = false }) { Text("Enter password") }
+            else FilledTonalButton(onClick = { vm.load() }) { Text("Retry") }
             if (vm.location.vfsId.startsWith(RemoteVfs.PREFIX)) {
                 OutlinedButton(onClick = { nav.go("server/" + vm.location.vfsId.removePrefix(RemoteVfs.PREFIX)) }) { Text("Edit server") }
             }

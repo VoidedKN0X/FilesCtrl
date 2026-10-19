@@ -138,6 +138,14 @@ dependencies {
     implementation("org.bouncycastle:bcprov-jdk18on:1.86")
     implementation("org.bouncycastle:bcpkix-jdk18on:1.86")
 
+    // Archives: browse, extract and create zip, 7z, rar (RAR4), tar and compressed files.
+    implementation("org.apache.commons:commons-compress:1.27.1")
+    implementation("org.tukaani:xz:1.10") // xz, lzma and 7z's LZMA/LZMA2
+    implementation("com.github.luben:zstd-jni:1.5.6-9@aar") // Zstandard (.zst)
+    implementation("org.brotli:dec:0.1.2") // Brotli (.br)
+    implementation("net.lingala.zip4j:zip4j:2.11.5") // zip with ZipCrypto/AES passwords
+    implementation("com.github.junrar:junrar:7.5.5") // RAR (RAR4)
+
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.slf4j:slf4j-simple:2.0.13")
 

@@ -28,3 +28,22 @@
 -dontwarn okhttp3.internal.platform.**
 -dontwarn org.conscrypt.**
 -dontwarn org.openjsse.**
+
+# Archive libraries: commons-compress finds compressors and archivers by name and probes optional ones
+# (Zstandard, Brotli, xz) by class; zstd-jni and its JNI glue are looked up by name from native code.
+-keep class org.apache.commons.compress.** { *; }
+-keep class org.tukaani.xz.** { *; }
+-keep class com.github.luben.zstd.** { *; }
+-keep class org.brotli.dec.** { *; }
+-keep class net.lingala.zip4j.** { *; }
+-keep class com.github.junrar.** { *; }
+-dontwarn org.apache.commons.compress.**
+-dontwarn org.objectweb.asm.**
+-dontwarn org.osgi.**
+-dontwarn com.github.luben.zstd.**
+-dontwarn org.brotli.**
+-dontwarn org.tukaani.xz.**
+-dontwarn com.github.junrar.**
+-dontwarn org.apache.commons.io.**
+-dontwarn org.apache.commons.lang3.**
+-dontwarn org.apache.commons.codec.**

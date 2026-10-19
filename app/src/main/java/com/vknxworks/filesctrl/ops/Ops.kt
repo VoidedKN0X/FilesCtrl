@@ -24,9 +24,10 @@ import java.io.BufferedInputStream
 import java.io.BufferedOutputStream
 import java.io.File
 import java.io.IOException
-import java.util.zip.ZipEntry
-import java.util.zip.ZipInputStream
-import java.util.zip.ZipOutputStream
+import com.vknxworks.filesctrl.fs.ArchiveVfs
+import kotlinx.coroutines.job
+import org.apache.commons.compress.archivers.sevenz.SevenZMethod
+import org.apache.commons.compress.archivers.sevenz.SevenZOutputFile
 import kotlin.coroutines.coroutineContext
 
 /** What to do when a pasted item's name is already taken in the destination. */
@@ -280,108 +281,133 @@ object Ops {
         vfs.delete(e.path, e.isDir && !e.isLink)
     }
 
-    // ---------- Zip ----------
+    // ---------- Archives ----------
 
-    fun compress(items: List<FileEntry>, dest: Location, zipName: String): OpTask {
+    fun compress(items: List<FileEntry>, dest: Location, name: String, format: ArchiveFormat = ArchiveFormat.ZIP, password: CharArray? = null): OpTask {
         App.telemetry.fileOperation("zip", dest.vfsId)
-        return compressTask(items, dest, zipName)
+        return compressTask(items, dest, name, format, password?.takeIf { it.isNotEmpty() && format.passwords })
     }
 
-    private fun compressTask(items: List<FileEntry>, dest: Location, zipName: String): OpTask =
-        launch("Compressing to $zipName", listOf(dest)) { t ->
+    /** Walks [e] (recursively for folders) and hands each folder and file to [sink] with its path in the archive. */
+    private suspend fun walk(vfs: Vfs, e: FileEntry, name: String, t: OpTask, sink: ArchiveSink) {
+        coroutineContext.ensureActive()
+        t.detail = e.name
+        if (e.isLink && e.isDir) { t.warnings += "Skipped folder link ${e.name}"; t.filesDone++; return }
+        if (e.isDir && !e.isLink) {
+            sink.dir("$name/", e.modified)
+            t.filesDone++
+            for (c in vfs.list(e.path)) walk(vfs, c, "$name/${c.name}", t, sink)
+            return
+        }
+        val input = try { vfs.openRead(e.path) } catch (ex: java.io.FileNotFoundException) {
+            if (!e.isLink) throw ex
+            t.warnings += "Skipped broken link ${e.name}"; t.filesDone++; return
+        }
+        input.use { sink.file(name, e.size, e.modified, it) { n -> t.bytesDone += n } }
+        t.filesDone++
+    }
+
+    private fun compressTask(items: List<FileEntry>, dest: Location, name: String, format: ArchiveFormat, password: CharArray?): OpTask =
+        launch("Compressing to $name", listOf(dest)) { t ->
             val dst = App.vfs.get(dest.vfsId)
             for (e in items) {
                 val (b, f) = measure(App.vfs.get(e.vfsId), e)
                 t.bytesTotal += b; t.filesTotal += f
             }
-            val target = Paths.join(dest.path, Paths.unique(dest.path, zipName) { dst.exists(it) })
+            val target = Paths.join(dest.path, Paths.unique(dest.path, name) { dst.exists(it) })
             var ok = false
+            var tmp: File? = null
             try {
-                ZipOutputStream(BufferedOutputStream(dst.openWrite(target), 256 * 1024)).use { zip ->
-                    for (e in items) addToZip(zip, App.vfs.get(e.vfsId), e, e.name, t)
+                if (format == ArchiveFormat.SEVENZ) {
+                    // 7z is written with random access: straight into the target on the phone, else via a temporary file.
+                    val out = if (dst is LocalVfs) File(target) else File.createTempFile("pack", ".7z", appContext.cacheDir).also { tmp = it }
+                    SevenZOutputFile(out, password).use { z ->
+                        z.setContentCompression(SevenZMethod.LZMA2)
+                        val sink = SevenZSink(z)
+                        for (e in items) walk(App.vfs.get(e.vfsId), e, e.name, t, sink)
+                        z.finish()
+                    }
+                    tmp?.let { f ->
+                        t.detail = "Uploading $name"
+                        f.inputStream().use { input -> dst.openWrite(target).use { input.copyTo(it, 1 shl 20) } }
+                    }
+                } else {
+                    BufferedOutputStream(dst.openWrite(target), 256 * 1024).use { raw ->
+                        val sink: ArchiveSink = when (format) {
+                            ArchiveFormat.ZIP -> if (password != null) Zip4jSink(raw, password) else ZipSink(raw)
+                            else -> TarSink(raw, format)
+                        }
+                        sink.use { for (e in items) walk(App.vfs.get(e.vfsId), e, e.name, t, it) }
+                    }
                 }
                 ok = true
             } finally {
+                tmp?.delete()
                 if (!ok) try { dst.delete(target, false) } catch (_: Exception) {}
             }
         }
 
-    private suspend fun addToZip(zip: ZipOutputStream, vfs: Vfs, e: FileEntry, name: String, t: OpTask) {
-        coroutineContext.ensureActive()
-        t.detail = e.name
-        if (e.isLink && e.isDir) { t.warnings += "Skipped folder link ${e.name}"; t.filesDone++; return }
-        if (e.isDir && !e.isLink) {
-            zip.putNextEntry(ZipEntry("$name/").apply { time = e.modified })
-            zip.closeEntry()
-            t.filesDone++
-            for (c in vfs.list(e.path)) addToZip(zip, vfs, c, "$name/${c.name}", t)
-            return
-        }
-        val input0 = try { vfs.openRead(e.path) } catch (ex: java.io.FileNotFoundException) {
-            if (!e.isLink) throw ex
-            t.warnings += "Skipped broken link ${e.name}"; t.filesDone++; return
-        }
-        zip.putNextEntry(ZipEntry(name).apply { time = e.modified })
-        val buf = ByteArray(256 * 1024)
-        input0.use { input ->
-            while (true) {
-                coroutineContext.ensureActive()
-                val n = input.read(buf)
-                if (n < 0) break
-                zip.write(buf, 0, n)
-                t.bytesDone += n
-            }
-        }
-        zip.closeEntry()
-        t.filesDone++
-    }
-
-    fun extract(zipFile: FileEntry, dest: Location): OpTask {
+    /**
+     * Extracts any supported archive ([com.vknxworks.filesctrl.fs.ArchiveVfs]) into a new folder in [dest] named
+     * after it, or, for a single compressed file like "notes.txt.gz", puts the one file straight into [dest].
+     */
+    fun extract(archive: FileEntry, dest: Location, password: CharArray? = null): OpTask {
         App.telemetry.fileOperation("unzip", dest.vfsId)
-        return extractTask(zipFile, dest)
+        return extractTask(archive, dest, password)
     }
 
-    private fun extractTask(zipFile: FileEntry, dest: Location): OpTask =
-        launch("Extracting ${zipFile.name}", listOf(dest)) { t ->
-            val src = App.vfs.get(zipFile.vfsId)
+    private fun extractTask(archive: FileEntry, dest: Location, password: CharArray?): OpTask =
+        launch("Extracting ${archive.name}", listOf(dest)) { t ->
+            val arc = App.vfs.archive(ArchiveVfs.idFor(archive.location)) ?: throw IOException("Couldn't open ${archive.name}")
+            if (password != null) arc.password = password
             val dst = App.vfs.get(dest.vfsId)
-            val folderName = Paths.unique(dest.path, zipFile.name.substringBeforeLast('.').ifBlank { "extracted" }) { dst.exists(it) }
-            val root = Paths.join(dest.path, folderName)
-            dst.mkdir(root)
-            t.bytesTotal = zipFile.size
-            val counting = CountingInput(BufferedInputStream(src.openRead(zipFile.path), 256 * 1024)) { t.bytesDone = it }
-            ZipInputStream(counting).use { zip ->
-                val buf = ByteArray(256 * 1024)
-                val made = HashSet<String>().apply { add(root) }
-                while (true) {
-                    coroutineContext.ensureActive()
-                    val entry = zip.nextEntry ?: break
-                    // Refuse paths that would escape the target folder ("zip slip").
-                    val parts = entry.name.replace('\\', '/').split('/').filter { it.isNotEmpty() && it != "." }
-                    if (parts.isEmpty() || parts.any { !Paths.isSafeName(it) }) { t.warnings += "Skipped unsafe entry ${entry.name}"; continue }
-                    t.detail = parts.last()
-                    var dir = root
-                    val dirParts = if (entry.isDirectory) parts else parts.dropLast(1)
-                    for (p in dirParts) {
-                        dir = Paths.join(dir, p)
-                        checkInside(dst, dir, root)
-                        if (made.add(dir) && !dst.exists(dir)) dst.mkdir(dir)
-                    }
-                    if (entry.isDirectory) continue
-                    val target = Paths.join(dir, parts.last())
-                    checkInside(dst, target, root)
-                    dst.openWrite(target).use { out ->
-                        while (true) {
-                            coroutineContext.ensureActive()
-                            val n = zip.read(buf)
-                            if (n < 0) break
-                            out.write(buf, 0, n)
+            val job = coroutineContext.job
+            t.detail = "Reading ${archive.name}"
+            t.bytesTotal = arc.totalSize()
+            val single = arc.isSingleFile
+            val root = if (single) dest.path else Paths.join(dest.path, Paths.unique(dest.path, arc.baseName) { dst.exists(it) }).also { dst.mkdir(it) }
+            val made = HashSet<String>().apply { add(root) }
+            val buf = ByteArray(256 * 1024)
+            var created: String? = null
+            try {
+                arc.forEachEntry { e, input ->
+                    job.ensureActive()
+                    t.detail = e.name
+                    // Entry paths are already cleaned up by the archive reader; check again against the real target.
+                    val rel = e.path.trimStart('/')
+                    val target = if (single) Paths.join(root, Paths.unique(root, e.name) { dst.exists(it) }) else Paths.join(root, rel)
+                    val dirs = if (input == null) target else Paths.parent(target)
+                    if (!single) {
+                        var d = root
+                        for (part in dirs.removePrefix(root).trim('/').split('/').filter { it.isNotEmpty() }) {
+                            d = Paths.join(d, part)
+                            checkInside(dst, d, root)
+                            if (made.add(d) && !dst.exists(d)) dst.mkdir(d)
                         }
                     }
-                    if (entry.time > 0) dst.setModified(target, entry.time)
+                    if (input == null) return@forEachEntry
+                    checkInside(dst, target, root, allowRoot = single)
+                    created = target
+                    dst.openWrite(target).use { out ->
+                        while (true) {
+                            job.ensureActive()
+                            val n = input.read(buf)
+                            if (n < 0) break
+                            out.write(buf, 0, n)
+                            t.bytesDone += n
+                        }
+                    }
+                    created = null
+                    if (e.modified > 0) dst.setModified(target, e.modified)
                     t.filesDone++
                 }
+            } catch (e: Exception) {
+                // Leave no half-written file behind.
+                created?.let { try { dst.delete(it, false) } catch (_: Exception) {} }
+                throw e
             }
+            if (arc.skippedUnsafe > 0) t.warnings += "Left out ${plural(arc.skippedUnsafe, "entry")} with unsafe names"
+            if (arc.skippedLinks > 0) t.warnings += "Left out ${plural(arc.skippedLinks, "link")}"
         }
 
     /**
@@ -389,8 +415,8 @@ object Ops {
      * folder link inside the destination could still point elsewhere, so local targets are checked by their real
      * (canonical) path too.
      */
-    private fun checkInside(dst: Vfs, target: String, dir: String) {
-        if (!Paths.isWithin(target, dir) || target.trimEnd('/') == dir.trimEnd('/')) throw IOException("Refused to write outside the destination: ${Paths.name(target)}")
+    private fun checkInside(dst: Vfs, target: String, dir: String, allowRoot: Boolean = false) {
+        if (!Paths.isWithin(target, dir) || (!allowRoot && target.trimEnd('/') == dir.trimEnd('/'))) throw IOException("Refused to write outside the destination: ${Paths.name(target)}")
         if (dst.id != LocalVfs.ID) return
         val base = File(dir).canonicalPath
         val real = File(target).canonicalPath
@@ -402,12 +428,4 @@ object Ops {
     suspend fun folderSize(e: FileEntry): Pair<Long, Int> = measure(App.vfs.get(e.vfsId), e)
 
     fun plural(n: Int, word: String) = if (n == 1) "1 $word" else "$n ${word}s"
-}
-
-private class CountingInput(private val inner: java.io.InputStream, private val report: (Long) -> Unit) : java.io.InputStream() {
-    private var count = 0L
-    override fun read(): Int = inner.read().also { if (it >= 0) bump(1) }
-    override fun read(b: ByteArray, off: Int, len: Int): Int = inner.read(b, off, len).also { if (it > 0) bump(it.toLong()) }
-    override fun close() = inner.close()
-    private fun bump(n: Long) { count += n; report(count) }
 }

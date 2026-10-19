@@ -50,7 +50,9 @@ import androidx.core.content.FileProvider
 import androidx.navigation.NavHostController
 import coil3.compose.AsyncImage
 import com.vknxworks.filesctrl.App
+import com.vknxworks.filesctrl.fs.ArchiveVfs
 import com.vknxworks.filesctrl.fs.FileEntry
+import com.vknxworks.filesctrl.fs.Paths
 import com.vknxworks.filesctrl.fs.LocalVfs
 import com.vknxworks.filesctrl.fs.Mime
 import com.vknxworks.filesctrl.fs.RemoteVfs
@@ -148,6 +150,8 @@ fun kindColor(kind: Mime.Kind): Color {
 
 /** True if the file can get a picture thumbnail. */
 fun hasThumbnail(e: FileEntry): Boolean {
+    // Inside an archive each thumbnail would mean reading through the archive again.
+    if (e.vfsId.startsWith(ArchiveVfs.PREFIX)) return false
     val k = Mime.kind(e)
     if (k != Mime.Kind.Image && k != Mime.Kind.Video) return false
     if (e.vfsId == LocalVfs.ID) return true
@@ -256,6 +260,12 @@ fun shareFiles(ctx: Context, items: List<FileEntry>) {
 /** Local path, or a URL like smb://nas/media/file for network locations. */
 fun displayPath(e: FileEntry): String {
     if (e.vfsId == LocalVfs.ID) return e.path
+    if (e.vfsId.startsWith(ArchiveVfs.PREFIX)) {
+        // A file inside an archive: the archive's own path, then the path inside it.
+        val arc = ArchiveVfs.archiveOf(e.vfsId) ?: return e.path
+        val outer = displayPath(FileEntry(arc.vfsId, arc.path, Paths.name(arc.path), false, 0, 0))
+        return if (e.path == "/") outer else outer + e.path
+    }
     val s = App.servers.get(e.vfsId.removePrefix(RemoteVfs.PREFIX)) ?: return e.path
     return s.url(e.path)
 }

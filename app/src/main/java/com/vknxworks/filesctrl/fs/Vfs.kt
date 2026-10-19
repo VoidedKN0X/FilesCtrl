@@ -145,7 +145,9 @@ object Mime {
         "go" to "text/plain", "ts" to "text/plain", "properties" to "text/plain", "gradle" to "text/plain",
         "env" to "text/plain", "nfo" to "text/plain", "srt" to "application/x-subrip", "mkv" to "video/x-matroska",
         "flac" to "audio/flac", "opus" to "audio/ogg", "heic" to "image/heic", "avif" to "image/avif",
-        "7z" to "application/x-7z-compressed", "rar" to "application/vnd.rar", "apk" to "application/vnd.android.package-archive",
+        "7z" to "application/x-7z-compressed", "rar" to "application/vnd.rar", "tgz" to "application/gzip",
+        "tbz2" to "application/x-bzip2", "txz" to "application/x-xz", "zst" to "application/zstd", "tzst" to "application/zstd",
+        "lz4" to "application/x-lz4", "br" to "application/x-brotli", "cpio" to "application/x-cpio", "apk" to "application/vnd.android.package-archive",
     )
 
     fun of(e: FileEntry): String = if (e.isDir) "inode/directory" else ofName(e.name)
@@ -159,7 +161,21 @@ object Mime {
     enum class Kind { Folder, Image, Video, Audio, Text, Code, Pdf, Archive, Apk, Document, Sheet, Slides, Other }
 
     private val codeExt = setOf("kt", "kts", "java", "c", "h", "cpp", "hpp", "py", "js", "ts", "sh", "rs", "go", "json", "xml", "html", "css", "yaml", "yml", "toml", "gradle", "sql")
-    private val archiveExt = setOf("zip", "tar", "gz", "tgz", "bz2", "xz", "7z", "rar", "zst", "lz4", "iso")
+    private val archiveExt = setOf(
+        "zip", "7z", "rar", "tar", "tgz", "tbz", "tbz2", "txz", "tzst", "tlz", "taz", "cpio", "ar", "deb",
+        "gz", "gzip", "bz2", "bzip2", "xz", "lzma", "zst", "zstd", "lz4", "br", "sz", "z",
+    )
+    /** Files that are zips inside but have their own app (installers, e-books, office files): browsable from the menu. */
+    private val zipFamily = setOf("apk", "apks", "xapk", "aab", "jar", "aar", "war", "cbz", "epub", "docx", "xlsx", "pptx",
+        "odt", "ods", "odp", "xpi", "crx", "kmz", "ipa", "nupkg", "whl", "mrpack", "mcpack", "mcworld")
+
+    /** An archive or compressed file that tapping opens as a folder. */
+    fun isArchive(e: FileEntry): Boolean = !e.isDir && (e.ext in archiveExt || e.name.lowercase().let { n ->
+        n.endsWith(".tar.gz") || n.endsWith(".tar.bz2") || n.endsWith(".tar.xz") || n.endsWith(".tar.zst") || n.endsWith(".tar.lz4")
+    })
+
+    /** Can be browsed like an archive (including zip-based formats that normally open in their own app). */
+    fun canBrowseAsArchive(e: FileEntry): Boolean = isArchive(e) || (!e.isDir && e.ext in zipFamily)
 
     fun kind(e: FileEntry): Kind {
         if (e.isDir) return Kind.Folder

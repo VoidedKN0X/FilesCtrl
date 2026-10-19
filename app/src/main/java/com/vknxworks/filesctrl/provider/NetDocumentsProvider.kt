@@ -17,6 +17,7 @@ import android.system.ErrnoException
 import android.system.OsConstants
 import com.vknxworks.filesctrl.App
 import com.vknxworks.filesctrl.R
+import com.vknxworks.filesctrl.fs.ArchiveVfs
 import com.vknxworks.filesctrl.fs.FileEntry
 import com.vknxworks.filesctrl.fs.Mime
 import com.vknxworks.filesctrl.fs.RandomFile
@@ -84,7 +85,44 @@ class NetDocumentsProvider : DocumentsProvider() {
         }
     }
 
+    /**
+     * A file inside an archive ("arc.<archive id>:<path>"), opened from FilesCtrl in another app. Read-only, and
+     * never listed in the file picker: only the files you open are handed out.
+     */
+    private fun splitArchive(docId: String): Pair<ArchiveVfs, String>? {
+        if (!docId.startsWith(ARC)) return null
+        val i = docId.indexOf(':')
+        if (i <= ARC.length) throw FileNotFoundException("Bad document id")
+        val path = Paths.normalize(docId.substring(i + 1).ifEmpty { "/" }) ?: throw FileNotFoundException("Bad document id")
+        val vfs = App.vfs.archive(ArchiveVfs.PREFIX + docId.substring(ARC.length, i)) ?: throw FileNotFoundException("The archive is gone")
+        return vfs to path
+    }
+
+    /** Uncompressed size; for single compressed files whose size isn't stored, counted by reading through once. */
+    private fun archiveSize(vfs: ArchiveVfs, path: String, listed: Long): Long {
+        if (listed > 0) return listed
+        return vfs.openRead(path).use { s ->
+            val buf = ByteArray(256 * 1024)
+            var n = 0L
+            while (true) { val r = s.read(buf); if (r < 0) break; n += r }
+            n
+        }
+    }
+
     override fun queryDocument(documentId: String, projection: Array<out String>?): Cursor {
+        splitArchive(documentId)?.let { (vfs, path) ->
+            val c = MatrixCursor(projection ?: DOC_COLUMNS)
+            val e = io { vfs.stat(path) }
+            c.newRow().apply {
+                add(Document.COLUMN_DOCUMENT_ID, documentId)
+                add(Document.COLUMN_DISPLAY_NAME, e.name)
+                add(Document.COLUMN_MIME_TYPE, if (e.isDir) Document.MIME_TYPE_DIR else Mime.ofName(e.name))
+                add(Document.COLUMN_SIZE, if (e.isDir) null else io { archiveSize(vfs, path, e.size) })
+                add(Document.COLUMN_LAST_MODIFIED, e.modified)
+                add(Document.COLUMN_FLAGS, 0)
+            }
+            return c
+        }
         val (vfs, path) = split(documentId)
         val c = MatrixCursor(projection ?: DOC_COLUMNS)
         addRow(c, vfs.server.id, io { vfs.stat(path) }, vfs.server.readOnly)
@@ -112,6 +150,10 @@ class NetDocumentsProvider : DocumentsProvider() {
     }
 
     override fun getDocumentType(documentId: String): String {
+        splitArchive(documentId)?.let { (vfs, path) ->
+            val e = io { vfs.stat(path) }
+            return if (e.isDir) Document.MIME_TYPE_DIR else Mime.ofName(e.name)
+        }
         val (vfs, path) = split(documentId)
         val e = io { vfs.stat(path) }
         return if (e.isDir) Document.MIME_TYPE_DIR else Mime.ofName(e.name)
@@ -154,6 +196,15 @@ class NetDocumentsProvider : DocumentsProvider() {
     }
 
     override fun openDocument(documentId: String, mode: String, signal: CancellationSignal?): ParcelFileDescriptor {
+        splitArchive(documentId)?.let { (vfs, path) ->
+            if (mode.contains('w')) throw FileNotFoundException("Files inside archives are read-only")
+            val rf = io {
+                val e = vfs.stat(path)
+                if (e.isDir) throw FileNotFoundException("That's a folder")
+                ArchiveEntryReader(vfs, path, archiveSize(vfs, path, e.size))
+            }
+            return proxy(rf, mode, null)
+        }
         val (vfs, path) = split(documentId)
         val write = mode.contains('w')
         if (write && vfs.server.readOnly) throw FileNotFoundException("The share is read-only")
@@ -168,6 +219,10 @@ class NetDocumentsProvider : DocumentsProvider() {
             }
         }
 
+        return proxy(rf, mode) { if (write) notifyChildren(vfs.server.id, Paths.parent(path)) }
+    }
+
+    private fun proxy(rf: RandomFile, mode: String, onClosed: (() -> Unit)?): ParcelFileDescriptor {
         val thread = HandlerThread("net-fd").apply { start() }
         val cb = object : ProxyFileDescriptorCallback() {
             override fun onGetSize(): Long = errno { rf.size() }
@@ -177,7 +232,7 @@ class NetDocumentsProvider : DocumentsProvider() {
             override fun onRelease() {
                 try { rf.close() } catch (_: Exception) {}
                 thread.quitSafely()
-                if (write) notifyChildren(vfs.server.id, Paths.parent(path))
+                onClosed?.invoke()
             }
         }
         val sm = context!!.getSystemService(StorageManager::class.java)
@@ -222,10 +277,13 @@ class NetDocumentsProvider : DocumentsProvider() {
 
         fun docId(serverId: String, path: String) = "$serverId:$path"
 
-        /** Content URI another app can open for a file on an NFS share. */
+        private const val ARC = "arc."
+
+        /** Content URI another app can open for a file on a server, or inside an archive. */
         fun uriFor(e: FileEntry): Uri {
-            val serverId = e.vfsId.removePrefix(RemoteVfs.PREFIX)
-            return DocumentsContract.buildDocumentUri(AUTHORITY, docId(serverId, e.path))
+            val owner = if (e.vfsId.startsWith(ArchiveVfs.PREFIX)) ARC + e.vfsId.removePrefix(ArchiveVfs.PREFIX)
+            else e.vfsId.removePrefix(RemoteVfs.PREFIX)
+            return DocumentsContract.buildDocumentUri(AUTHORITY, docId(owner, e.path))
         }
 
         private val ROOT_COLUMNS = arrayOf(
@@ -236,5 +294,36 @@ class NetDocumentsProvider : DocumentsProvider() {
             Document.COLUMN_DOCUMENT_ID, Document.COLUMN_DISPLAY_NAME, Document.COLUMN_MIME_TYPE,
             Document.COLUMN_SIZE, Document.COLUMN_LAST_MODIFIED, Document.COLUMN_FLAGS,
         )
+    }
+}
+
+/** Reads a file inside an archive at any offset: keeps one stream open and reopens it when a reader seeks back. */
+private class ArchiveEntryReader(private val vfs: ArchiveVfs, private val path: String, private val length: Long) : RandomFile {
+    private var stream: java.io.InputStream? = null
+    private var pos = 0L
+
+    override fun size() = length
+
+    @Synchronized
+    override fun read(offset: Long, buf: ByteArray, len: Int): Int {
+        if (offset >= length) return 0
+        val s = stream?.takeIf { pos == offset } ?: run {
+            stream?.let { try { it.close() } catch (_: Exception) {} }
+            vfs.openRead(path, offset).also { stream = it; pos = offset }
+        }
+        var done = 0
+        while (done < len) {
+            val n = s.read(buf, done, len - done)
+            if (n < 0) break
+            done += n
+        }
+        pos += done
+        return done
+    }
+
+    @Synchronized
+    override fun close() {
+        stream?.let { try { it.close() } catch (_: Exception) {} }
+        stream = null
     }
 }

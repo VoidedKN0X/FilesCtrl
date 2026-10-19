@@ -83,7 +83,8 @@ interface TextSource {
 class VfsTextSource(private val loc: Location) : TextSource {
     override val name = Paths.name(loc.path)
     override val subtitle: String get() = App.vfs.find(loc.vfsId)?.title ?: ""
-    override val readOnly: Boolean = App.servers.get(loc.vfsId.removePrefix(RemoteVfs.PREFIX))?.readOnly == true
+    override val readOnly: Boolean = loc.vfsId.startsWith(com.vknxworks.filesctrl.fs.ArchiveVfs.PREFIX) ||
+        App.servers.get(loc.vfsId.removePrefix(RemoteVfs.PREFIX))?.readOnly == true
 
     override fun read(): ByteArray {
         val vfs = App.vfs.get(loc.vfsId)
