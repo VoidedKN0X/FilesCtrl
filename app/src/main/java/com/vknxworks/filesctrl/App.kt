@@ -11,6 +11,7 @@ import coil3.video.VideoFrameDecoder
 import com.vknxworks.filesctrl.data.Bookmarks
 import com.vknxworks.filesctrl.data.ServerStore
 import com.vknxworks.filesctrl.data.Settings
+import com.vknxworks.filesctrl.data.Telemetry
 import com.vknxworks.filesctrl.fs.RemoteVfs
 import com.vknxworks.filesctrl.fs.VfsRegistry
 import com.vknxworks.filesctrl.ops.Ops
@@ -33,6 +34,8 @@ object App {
         private set
     lateinit var lock: com.vknxworks.filesctrl.data.LockSettings
         private set
+    lateinit var telemetry: Telemetry
+        private set
 
     /** For work that outlives a screen (file operations). */
     val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -47,6 +50,7 @@ object App {
             java.security.Security.insertProviderAt(org.bouncycastle.jce.provider.BouncyCastleProvider(), 1)
         } catch (_: Throwable) {}
         settings = Settings(context)
+        telemetry = Telemetry(context, settings, scope)
         servers = ServerStore(context)
         bookmarks = Bookmarks(context)
         vfs = VfsRegistry(context, servers)

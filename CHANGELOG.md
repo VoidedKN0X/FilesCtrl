@@ -4,13 +4,19 @@ What changed in each FilesCtrl version. Every release on the [Releases page](htt
 
 To publish a new version: bump `versionCode` and `versionName` in `app/build.gradle.kts`, add a section here, and push to `main`. Pushes without a version bump only build; they don't make a release.
 
-## Unreleased
+## 1.0.5 (2026-10-19)
 
-README only; the app itself hasn't changed, so this doesn't make a new release.
+### New
+
+- **Optional anonymous usage stats.** The first time you open FilesCtrl after this update (after the app lock, if you use one), it asks once whether you'd like to share anonymous usage stats. Nothing is sent unless you tap **Share stats**, and you can switch it on or off any time in the new **Settings > Usage stats** section
+- **What's shared:** which screens you open (Files, Places, Settings, server settings or the text editor), which kinds of network storage you add and open (NFS, SMB, SFTP, FTP or WebDAV), whether you copy, move, delete, share, zip or unzip files and on which kind of storage (phone or a network protocol), the app version, Android version, phone model, language, phone or tablet, and your theme setting
+- **What's never shared:** your server addresses, usernames, passwords, share or export names, file or folder names or paths, what you search for, or any ID that follows you between sessions. Each session gets a new random ID, and stats from before and after you switch them off and on again aren't linked
+- **Where it goes:** to VKNXWorks' own self-hosted server (Aptabase), not to Google or any analytics company. If sending fails, the stats are dropped, never stored. Builds you make from source can't send stats at all, and the setting doesn't appear in them
 
 ### Changed
 
 - **PrintCtrl in the Ctrl series list.** The README's table of Ctrl apps now includes [PrintCtrl](https://github.com/VoidedKN0X/PrintCtrl), the app for Bambu Lab printers through a self-hosted Bambuddy server, and Spoolman spools.
+- The README has a new **Usage stats** section listing exactly what's collected
 
 ## 1.0.4 (2026-10-18)
 

@@ -86,7 +86,7 @@ fun SectionHeader(title: String, modifier: Modifier = Modifier, trailing: (@Comp
 }
 
 @Composable
-fun SettingsSection(title: String?, modifier: Modifier = Modifier, content: @Composable () -> Unit) {
+fun SettingsSection(title: String?, modifier: Modifier = Modifier, footer: String? = null, content: @Composable () -> Unit) {
     Column(modifier.padding(horizontal = 16.dp)) {
         Spacer(Modifier.height(18.dp))
         if (title != null) {
@@ -100,6 +100,12 @@ fun SettingsSection(title: String?, modifier: Modifier = Modifier, content: @Com
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
             modifier = Modifier.fillMaxWidth(),
         ) { Column { content() } }
+        if (footer != null) {
+            Text(
+                footer, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(start = 4.dp, end = 4.dp, top = 8.dp),
+            )
+        }
     }
 }
 
