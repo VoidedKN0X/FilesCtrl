@@ -4,15 +4,33 @@ What changed in each FilesCtrl version. Every release on the [Releases page](htt
 
 To publish a new version: bump `versionCode` and `versionName` in `app/build.gradle.kts`, add a section here, and push to `main`. Pushes without a version bump only build; they don't make a release.
 
-## Unreleased
+## 1.1.0 (2026-10-19)
 
 ### New
 
-- **Compressed files and archives**: in progress, see the next version.
+- **Open compressed files like folders.** Tap a ZIP, 7z, RAR, TAR (also .tar.gz, .tgz, .tar.bz2, .tar.xz, .tar.zst, .tar.lz4 and others), CPIO, AR or DEB file to look inside it. You can move through its folders, tap files to view them in FilesCtrl's viewer or editor, open them in other apps, share them, and copy them out to any folder or network share. The top bar shows the archive's format and that it's read-only, and Back or the path bar takes you out again.
+- **Single compressed files** (.gz, .bz2, .xz, .lzma, .zst, .lz4, .br, .sz, .Z) open the same way and show the one file inside, for example notes.txt inside notes.txt.gz.
+- **Archives are recognised by their content**, so a ZIP with the wrong extension still opens. Files that are really ZIPs, such as .apk, .jar, .epub and Office documents (.docx, .xlsx, .pptx, .odt), have a **Browse contents** option in their menu.
+- **Extract here** for every supported format, from a file's menu or the selection menu, and **Extract all** in the top bar while you're inside an archive. An archive with several files is extracted into a new folder named after it; a single compressed file is extracted next to it. Extraction runs in the background with progress, like copying, and works on your phone and on network shares.
+- **Password-protected archives**: FilesCtrl asks for the password when you open or extract an encrypted ZIP (ZipCrypto or AES), 7z or RAR, and tells you when the password was wrong so you can try again.
+- **Compress in more formats.** Compress now lets you pick ZIP, 7z, TAR.GZ, TAR.XZ, TAR.ZST or plain TAR, with a short note on what each one is good for. ZIP and 7z can be protected with a password (AES-256); with 7z, the contents are encrypted.
 
 ### Changed
 
-- **README**: a Screenshots section (screenshots are coming soon), and a link preview image (`.github/assets/social-preview.png`) with FilesCtrl's icon, name and summary, for when the repo is shared on Reddit, Discord or elsewhere
+- **Compress** now asks for the name, format and optional password in one dialog, and **Extract here** handles every supported format instead of only ZIP.
+- **README**: a Screenshots section (screenshots are coming soon), and a link preview image with FilesCtrl's icon, name and summary, for when the repo is shared on Reddit, Discord or elsewhere. The feature list now describes archive support.
+
+### Security
+
+- **Extracting can't write outside the destination folder.** Entries whose names try to escape it (with ".." or similar) are left out, and so are symbolic and hard links inside TAR archives. FilesCtrl tells you how many entries were skipped.
+- Files inside archives are handed to other apps through FilesCtrl's own document provider and are always read-only. FilesCtrl's private folders are still never shared.
+
+### Good to know
+
+- RAR5 archives (made by WinRAR 5 and newer by default) can't be opened yet; FilesCtrl says so clearly. Older RAR archives work.
+- Archives are read-only: to change something, extract it, edit it and compress it again.
+- To open a ZIP, 7z or RAR stored on a network share, FilesCtrl first downloads a temporary copy, because these formats need to be read out of order. The copy is removed after a day. TAR and single compressed files are read straight from the share.
+- Thumbnails aren't shown for pictures inside archives.
 
 ## 1.0.10 (2026-10-19)
 

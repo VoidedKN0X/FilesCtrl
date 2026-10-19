@@ -8,7 +8,6 @@ import org.apache.commons.compress.archivers.ArchiveEntry
 import org.apache.commons.compress.archivers.ArchiveInputStream
 import org.apache.commons.compress.archivers.ArchiveStreamFactory
 import org.apache.commons.compress.archivers.sevenz.SevenZFile
-import org.apache.commons.compress.archivers.sevenz.SevenZMethod
 import org.apache.commons.compress.archivers.tar.TarArchiveEntry
 import org.apache.commons.compress.compressors.CompressorStreamFactory
 import java.io.BufferedInputStream
@@ -128,8 +127,12 @@ class ArchiveVfs(override val id: String, private val source: ArchiveSource) : V
                 }
                 Format.SEVENZ -> withSevenZ { z ->
                     // File names can be readable while the contents are encrypted: ask for the password up front.
-                    if (password == null && z.entries.any { e -> e.hasStream() && e.contentMethods?.any { it.method == SevenZMethod.AES256SHA256 } == true }) {
-                        throw ArchivePasswordException(false)
+                    // The coders are only known once decoding starts, so try the first file's stream.
+                    if (password == null) {
+                        z.entries.firstOrNull { it.hasStream() && it.size > 0 }?.let { first ->
+                            try { z.getInputStream(first).use { it.read() } }
+                            catch (_: org.apache.commons.compress.PasswordRequiredException) { throw ArchivePasswordException(false) }
+                        }
                     }
                     for (e in z.entries) {
                         add(e.name ?: continue, e.isDirectory, if (e.hasStream()) e.size else 0,
