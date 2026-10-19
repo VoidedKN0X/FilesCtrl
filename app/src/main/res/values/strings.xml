@@ -2,6 +2,14 @@
 <resources>
     <string name="app_name">FilesCtrl</string>
     <string name="editor_name">FilesCtrl Text Editor</string>
+    <string name="group_about">About</string>
     <string name="support_title">Support FilesCtrl</string>
     <string name="support_subtitle">FilesCtrl is free and open source. Sponsor development on GitHub</string>
+    <string name="bugs_title">Report a bug</string>
+    <string name="bugs_subtitle">Found a problem or have an idea? Open an issue on GitHub</string>
+    <string name="source_title">Source code</string>
+    <string name="source_subtitle">github.com/VoidedKN0X/FilesCtrl</string>
+    <string name="licence_title">Licence</string>
+    <string name="licence_subtitle">GNU General Public License v3.0</string>
+    <string name="about_footer">FilesCtrl %1$s · VKNXWorks</string>
 </resources>

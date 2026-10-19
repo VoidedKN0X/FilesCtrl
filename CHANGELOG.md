@@ -4,6 +4,12 @@ What changed in each FilesCtrl version. Every release on the [Releases page](htt
 
 To publish a new version: bump `versionCode` and `versionName` in `app/build.gradle.kts`, add a section here, and push to `main`. Pushes without a version bump only build; they don't make a release.
 
+## 1.0.10 (2026-10-19)
+
+### Changed
+
+- **One About section in every Ctrl app**: Support, Report a bug, Source code and Licence (GPL-3.0), with the version underneath, at the bottom of the Settings tab. The rows are in the same order, with the same wording and icons, as in the other Ctrl apps. The new **Report a bug** row ("Found a problem or have an idea? Open an issue on GitHub") opens FilesCtrl's issue tracker, and the new **Licence** row opens the GNU General Public License v3.0. The separate version row is gone: the version ("FilesCtrl 1.0.10 · VKNXWorks") is now shown under the section.
+
 ## 1.0.9 (2026-10-19)
 
 ### New
