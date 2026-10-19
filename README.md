@@ -64,6 +64,7 @@ FilesCtrl can share anonymous usage stats, **only if you say yes**. It asks once
 - **Shared:** which screens you open (Files, Places, Settings, server settings or the editor), which kinds of network storage you add and open (NFS, SMB, SFTP, FTP or WebDAV), whether you copy, move, delete, share, zip or unzip files and on which kind of storage, the app version, Android version, phone model, language, phone or tablet, and your theme setting.
 - **Never shared:** your server addresses, usernames or passwords, share or export names, file or folder names or paths, what you search for, or any ID that stays the same between sessions.
 - **Where:** VKNXWorks' own self-hosted [Aptabase](https://aptabase.com) server. Nothing goes to Google or analytics companies. Like any website, the server sees your IP address; Aptabase uses it only to work out the country and doesn't store it. Apart from this (and only when switched on), FilesCtrl only connects to the servers you add.
+- **Switching stats off** stops them straight away and throws away anything not yet sent.
 
 Builds from source don't include the stats key, so they can't send anything and the setting is hidden. The code is in [`Telemetry.kt`](app/src/main/java/com/vknxworks/filesctrl/data/Telemetry.kt).
 

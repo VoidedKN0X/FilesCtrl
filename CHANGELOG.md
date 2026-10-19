@@ -4,6 +4,14 @@ What changed in each FilesCtrl version. Every release on the [Releases page](htt
 
 To publish a new version: bump `versionCode` and `versionName` in `app/build.gradle.kts`, add a section here, and push to `main`. Pushes without a version bump only build; they don't make a release.
 
+## 1.0.7 (2026-10-19)
+
+A privacy review of the new optional usage stats. They're still off unless you said yes, and FilesCtrl still connects only to the servers you add (plus the stats server, only when stats are on).
+
+### Security
+
+- **Switching usage stats off now throws away anything not yet sent.** Before, a stat recorded just before you switched them off could still be waiting in the app, and if you switched stats back on within a few seconds it could have been sent after all. Now everything waiting is discarded the moment you switch stats off, so nothing recorded before that point can ever go out.
+
 ## 1.0.6 (2026-10-19)
 
 ### Changed
