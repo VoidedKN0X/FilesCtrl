@@ -12,21 +12,24 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.outlined.Sort
+import androidx.compose.material.icons.filled.BugReport
+import androidx.compose.material.icons.filled.Code
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.Gavel
 import androidx.compose.material.icons.outlined.BatteryChargingFull
-import androidx.compose.material.icons.outlined.Code
 import androidx.compose.material.icons.outlined.Contrast
 import androidx.compose.material.icons.outlined.DarkMode
-import androidx.compose.material.icons.outlined.Favorite
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Fingerprint
 import androidx.compose.material.icons.outlined.FolderSpecial
 import androidx.compose.material.icons.outlined.GridView
 import androidx.compose.material.icons.outlined.Image
-import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Insights
 import androidx.compose.material.icons.outlined.LightMode
 import androidx.compose.material.icons.outlined.Lock
@@ -54,6 +57,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.Lifecycle
@@ -216,22 +220,39 @@ fun SettingsTab() {
         }
 
         item {
-            SettingsSection("About") {
-                NavItem(Icons.Outlined.Favorite, stringResource(R.string.support_title), stringResource(R.string.support_subtitle)) {
-                    runCatching { ctx.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/sponsors/VoidedKN0X"))) }
-                }
-                ItemDivider()
-                NavItem(Icons.Outlined.Info, "FilesCtrl ${BuildConfig.VERSION_NAME}", "VKNXWorks · build ${BuildConfig.VERSION_CODE} · NFS, SMB, SFTP, FTP(S), WebDAV") {}
-                ItemDivider()
-                NavItem(Icons.Outlined.Code, "Source code", "github.com/VoidedKN0X/FilesCtrl") {
-                    ctx.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/VoidedKN0X/FilesCtrl")))
-                }
+            fun open(url: String) {
+                runCatching { ctx.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url))) }
             }
+            val chevron: @Composable () -> Unit = { Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null, tint = MaterialTheme.colorScheme.onSurfaceVariant) }
+            SettingsSection(stringResource(R.string.group_about)) {
+                NavItem(Icons.Filled.Favorite, stringResource(R.string.support_title), stringResource(R.string.support_subtitle), trailing = chevron) { open(SPONSOR_URL) }
+                ItemDivider()
+                NavItem(Icons.Filled.BugReport, stringResource(R.string.bugs_title), stringResource(R.string.bugs_subtitle), trailing = chevron) { open(ISSUES_URL) }
+                ItemDivider()
+                NavItem(Icons.Filled.Code, stringResource(R.string.source_title), stringResource(R.string.source_subtitle), trailing = chevron) { open(REPO_URL) }
+                ItemDivider()
+                NavItem(Icons.Filled.Gavel, stringResource(R.string.licence_title), stringResource(R.string.licence_subtitle), trailing = chevron) { open(LICENCE_URL) }
+            }
+        }
+
+        item {
+            Text(
+                stringResource(R.string.about_footer, BuildConfig.VERSION_NAME),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.fillMaxWidth().padding(16.dp),
+                textAlign = TextAlign.Center,
+            )
         }
     }
 
     pinDialog?.let { mode -> PinSetupDialog(mode) { pinDialog = null } }
 }
+
+private const val SPONSOR_URL = "https://github.com/sponsors/VoidedKN0X"
+private const val REPO_URL = "https://github.com/VoidedKN0X/FilesCtrl"
+private const val ISSUES_URL = "https://github.com/VoidedKN0X/FilesCtrl/issues"
+private const val LICENCE_URL = "https://www.gnu.org/licenses/gpl-3.0.html"
 
 enum class PinMode { New, Change, Disable }
 
