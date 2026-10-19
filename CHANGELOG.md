@@ -4,10 +4,18 @@ What changed in each FilesCtrl version. Every release on the [Releases page](htt
 
 To publish a new version: bump `versionCode` and `versionName` in `app/build.gradle.kts`, add a section here, and push to `main`. Pushes without a version bump only build; they don't make a release.
 
-## Unreleased
+## 1.0.8 (2026-10-19)
+
+FilesCtrl is now completely Google-free. Nothing changes in how you use it.
+
+### Privacy
+
+- **Emoji no longer make FilesCtrl ask Google for a font.** A standard Android library inside the app asked Google Play services for a downloadable emoji font every time FilesCtrl started, which could make Google Play services fetch that font from Google. This lookup is now switched off: emoji are drawn with your phone's own emoji font. On phones without Google Play services nothing changes; on other phones, emoji can look slightly different if the phone's built-in emoji font is older.
+- **Checked: FilesCtrl is Google-free.** It contains no Google Play services, Firebase, ML Kit, Google Cast or Play Core, and it doesn't load fonts or anything else from Google's servers. It also never switches server addresses by itself: it always uses the address you set up, and only you can change it.
 
 ### Changed
 
+- **README: new Google-free line** under Requirements: works without Google Play services, contains no Google libraries that contact Google, and draws emoji with your phone's own emoji font.
 - **README brought up to date with FilesCtrl 1.0.7.** The feature list now also mentions the app lock with PIN and fingerprint, the Read-only switch for servers, the fingerprint checks for SFTP host keys and self-signed WebDAV/FTPS certificates, SMB signing and encryption, *Edit with*, search in subfolders, properties and permissions, and that the text editor is offered to other apps. Thumbnails are now described exactly: photos and videos on the phone, photos only on servers. Requirements now say the app needs a 64-bit phone and the All files access permission to browse the phone's own storage (network shares work without it), and Getting started says the **Add network** button is on the **Places** tab. No change to the app itself
 
 ## 1.0.7 (2026-10-19)

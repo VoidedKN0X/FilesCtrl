@@ -29,6 +29,7 @@ Part of the [Ctrl series](#the-ctrl-series) by VKNXWorks.
 
 - Android 13 or newer on a 64-bit phone (ARM or x86_64)
 - **All files access**, to browse your phone's own storage. Network shares work without it
+- **Google-free:** works without Google Play services, contains no Google libraries that contact Google, and draws emoji with your phone's own emoji font
 
 ## Install
 
