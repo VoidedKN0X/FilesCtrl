@@ -4,6 +4,16 @@ What changed in each FilesCtrl version. Every release on the [Releases page](htt
 
 To publish a new version: bump `versionCode` and `versionName` in `app/build.gradle.kts`, add a section here, and push to `main`. Pushes without a version bump only build; they don't make a release.
 
+## 1.1.1 (2026-10-20)
+
+### Changed
+
+- **FilesCtrl always opens in phone storage.** It used to reopen the last folder you were in when you closed it. Now every fresh start begins in the top folder of your phone's internal storage. Your bookmarks, servers and settings stay as they were.
+
+### Fixed
+
+- **The back gesture goes back through your folders instead of closing the app.** Back first returns to the folders you opened before, in order, at the same scroll position. When there's nothing left to go back to (for example after you opened a folder from Places or a bookmark), back goes to the parent folder, one level at a time, then out of a network share or archive to phone storage. FilesCtrl only closes when you press back in phone storage's top folder. Back still closes selection, search and the other tabs first, as before.
+
 ## 1.1.0 (2026-10-19)
 
 ### New

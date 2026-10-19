@@ -96,13 +96,10 @@ class BrowserViewModel : ViewModel() {
         }
     }
 
-    private fun startLocation(): Location {
-        var last = App.settings.lastLocation
-        // Never reopen inside an archive at start (it may be gone or need a password): start in its folder.
-        while (last != null && last.vfsId.startsWith(ArchiveVfs.PREFIX)) last = ArchiveVfs.archiveOf(last.vfsId)?.let { Location(it.vfsId, Paths.parent(it.path)) }
-        if (last != null && App.vfs.find(last.vfsId) != null) return last
-        return Location(LocalVfs.ID, App.vfs.local.primaryRoot)
-    }
+    /** FilesCtrl always opens in phone storage, wherever it was closed. */
+    private fun startLocation(): Location = home
+
+    private val home: Location get() = Location(LocalVfs.ID, App.vfs.local.primaryRoot)
 
     val vfsTitle: String get() = App.vfs.find(location.vfsId)?.title ?: ""
     val isLocal: Boolean get() = location.vfsId == LocalVfs.ID
@@ -170,7 +167,6 @@ class BrowserViewModel : ViewModel() {
         selection.clear()
         filter = ""
         closeDeepSearch()
-        App.settings.lastLocation = to
         load()
     }
 
@@ -179,15 +175,15 @@ class BrowserViewModel : ViewModel() {
         navigate(to, currentIndex)
     }
 
-    fun up(currentIndex: Int) {
+    fun up(currentIndex: Int, addToHistory: Boolean = true) {
         val vfs = App.vfs.find(location.vfsId) ?: return
         val (root, _) = vfs.rootOf(location.path)
         if (location.path == root) {
             // Up from the top of an archive goes to the folder the archive is in.
-            archiveFile?.let { navigate(Location(it.vfsId, Paths.parent(it.path)), currentIndex) }
+            archiveFile?.let { navigate(Location(it.vfsId, Paths.parent(it.path)), currentIndex, addToHistory) }
             return
         }
-        navigate(Location(location.vfsId, Paths.parent(location.path)), currentIndex)
+        navigate(Location(location.vfsId, Paths.parent(location.path)), currentIndex, addToHistory)
     }
 
     val canGoUp: Boolean
@@ -196,17 +192,24 @@ class BrowserViewModel : ViewModel() {
             return isArchive || location.path != vfs.rootOf(location.path).first
         }
 
-    /** Back: undo the last navigation. False if there's nowhere to go back to. */
-    fun back(): Boolean {
-        val (prev, index) = history.removeLastOrNull() ?: return false
-        location = prev
-        restoreIndex = index
-        selection.clear()
-        filter = ""
-        closeDeepSearch()
-        App.settings.lastLocation = prev
-        load()
-        return true
+    /**
+     * Back: returns to the folder you were in before. With nothing left to go back to, goes to the parent folder,
+     * then to phone storage. False only in phone storage's top folder, where back leaves the app.
+     */
+    fun back(currentIndex: Int = 0): Boolean {
+        history.removeLastOrNull()?.let { (prev, index) ->
+            location = prev
+            restoreIndex = index
+            selection.clear()
+            filter = ""
+            closeDeepSearch()
+            load()
+            return true
+        }
+        // Not added to the history, so the next back keeps going up instead of returning here.
+        if (canGoUp) { up(currentIndex, addToHistory = false); return true }
+        if (location != home) { navigate(home, currentIndex, addToHistory = false); return true }
+        return false
     }
 
     private var refreshStarted = 0L
