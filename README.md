@@ -25,6 +25,10 @@ Part of the [Ctrl series](#the-ctrl-series) by VKNXWorks.
 - Passwords and keys are stored encrypted; **app lock** with PIN and fingerprint
 - Light, dark and pure black themes with Material You colours; tablet layout
 
+## Screenshots
+
+Coming soon.
+
 ## Requirements
 
 - Android 13 or newer on a 64-bit phone (ARM or x86_64)
