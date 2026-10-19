@@ -2,4 +2,6 @@
 <resources>
     <string name="app_name">FilesCtrl</string>
     <string name="editor_name">FilesCtrl Text Editor</string>
+    <string name="support_title">Support FilesCtrl</string>
+    <string name="support_subtitle">FilesCtrl is free and open source. Sponsor development on GitHub</string>
 </resources>

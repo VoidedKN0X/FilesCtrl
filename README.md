@@ -95,7 +95,7 @@ Gradle downloads the Android NDK and CMake it needs automatically on the first b
 
 ## Support the project
 
-FilesCtrl is free and open source. If it's useful to you, you can support development on [GitHub Sponsors](https://github.com/sponsors/VoidedKN0X). Starring the repo and [reporting bugs](https://github.com/VoidedKN0X/FilesCtrl/issues) helps too.
+FilesCtrl is free and open source. If it's useful to you, you can support development on [GitHub Sponsors](https://github.com/sponsors/VoidedKN0X), or tap **Support FilesCtrl** under **Settings → About** in the app. Starring the repo and [reporting bugs](https://github.com/VoidedKN0X/FilesCtrl/issues) helps too.
 
 ## The Ctrl series
 

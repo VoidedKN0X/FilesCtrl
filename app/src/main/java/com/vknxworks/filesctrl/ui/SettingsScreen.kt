@@ -20,6 +20,7 @@ import androidx.compose.material.icons.outlined.BatteryChargingFull
 import androidx.compose.material.icons.outlined.Code
 import androidx.compose.material.icons.outlined.Contrast
 import androidx.compose.material.icons.outlined.DarkMode
+import androidx.compose.material.icons.outlined.Favorite
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Fingerprint
 import androidx.compose.material.icons.outlined.FolderSpecial
@@ -50,6 +51,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
@@ -59,6 +61,7 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.vknxworks.filesctrl.App
 import com.vknxworks.filesctrl.BuildConfig
+import com.vknxworks.filesctrl.R
 import com.vknxworks.filesctrl.data.ThemeMode
 import com.vknxworks.filesctrl.ui.lock.PIN_MAX
 import com.vknxworks.filesctrl.ui.lock.PIN_MIN
@@ -214,6 +217,10 @@ fun SettingsTab() {
 
         item {
             SettingsSection("About") {
+                NavItem(Icons.Outlined.Favorite, stringResource(R.string.support_title), stringResource(R.string.support_subtitle)) {
+                    runCatching { ctx.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/sponsors/VoidedKN0X"))) }
+                }
+                ItemDivider()
                 NavItem(Icons.Outlined.Info, "FilesCtrl ${BuildConfig.VERSION_NAME}", "VKNXWorks · build ${BuildConfig.VERSION_CODE} · NFS, SMB, SFTP, FTP(S), WebDAV") {}
                 ItemDivider()
                 NavItem(Icons.Outlined.Code, "Source code", "github.com/VoidedKN0X/FilesCtrl") {
