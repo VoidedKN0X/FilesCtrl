@@ -14,17 +14,21 @@ Part of the [Ctrl series](#the-ctrl-series) by VKNXWorks.
 
 - **Local storage**: internal storage, SD cards and USB drives
 - **Network storage** from one *Add network* button: NFS (v3 and v4), SMB (2/3), SFTP, FTP/FTPS and WebDAV (Nextcloud, ownCloud and others)
-- **Open network files in any app**: videos stream and can be skipped through without downloading first
+- **Open network files in any app**: videos stream and can be skipped through without downloading first; *Edit with* lets an app save changes back
 - **Your servers in the system file picker**, so other apps can open and save files on them
 - **Copy, move, rename and delete** between your phone and any server, in the background
-- **Zip** and unzip, multi-select, search, bookmarks
-- **Thumbnails** for photos and videos, list and grid views, sorting and hidden files
-- **Built-in text editor** for config files and notes
-- Passwords are stored encrypted; light, dark and pure black themes; tablet layout
+- **Zip** and unzip, multi-select, search (also in subfolders), bookmarks, properties and permissions
+- **Thumbnails** for photos and videos on the phone, and for photos on servers (can be turned off), list and grid views, sorting and hidden files
+- **Built-in text editor** for config files and notes, also offered to other apps
+- **Read-only servers**: switch it on and FilesCtrl hides every option that would change something there, and refuses writes from other apps
+- **Checked connections**: SFTP host keys and self-signed WebDAV/FTPS certificates are only trusted after you confirm their fingerprint; SMB signing is on by default, with optional encryption
+- Passwords and keys are stored encrypted; **app lock** with PIN and fingerprint
+- Light, dark and pure black themes with Material You colours; tablet layout
 
 ## Requirements
 
-- Android 13 or newer
+- Android 13 or newer on a 64-bit phone (ARM or x86_64)
+- **All files access**, to browse your phone's own storage. Network shares work without it
 
 ## Install
 
@@ -43,7 +47,7 @@ If the Obtainium button doesn't open the app, add `https://github.com/VoidedKN0X
 
 ## Getting started
 
-1. Tap **Add network**.
+1. Open the **Places** tab and tap **Add network**.
 2. Choose the type (NFS, SMB, SFTP, FTP or WebDAV) and enter your server's address and login.
 3. Your server now appears next to your phone's storage.
 
