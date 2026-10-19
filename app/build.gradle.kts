@@ -26,8 +26,8 @@ android {
         targetSdk = 35
         // CI passes the run number so every build installs over the previous one.
         // Bump both to publish a new release (see CHANGELOG.md).
-        versionCode = 29
-        versionName = "1.1.0"
+        versionCode = 30
+        versionName = "1.1.1"
 
         buildConfigField("String", "APTABASE_KEY", "\"${aptabaseKey.replace("\"", "")}\"")
         buildConfigField("String", "APTABASE_HOST", "\"$aptabaseHost\"")

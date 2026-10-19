@@ -61,11 +61,6 @@ class Settings(context: Context) {
     private val _nfsThumbs = bool("nfs_thumbs", true)
     var nfsThumbnails by _nfsThumbs
 
-    private val _last = str("last_location", "")
-    var lastLocation: Location?
-        get() = Location.fromKey(_last.value)
-        set(v) { _last.value = v?.key ?: "" }
-
     var askedNotifications by bool("asked_notifications", false)
 
     /** Opt-in anonymous usage stats (off until the user says yes). */

@@ -212,7 +212,7 @@ fun BrowserScreen(vm: BrowserViewModel, islandSpace: Dp) {
             vm.selecting -> vm.selection.clear()
             vm.deepQuery != null -> vm.closeDeepSearch()
             vm.searchOpen -> { vm.searchOpen = false; vm.filter = "" }
-            !vm.back() -> (ctx as? Activity)?.finish()
+            !vm.back(currentIndex()) -> (ctx as? Activity)?.finish()
         }
     }
 
