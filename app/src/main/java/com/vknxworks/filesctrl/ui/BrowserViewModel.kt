@@ -8,6 +8,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.vknxworks.filesctrl.App
 import com.vknxworks.filesctrl.data.SortBy
+import com.vknxworks.filesctrl.fs.ArchivePasswordException
+import com.vknxworks.filesctrl.fs.ArchiveVfs
 import com.vknxworks.filesctrl.fs.FileEntry
 import com.vknxworks.filesctrl.fs.LocalVfs
 import com.vknxworks.filesctrl.fs.Location
@@ -95,7 +97,9 @@ class BrowserViewModel : ViewModel() {
     }
 
     private fun startLocation(): Location {
-        val last = App.settings.lastLocation
+        var last = App.settings.lastLocation
+        // Never reopen inside an archive at start (it may be gone or need a password): start in its folder.
+        while (last != null && last.vfsId.startsWith(ArchiveVfs.PREFIX)) last = ArchiveVfs.archiveOf(last.vfsId)?.let { Location(it.vfsId, Paths.parent(it.path)) }
         if (last != null && App.vfs.find(last.vfsId) != null) return last
         return Location(LocalVfs.ID, App.vfs.local.primaryRoot)
     }
@@ -103,20 +107,51 @@ class BrowserViewModel : ViewModel() {
     val vfsTitle: String get() = App.vfs.find(location.vfsId)?.title ?: ""
     val isLocal: Boolean get() = location.vfsId == LocalVfs.ID
     val readOnly: Boolean
-        get() = location.vfsId.startsWith(RemoteVfs.PREFIX) &&
-            App.servers.get(location.vfsId.removePrefix(RemoteVfs.PREFIX))?.readOnly == true
+        get() = isArchive || (location.vfsId.startsWith(RemoteVfs.PREFIX) &&
+            App.servers.get(location.vfsId.removePrefix(RemoteVfs.PREFIX))?.readOnly == true)
+
+    /** Browsing inside an archive (read-only). */
+    val isArchive: Boolean get() = location.vfsId.startsWith(ArchiveVfs.PREFIX)
+
+    /** The archive file being browsed, when inside one. */
+    val archiveFile: Location? get() = if (isArchive) ArchiveVfs.archiveOf(location.vfsId) else null
+
+    /** Set when the archive being opened needs a password; the screen asks for it. */
+    var lockedArchive by mutableStateOf<ArchivePasswordException?>(null)
+    /** The password prompt was cancelled; the error screen offers to show it again. */
+    var passwordPromptHidden by mutableStateOf(false)
+
+    fun unlockArchive(password: CharArray) {
+        (App.vfs.find(location.vfsId) as? ArchiveVfs)?.password = password
+        lockedArchive = null
+        load()
+    }
+
+    /** Opens an archive file as a folder, read afresh in case it changed. */
+    fun openArchive(e: FileEntry, currentIndex: Int) {
+        val id = ArchiveVfs.idFor(e.location)
+        App.vfs.forgetArchive(id)
+        navigate(Location(id, "/"), currentIndex)
+    }
 
     /** Breadcrumb trail: (label, location) from the volume/share root to here. */
-    fun crumbs(): List<Pair<String, Location>> {
-        val vfs = App.vfs.find(location.vfsId) ?: return emptyList()
-        val (root, label) = vfs.rootOf(location.path)
-        val out = mutableListOf(label to Location(location.vfsId, root))
-        val rest = location.path.removePrefix(root).trim('/')
+    fun crumbs(): List<Pair<String, Location>> = crumbsFor(location)
+
+    /** Inside an archive, the trail starts with the folders the archive file is in, then the archive itself. */
+    private fun crumbsFor(loc: Location, depth: Int = 0): List<Pair<String, Location>> {
+        val vfs = App.vfs.find(loc.vfsId) ?: return emptyList()
+        val (root, label) = vfs.rootOf(loc.path)
+        val out = mutableListOf<Pair<String, Location>>()
+        if (vfs is ArchiveVfs && depth < 8) ArchiveVfs.archiveOf(loc.vfsId)?.let { arc ->
+            out += crumbsFor(Location(arc.vfsId, Paths.parent(arc.path)), depth + 1)
+        }
+        out += label to Location(loc.vfsId, root)
+        val rest = loc.path.removePrefix(root).trim('/')
         if (rest.isNotEmpty()) {
             var p = root
             for (part in rest.split('/')) {
                 p = Paths.join(p, part)
-                out += part to Location(location.vfsId, p)
+                out += part to Location(loc.vfsId, p)
             }
         }
         return out
@@ -147,14 +182,18 @@ class BrowserViewModel : ViewModel() {
     fun up(currentIndex: Int) {
         val vfs = App.vfs.find(location.vfsId) ?: return
         val (root, _) = vfs.rootOf(location.path)
-        if (location.path == root) return
+        if (location.path == root) {
+            // Up from the top of an archive goes to the folder the archive is in.
+            archiveFile?.let { navigate(Location(it.vfsId, Paths.parent(it.path)), currentIndex) }
+            return
+        }
         navigate(Location(location.vfsId, Paths.parent(location.path)), currentIndex)
     }
 
     val canGoUp: Boolean
         get() {
             val vfs = App.vfs.find(location.vfsId) ?: return false
-            return location.path != vfs.rootOf(location.path).first
+            return isArchive || location.path != vfs.rootOf(location.path).first
         }
 
     /** Back: undo the last navigation. False if there's nowhere to go back to. */
@@ -204,6 +243,7 @@ class BrowserViewModel : ViewModel() {
                     entries = emptyList()
                     error = e.message ?: e.javaClass.simpleName
                     if (e is com.vknxworks.filesctrl.fs.UntrustedIdentityException) untrusted = e
+                    if (e is ArchivePasswordException) { lockedArchive = e; passwordPromptHidden = false }
                 }
             } finally {
                 if (loc == location) { loading = false; loadCount++ }

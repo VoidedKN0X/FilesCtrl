@@ -37,12 +37,12 @@ jobs:
 
       - uses: gradle/actions/setup-gradle@ed408507eac070d1f99cc633dbcf757c94c7933a # v4
 
-      - name: Run protocol tests
+      - name: Run protocol and archive tests
         env:
           TEST_NET: "1"
         run: |
           chmod +x gradlew
-          ./gradlew --no-daemon :app:testDebugUnitTest --tests '*NetVfsTest*' -i 2>&1 | tee test.log | grep -E "\[(SMB|SFTP|FTP|WEBDAV)\]|SMB shares|PASSED|FAILED|SKIPPED|BUILD" || true
+          ./gradlew --no-daemon :app:testDebugUnitTest --tests '*NetVfsTest*' --tests '*ArchiveTest*' -i 2>&1 | tee test.log | grep -E "\[(SMB|SFTP|FTP|WEBDAV)\]|SMB shares| OK$|PASSED|FAILED|SKIPPED|BUILD" || true
 
       - name: Report results
         if: always()

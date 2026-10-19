@@ -6,6 +6,10 @@ To publish a new version: bump `versionCode` and `versionName` in `app/build.gra
 
 ## Unreleased
 
+### New
+
+- **Compressed files and archives**: in progress, see the next version.
+
 ### Changed
 
 - **README**: a Screenshots section (screenshots are coming soon), and a link preview image (`.github/assets/social-preview.png`) with FilesCtrl's icon, name and summary, for when the repo is shared on Reddit, Discord or elsewhere
