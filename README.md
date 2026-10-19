@@ -17,7 +17,8 @@ Part of the [Ctrl series](#the-ctrl-series) by VKNXWorks.
 - **Open network files in any app**: videos stream and can be skipped through without downloading first; *Edit with* lets an app save changes back
 - **Your servers in the system file picker**, so other apps can open and save files on them
 - **Copy, move, rename and delete** between your phone and any server, in the background
-- **Zip** and unzip, multi-select, search (also in subfolders), bookmarks, properties and permissions
+- **Archives**: open ZIP, 7z, RAR (RAR4), TAR (.tar.gz, .tar.xz, .tar.zst, .tar.bz2 and more), CPIO, AR/DEB and single compressed files (.gz, .xz, .zst, .bz2 …) like folders, extract them, and compress to ZIP, 7z or TAR.* with optional AES-256 passwords
+- Multi-select, search (also in subfolders), bookmarks, properties and permissions
 - **Thumbnails** for photos and videos on the phone, and for photos on servers (can be turned off), list and grid views, sorting and hidden files
 - **Built-in text editor** for config files and notes, also offered to other apps
 - **Read-only servers**: switch it on and FilesCtrl hides every option that would change something there, and refuses writes from other apps
@@ -125,5 +126,7 @@ Native Android apps for self-hosted services and everyday tools, all with the sa
 ## License
 
 FilesCtrl is licensed under the [GNU General Public License v3.0](LICENSE). © VKNXWorks
+
+Archive support uses Apache Commons Compress, zip4j and zstd-jni's Java parts under their own licences (Apache-2.0, Apache-2.0, BSD-2-Clause), XZ for Java (public domain / 0BSD), Brotli (MIT) and junrar (unRAR licence: it may only be used to extract RAR archives, not to create them).
 
 FilesCtrl uses libnfs (LGPL-2.1), smbj, sshj and Apache Commons Net (Apache-2.0).
