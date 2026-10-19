@@ -4,6 +4,12 @@ What changed in each FilesCtrl version. Every release on the [Releases page](htt
 
 To publish a new version: bump `versionCode` and `versionName` in `app/build.gradle.kts`, add a section here, and push to `main`. Pushes without a version bump only build; they don't make a release.
 
+## Unreleased
+
+### Changed
+
+- **README brought up to date with FilesCtrl 1.0.7.** The feature list now also mentions the app lock with PIN and fingerprint, the Read-only switch for servers, the fingerprint checks for SFTP host keys and self-signed WebDAV/FTPS certificates, SMB signing and encryption, *Edit with*, search in subfolders, properties and permissions, and that the text editor is offered to other apps. Thumbnails are now described exactly: photos and videos on the phone, photos only on servers. Requirements now say the app needs a 64-bit phone and the All files access permission to browse the phone's own storage (network shares work without it), and Getting started says the **Add network** button is on the **Places** tab. No change to the app itself
+
 ## 1.0.7 (2026-10-19)
 
 A privacy review of the new optional usage stats. They're still off unless you said yes, and FilesCtrl still connects only to the servers you add (plus the stats server, only when stats are on).
