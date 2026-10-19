@@ -4,6 +4,13 @@ What changed in each FilesCtrl version. Every release on the [Releases page](htt
 
 To publish a new version: bump `versionCode` and `versionName` in `app/build.gradle.kts`, add a section here, and push to `main`. Pushes without a version bump only build; they don't make a release.
 
+## 1.0.9 (2026-10-19)
+
+### New
+
+- **Support FilesCtrl** under Settings → About opens VKNXWorks' GitHub Sponsors page in your browser. FilesCtrl is free and open source, and this is the place to sponsor its development if you'd like to. It's the first row in the About section at the bottom of the Settings tab, above the version and Source code rows.
+- The README's **Support the project** section now also points to the **Support FilesCtrl** button.
+
 ## 1.0.8 (2026-10-19)
 
 FilesCtrl is now completely Google-free. Nothing changes in how you use it.
