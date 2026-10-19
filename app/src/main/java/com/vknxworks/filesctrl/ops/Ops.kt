@@ -121,6 +121,7 @@ object Ops {
         val verb = if (move) "Moving" else "Copying"
         val title = "$verb ${plural(items.size, "item")}"
         val touched = listOf(dest) + if (move) items.map { it.parentLocation } else emptyList()
+        App.telemetry.fileOperation(if (move) "move" else "copy", dest.vfsId)
         return launch(title, touched) { t ->
             val dst = App.vfs.get(dest.vfsId)
             for (src in items) {
@@ -255,7 +256,12 @@ object Ops {
 
     // ---------- Delete ----------
 
-    fun delete(items: List<FileEntry>): OpTask =
+    fun delete(items: List<FileEntry>): OpTask {
+        App.telemetry.fileOperation("delete", items.firstOrNull()?.vfsId)
+        return deleteTask(items)
+    }
+
+    private fun deleteTask(items: List<FileEntry>): OpTask =
         launch("Deleting ${plural(items.size, "item")}", items.map { it.parentLocation }.distinct()) { t ->
             t.filesTotal = items.size
             for (e in items) {
@@ -276,7 +282,12 @@ object Ops {
 
     // ---------- Zip ----------
 
-    fun compress(items: List<FileEntry>, dest: Location, zipName: String): OpTask =
+    fun compress(items: List<FileEntry>, dest: Location, zipName: String): OpTask {
+        App.telemetry.fileOperation("zip", dest.vfsId)
+        return compressTask(items, dest, zipName)
+    }
+
+    private fun compressTask(items: List<FileEntry>, dest: Location, zipName: String): OpTask =
         launch("Compressing to $zipName", listOf(dest)) { t ->
             val dst = App.vfs.get(dest.vfsId)
             for (e in items) {
@@ -325,7 +336,12 @@ object Ops {
         t.filesDone++
     }
 
-    fun extract(zipFile: FileEntry, dest: Location): OpTask =
+    fun extract(zipFile: FileEntry, dest: Location): OpTask {
+        App.telemetry.fileOperation("unzip", dest.vfsId)
+        return extractTask(zipFile, dest)
+    }
+
+    private fun extractTask(zipFile: FileEntry, dest: Location): OpTask =
         launch("Extracting ${zipFile.name}", listOf(dest)) { t ->
             val src = App.vfs.get(zipFile.vfsId)
             val dst = App.vfs.get(dest.vfsId)

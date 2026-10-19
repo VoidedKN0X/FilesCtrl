@@ -57,6 +57,16 @@ If the Obtainium button doesn't open the app, add `https://github.com/VoidedKN0X
 
 Set the share's **uid/gid** in FilesCtrl to the owner of your files on the server (often `1000` on Linux, `1026` or higher on Synology).
 
+## Usage stats
+
+FilesCtrl can share anonymous usage stats, **only if you say yes**. It asks once when you first open it, and you can change it any time in **Settings > Usage stats**.
+
+- **Shared:** which screens you open (Files, Places, Settings, server settings or the editor), which kinds of network storage you add and open (NFS, SMB, SFTP, FTP or WebDAV), whether you copy, move, delete, share, zip or unzip files and on which kind of storage, the app version, Android version, phone model, language, phone or tablet, and your theme setting.
+- **Never shared:** your server addresses, usernames or passwords, share or export names, file or folder names or paths, what you search for, or any ID that stays the same between sessions.
+- **Where:** VKNXWorks' own self-hosted [Aptabase](https://aptabase.com) server. Nothing goes to Google or analytics companies. Like any website, the server sees your IP address; Aptabase uses it only to work out the country and doesn't store it. Apart from this (and only when switched on), FilesCtrl only connects to the servers you add.
+
+Builds from source don't include the stats key, so they can't send anything and the setting is hidden. The code is in [`Telemetry.kt`](app/src/main/java/com/vknxworks/filesctrl/data/Telemetry.kt).
+
 ## Build from source
 
 You need [Android Studio](https://developer.android.com/studio), or JDK 17 and the Android SDK.

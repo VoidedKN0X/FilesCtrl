@@ -68,6 +68,11 @@ class Settings(context: Context) {
 
     var askedNotifications by bool("asked_notifications", false)
 
+    /** Opt-in anonymous usage stats (off until the user says yes). */
+    var usageStats by bool("usage_stats", false)
+    /** Whether the one-time usage stats question has been answered. */
+    var usageStatsAsked by bool("usage_stats_asked", false)
+
     private operator fun <T> Pref<T>.getValue(thisRef: Any?, p: kotlin.reflect.KProperty<*>): T = value
     private operator fun <T> Pref<T>.setValue(thisRef: Any?, p: kotlin.reflect.KProperty<*>, v: T) { value = v }
 }
