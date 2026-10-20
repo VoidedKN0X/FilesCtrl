@@ -14,11 +14,11 @@ android {
         targetSdk = 35
         // CI passes the run number so every build installs over the previous one.
         // Bump both to publish a new release (see CHANGELOG.md).
-        versionCode = 32
-        versionName = "1.1.3"
+        versionCode = 33
+        versionName = "1.1.4"
 
-        // The NFS client (libnfs) is native; phones are arm64, emulators x86_64.
-        ndk { abiFilters += listOf("arm64-v8a", "x86_64") }
+        // 64-bit ARM phones only (arm64-v8a), like every Ctrl app. The NFS client (libnfs) is native.
+        ndk { abiFilters += listOf("arm64-v8a") }
         externalNativeBuild {
             cmake { arguments += listOf("-DANDROID_STL=none") }
         }

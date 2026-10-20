@@ -4,6 +4,13 @@ What changed in each FilesCtrl version. Every release on the [Releases page](htt
 
 To publish a new version: bump `versionCode` and `versionName` in `app/build.gradle.kts`, add a section here, and push to `main`. Pushes without a version bump only build; they don't make a release.
 
+## 1.1.4 (2026-10-20)
+
+### Changed
+
+- **64-bit ARM phones only.** FilesCtrl now ships only the 64-bit ARM (arm64-v8a) build that nearly every phone from the last several years uses, like every Ctrl app, so the download is smaller. Old 32-bit phones and x86 devices (emulators, some Chromebooks) are no longer supported.
+- **README**: Requirements say 64-bit ARM phones only
+
 ## 1.1.3 (2026-10-20)
 
 FilesCtrl is now de-Googled. Nothing changes in how you use it.

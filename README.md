@@ -32,7 +32,7 @@ Coming soon.
 
 ## Requirements
 
-- Android 13 or newer on a 64-bit phone (ARM or x86_64)
+- Android 13 or newer, on a 64-bit ARM phone (nearly every phone from the last several years)
 - **All files access**, to browse your phone's own storage. Network shares work without it
 - **Google-free and de-Googled:** no Google Play services, Firebase or other Google services, and the app never contacts Google. It works the same on de-Googled phones (GrapheneOS, CalyxOS, /e/OS, LineageOS without Google apps).
 
