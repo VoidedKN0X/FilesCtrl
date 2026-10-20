@@ -257,7 +257,7 @@ fun EditorScreen(source: TextSource, onBack: () -> Unit) {
                     }
                     if (saving) CircularProgressIndicator(Modifier.padding(12.dp).padding(end = 4.dp), strokeWidth = 2.dp)
                     else if (!source.readOnly) IconButton(onClick = { save() }, enabled = dirty) { Icon(Icons.Outlined.Save, "Save") }
-                    else IconButton(onClick = { saveCopy.launch(source.name) }, enabled = text != null) { Icon(Icons.Outlined.SaveAs, "Save a copy") }
+                    else IconButton(onClick = { run { com.vknxworks.filesctrl.ui.lock.AppLockState.expectReturn(); saveCopy.launch(source.name) } }, enabled = text != null) { Icon(Icons.Outlined.SaveAs, "Save a copy") }
                     Box {
                         IconButton(onClick = { menu = true }) { Icon(Icons.Outlined.MoreVert, "More") }
                         DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
@@ -265,7 +265,7 @@ fun EditorScreen(source: TextSource, onBack: () -> Unit) {
                                 text = { Text("Save a copy") },
                                 leadingIcon = { Icon(Icons.Outlined.SaveAs, null) },
                                 enabled = text != null,
-                                onClick = { menu = false; saveCopy.launch(source.name) },
+                                onClick = { menu = false; run { com.vknxworks.filesctrl.ui.lock.AppLockState.expectReturn(); saveCopy.launch(source.name) } },
                             )
                         }
                     }
@@ -316,7 +316,7 @@ fun EditorScreen(source: TextSource, onBack: () -> Unit) {
             confirmButton = {
                 TextButton(onClick = {
                     askDiscard = false
-                    if (source.readOnly) { afterCopy = onBack; saveCopy.launch(source.name) } else save(onBack)
+                    if (source.readOnly) { afterCopy = onBack; run { com.vknxworks.filesctrl.ui.lock.AppLockState.expectReturn(); saveCopy.launch(source.name) } } else save(onBack)
                 }) { Text(if (source.readOnly) "Save a copy" else "Save") }
             },
             dismissButton = {

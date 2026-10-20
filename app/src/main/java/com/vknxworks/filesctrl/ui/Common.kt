@@ -232,6 +232,7 @@ fun openFile(ctx: Context, e: FileEntry, chooser: Boolean = false, mimeOverride:
         .setDataAndType(uri, mimeOverride ?: e.mime)
         .addFlags(flags)
     try {
+        com.vknxworks.filesctrl.ui.lock.AppLockState.expectReturn()
         ctx.startActivity(
             if (chooser) Intent.createChooser(intent, if (canWrite) "Edit with" else "Open with").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             else intent,
@@ -253,6 +254,7 @@ fun shareFiles(ctx: Context, items: List<FileEntry>) {
     intent.type = type
     intent.clipData = ClipData.newRawUri(null, uris[0]).apply { uris.drop(1).forEach { addItem(ClipData.Item(it)) } }
     intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+    com.vknxworks.filesctrl.ui.lock.AppLockState.expectReturn()
     ctx.startActivity(Intent.createChooser(intent, "Share").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
 }
 

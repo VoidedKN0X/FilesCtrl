@@ -140,7 +140,7 @@ class OpService : Service() {
      * lock on, the notification isn't shown on the lock screen at all.
      */
     private fun NotificationCompat.Builder.lockScreenSafe(channel: String, generic: String): NotificationCompat.Builder =
-        setVisibility(if (App.lock.pinSet) NotificationCompat.VISIBILITY_SECRET else NotificationCompat.VISIBILITY_PRIVATE)
+        setVisibility(if (com.vknxworks.filesctrl.ui.lock.AppLockState.enabled) NotificationCompat.VISIBILITY_SECRET else NotificationCompat.VISIBILITY_PRIVATE)
             .setPublicVersion(
                 NotificationCompat.Builder(this@OpService, channel)
                     .setSmallIcon(R.drawable.ic_stat_files)

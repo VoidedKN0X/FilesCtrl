@@ -50,6 +50,8 @@ class VfsRegistry(context: Context, private val servers: ServerStore) {
 
     fun remote(serverId: String): RemoteVfs? {
         remotes[serverId]?.let { return it }
+        // Locked: saved passwords and keys aren't available, so don't start a connection without them.
+        if (servers.locked) throw IOException("FilesCtrl is locked")
         val s = servers.get(serverId) ?: return null
         // Facts learned while connecting (an SFTP host key) are saved without dropping the connection.
         return remotes.getOrPut(serverId) { RemoteVfs.create(s) { learned -> servers.remember(learned) } }
@@ -57,6 +59,13 @@ class VfsRegistry(context: Context, private val servers: ServerStore) {
 
     /** The server's file system only if it's connected now (doesn't start a connection). */
     fun connected(serverId: String): RemoteVfs? = remotes[serverId]?.takeIf { it.connected }
+
+    /** Closes and forgets every connection (the app locked). They connect again after unlocking. */
+    fun closeAll() {
+        val all = remotes.values.toList()
+        remotes.clear()
+        all.forEach { try { it.close() } catch (_: Exception) {} }
+    }
 
     /** Drops every connection (e.g. after the app was in the background for a while); they reconnect on use. */
     fun dropAll() = remotes.values.forEach { try { it.drop() } catch (_: Exception) {} }

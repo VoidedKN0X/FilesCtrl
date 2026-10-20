@@ -83,6 +83,13 @@ import com.vknxworks.filesctrl.ui.VfsTextSource
 import com.vknxworks.filesctrl.ui.isAppInDarkTheme
 import com.vknxworks.filesctrl.ui.lock.AppLockViewModel
 import com.vknxworks.filesctrl.ui.lock.LockScreen
+import com.vknxworks.filesctrl.ui.lock.AppLockState
+import com.vknxworks.filesctrl.ui.lock.resetLock
+import com.vknxworks.filesctrl.ui.PinMode
+import com.vknxworks.filesctrl.ui.PinSetupDialog
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.hazeSource
 
@@ -102,7 +109,7 @@ class MainActivity : FragmentActivity() {
                     else SystemBarStyle.light(Color.TRANSPARENT, Color.TRANSPARENT)
                     enableEdgeToEdge(statusBarStyle = style, navigationBarStyle = style)
                 }
-                val secure = App.lock.pinSet && App.lock.hideContent
+                val secure = AppLockState.enabled && App.lock.hideContent
                 LaunchedEffect(secure) {
                     if (secure) window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
                     else window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
@@ -141,11 +148,9 @@ private fun Root(activity: FragmentActivity, lockVm: AppLockViewModel = viewMode
         val observer = LifecycleEventObserver { _, event ->
             when (event) {
                 Lifecycle.Event.ON_STOP -> if (!activity.isChangingConfigurations) {
-                    lockVm.onBackground()
                     backgroundSince = System.currentTimeMillis()
                 }
                 Lifecycle.Event.ON_START -> {
-                    lockVm.onForeground()
                     // Network connections often die while the app is in the background (the phone or the server
                     // drops idle ones). Start fresh instead of waiting for a dead connection to time out, then
                     // reload what's on screen. Running transfers keep their connections and recover on their own.
@@ -177,32 +182,54 @@ private fun Root(activity: FragmentActivity, lockVm: AppLockViewModel = viewMode
         }
     }
 
-    if (lockVm.locked && App.lock.pinSet) {
-        LockScreen(vm = lockVm, onForgot = { confirmReset = true })
-        if (confirmReset) {
-            AlertDialog(
-                onDismissRequest = { confirmReset = false },
-                title = { Text("Reset app lock?") },
-                text = {
-                    Text(
-                        "This removes the PIN and forgets the saved passwords and keys of your network locations. " +
-                            "The locations stay; you'll enter their passwords again.",
-                    )
-                },
-                confirmButton = {
-                    TextButton(onClick = {
-                        confirmReset = false
-                        App.servers.forgetSecrets()
-                        App.lock.clearPin()
-                        lockVm.unlock()
-                    }) { Text("Reset", color = MaterialTheme.colorScheme.error) }
-                },
-                dismissButton = { TextButton(onClick = { confirmReset = false }) { Text("Cancel") } },
-            )
-        }
-        return
+    // After unlocking, show the server folder again: it couldn't connect while the passwords were locked away.
+    LaunchedEffect(AppLockState.unlocked) {
+        if (AppLockState.unlocked && vm.location.vfsId.startsWith(RemoteVfs.PREFIX)) vm.load(quiet = vm.error == null)
     }
 
+    // The app stays underneath the lock screen (so a half-typed text or server form isn't lost), hidden from
+    // touch, screen readers and the keyboard until it's unlocked.
+    val locked = lockVm.locked
+    val focus = LocalFocusManager.current
+    val keyboard = LocalSoftwareKeyboardController.current
+    LaunchedEffect(locked) { if (locked) { focus.clearFocus(force = true); keyboard?.hide() } }
+
+    Box(Modifier.fillMaxSize()) {
+        Box(Modifier.fillMaxSize().then(if (locked) Modifier.clearAndSetSemantics { } else Modifier)) { AppContent(nav, vm) }
+        if (locked) {
+            LockScreen(vm = lockVm, onForgot = { confirmReset = true })
+            if (confirmReset) ResetLockDialog { confirmReset = false }
+        } else if (AppLockState.mustChoosePin) {
+            PinSetupDialog(PinMode.Upgrade) {}
+        }
+    }
+}
+
+/** "Forgot PIN?" on the lock screen. */
+@Composable
+fun ResetLockDialog(onDismiss: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Reset app lock?") },
+        text = {
+            Text(
+                "The PIN can't be recovered: it encrypts the saved passwords and keys of your network locations. " +
+                    "Resetting removes the PIN and forgets those passwords and keys. The locations stay; you'll enter " +
+                    "their passwords again.",
+            )
+        },
+        confirmButton = {
+            TextButton(onClick = {
+                onDismiss()
+                resetLock()
+            }) { Text("Reset", color = MaterialTheme.colorScheme.error) }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+    )
+}
+
+@Composable
+private fun AppContent(nav: androidx.navigation.NavHostController, vm: BrowserViewModel) {
     CompositionLocalProvider(LocalNav provides nav) {
         NavHost(
             nav, startDestination = "main",

@@ -4,6 +4,37 @@ What changed in each FilesCtrl version. Every release on the [Releases page](htt
 
 To publish a new version: bump `versionCode` and `versionName` in `app/build.gradle.kts`, add a section here, and push to `main`. Pushes without a version bump only build; they don't make a release.
 
+## 1.2.0 (2026-10-21)
+
+The app lock now works the same way in every Ctrl app, with the strongest protection of the options compared.
+
+### Changed
+
+- **App PINs now need at least 6 digits** (up to 12), and very obvious ones such as 111111 or 123456 are refused.
+- **Updating with the app lock on:** unlock once with your current PIN. If it has 6 or more digits and isn't obvious, it keeps working and nothing else changes. If it's shorter, FilesCtrl opens this one time and then asks you to choose a new PIN before you can carry on.
+- **Turn fingerprint unlock on again after updating** (**Settings > Security > Unlock with fingerprint**). It now unlocks the key that encrypts your saved passwords, so the old fingerprint setting can't be carried over.
+- **Fingerprint unlock needs your PIN after the phone restarts, and at least every 72 hours**, the same as Android does for your screen lock. Adding a new fingerprint to the phone turns fingerprint unlock off until you turn it on again.
+- **More "Lock again" choices:** as soon as you leave the app (the default), after 1, 5 or 15 minutes away, after 1 hour away, or only when the app restarts. If you had chosen 30 seconds, it's now "As soon as you leave the app", so it never got less strict.
+- **The lock now covers the whole app at once.** Unlocking the file browser also unlocks the text editor, and the other way round, and both lock together.
+- **Opening a file in another app, sharing, picking a folder or file to save to, choosing an SFTP key or opening Android's settings from FilesCtrl doesn't lock the app straight away.** A video keeps streaming from your server while you watch it in another app. If you're away for more than 5 minutes (or longer than your "Lock again" time), FilesCtrl still locks when you come back. Going to the home screen or another app yourself locks as chosen.
+- **With a "Lock again" delay, FilesCtrl now locks once that time has passed in the background**, instead of when you come back. Your passwords don't stay in memory any longer than you chose.
+- **Half-typed text and server settings aren't lost when the app locks.** The text editor and the server form are still there, exactly as you left them, after you unlock.
+- **Turning the app lock off, changing the PIN and the lock screen share one wrong-PIN limit**, so the current-PIN boxes in Settings can't be used to guess either.
+- **"Forgot PIN?"** explains that the PIN can't be recovered because it encrypts your saved passwords and keys. Resetting removes the PIN and forgets those passwords and keys; your network locations stay.
+
+### Security
+
+- **Saved passwords and SFTP keys are encrypted with your PIN while FilesCtrl is locked.** They used to be encrypted with a key on the phone alone. Now, with the app lock on, they're encrypted again with a key that only exists in memory while the app is unlocked, and both that key and the passwords are wiped from memory the moment it locks. A locked FilesCtrl can't connect to your servers, and neither can a copy of its files.
+- **Locking closes your server connections.** Copies and moves that are already running finish first; nothing new can connect until you unlock.
+- **Other apps can't reach your servers while FilesCtrl is locked.** Your network locations disappear from Android's file picker ("Browse" in other apps) until you unlock, and files from them can't be opened.
+- **Your PIN can't be guessed off the phone.** It's never stored. It's stretched with 600,000 rounds of PBKDF2 and mixed with a secret held in the phone's secure hardware (StrongBox where available), so copying FilesCtrl's files to a computer isn't enough to try PINs there. Older versions stored a salted PBKDF2 hash of 120,000 rounds; it's deleted as soon as you unlock once.
+- **Fingerprint unlock can't be faked:** the fingerprint has to unlock the key in the phone's secure hardware that decrypts your saved passwords, so a tampered "success" on a rooted phone doesn't open the app.
+- **Wrong PINs lock the screen** as before: after 5 tries you wait 30 seconds, doubling with every further 5 wrong tries up to 15 minutes. Restarting the app or the phone, or changing the clock, doesn't reset the wait.
+
+### Fixed
+
+- **The text editor no longer keeps its own lock timer.** It used to lock separately from the file browser, so one could ask for the PIN while the other didn't.
+
 ## 1.1.4 (2026-10-20)
 
 ### Changed
