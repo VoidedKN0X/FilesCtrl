@@ -4,6 +4,18 @@ What changed in each FilesCtrl version. Every release on the [Releases page](htt
 
 To publish a new version: bump `versionCode` and `versionName` in `app/build.gradle.kts`, add a section here, and push to `main`. Pushes without a version bump only build; they don't make a release.
 
+## 1.1.3 (2026-10-20)
+
+FilesCtrl is now de-Googled. Nothing changes in how you use it.
+
+### Privacy
+
+- **No mention of Google left in the app's own code.** FilesCtrl has no Google Play services, Firebase or other Google services and never contacts Google: it only talks to the servers you add. The last mention of Google in FilesCtrl's own files, a technical note in its setup file, is gone. It works the same on de-Googled phones such as GrapheneOS, CalyxOS, /e/OS and LineageOS without Google apps.
+
+### Changed
+
+- **README**: the Google-free line now reads "Google-free and de-Googled": no Google Play services, Firebase or other Google services, the app never contacts Google, and it works the same on de-Googled phones (GrapheneOS, CalyxOS, /e/OS, LineageOS without Google apps). It's the only place Google is mentioned in the README.
+
 ## 1.1.2 (2026-10-20)
 
 ### Privacy
