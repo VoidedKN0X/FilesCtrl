@@ -89,7 +89,6 @@ class BrowserViewModel : ViewModel() {
     private var searchJob: Job? = null
 
     init {
-        App.telemetry.networkBrowsed(location.vfsId)
         load()
         viewModelScope.launch {
             Ops.changed.collect { loc -> if (loc == location) load(quiet = true) }
@@ -158,8 +157,6 @@ class BrowserViewModel : ViewModel() {
 
     fun navigate(to: Location, currentIndex: Int = 0, addToHistory: Boolean = true) {
         if (to == location) { load(); return }
-        // Usage stats (if opted in): only the protocol of a network location when it's opened, never which one.
-        if (to.vfsId != location.vfsId) App.telemetry.networkBrowsed(to.vfsId)
         if (addToHistory) history.addLast(location to currentIndex)
         if (history.size > 200) history.removeFirst()
         location = to

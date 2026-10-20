@@ -4,6 +4,16 @@ What changed in each FilesCtrl version. Every release on the [Releases page](htt
 
 To publish a new version: bump `versionCode` and `versionName` in `app/build.gradle.kts`, add a section here, and push to `main`. Pushes without a version bump only build; they don't make a release.
 
+## 1.1.2 (2026-10-20)
+
+### Privacy
+
+- **No more usage stats: FilesCtrl is now telemetry-free.** The optional anonymous usage stats are gone completely, along with the Usage stats setting and the one-time question. The app no longer contacts VKNXWorks' stats server at all, and the settings it used are deleted from your phone when you update. FilesCtrl now only talks to the NFS, SMB, SFTP, FTP and WebDAV servers you add.
+
+### Changed
+
+- **README**: a "Telemetry-free" badge, and a Privacy section listing exactly what FilesCtrl connects to, in place of the old Usage stats section. The link preview image (`.github/assets/social-preview.png`) now carries a "Telemetry-free" tag too.
+
 ## 1.1.1 (2026-10-20)
 
 ### Changed

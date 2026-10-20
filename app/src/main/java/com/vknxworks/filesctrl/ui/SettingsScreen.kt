@@ -30,7 +30,6 @@ import androidx.compose.material.icons.outlined.Fingerprint
 import androidx.compose.material.icons.outlined.FolderSpecial
 import androidx.compose.material.icons.outlined.GridView
 import androidx.compose.material.icons.outlined.Image
-import androidx.compose.material.icons.outlined.Insights
 import androidx.compose.material.icons.outlined.LightMode
 import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.Palette
@@ -195,17 +194,6 @@ fun SettingsTab() {
                     ) { lock.hideContent = it }
                     ItemDivider()
                     NavItem(Icons.Outlined.Password, "Change PIN") { pinDialog = PinMode.Change }
-                }
-            }
-        }
-
-        if (App.telemetry.available) {
-            item {
-                SettingsSection("Usage stats", footer = USAGE_STATS_DESCRIPTION) {
-                    ToggleItem(
-                        Icons.Outlined.Insights, "Share anonymous usage stats",
-                        "Helps decide what to improve next", s.usageStats,
-                    ) { App.telemetry.setOptIn(it) }
                 }
             }
         }

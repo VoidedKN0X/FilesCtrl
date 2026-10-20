@@ -254,7 +254,6 @@ fun shareFiles(ctx: Context, items: List<FileEntry>) {
     intent.clipData = ClipData.newRawUri(null, uris[0]).apply { uris.drop(1).forEach { addItem(ClipData.Item(it)) } }
     intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
     ctx.startActivity(Intent.createChooser(intent, "Share").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
-    com.vknxworks.filesctrl.App.telemetry.fileOperation("share", files.first().vfsId)
 }
 
 /** Local path, or a URL like smb://nas/media/file for network locations. */
