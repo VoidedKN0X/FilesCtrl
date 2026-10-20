@@ -13,8 +13,11 @@ import javax.crypto.SecretKeyFactory
 import javax.crypto.spec.PBEKeySpec
 
 /**
- * App lock preferences. Only a salted PBKDF2 hash of the PIN is stored, never the PIN itself.
- * Same design as CraftyCtrl's lock.
+ * App lock preferences: when to lock again and whether to hide the app's content. The PIN and keys live in
+ * [com.vknxworks.filesctrl.data.lock.LockVault].
+ *
+ * [pinSet] and the PIN functions below are only for the lock of FilesCtrl 1.1.4 and older (a salted PBKDF2
+ * hash): the first correct PIN moves it to the vault and deletes it.
  */
 class LockSettings(context: Context) {
     private val appContext = context.applicationContext
@@ -28,11 +31,17 @@ class LockSettings(context: Context) {
         get() = _pinSet && _bio
         set(v) { _bio = v; prefs.edit().putBoolean(KEY_BIOMETRIC, v).apply() }
 
-    /** How long the app may sit in the background before it locks again. 0 = immediately. */
-    private var _after by mutableIntStateOf(prefs.getInt(KEY_LOCK_AFTER, 0))
-    var lockAfterSeconds: Int
-        get() = _after
-        set(v) { _after = v; prefs.edit().putInt(KEY_LOCK_AFTER, v).apply() }
+    /**
+     * How long the app may sit in the background before it locks again: 0 = as soon as you leave, -1 = only when
+     * the app restarts. Older versions offered 30 s, which now counts as "as soon as you leave" (never less safe).
+     */
+    private var _timeout by mutableIntStateOf(
+        if (prefs.contains(KEY_LOCK_TIMEOUT)) prefs.getInt(KEY_LOCK_TIMEOUT, 0)
+        else when (prefs.getInt(KEY_LOCK_AFTER, 0)) { 60 -> 60; 300 -> 300; 900 -> 900; else -> 0 }
+    )
+    var lockTimeoutSeconds: Int
+        get() = _timeout
+        set(v) { _timeout = v; prefs.edit().putInt(KEY_LOCK_TIMEOUT, v).remove(KEY_LOCK_AFTER).apply() }
 
     /** Hide the app in the recent-apps screen and block screenshots/screen recording. */
     private var _hide by mutableStateOf(prefs.getBoolean(KEY_HIDE, true))
@@ -62,7 +71,7 @@ class LockSettings(context: Context) {
             .apply()
         _pinSet = false
         _bio = false
-        com.vknxworks.filesctrl.ui.lock.clearBiometricKey()
+        com.vknxworks.filesctrl.ui.lock.clearLegacyBiometricKey()
     }
 
     fun checkPin(pin: String): Boolean {
@@ -131,6 +140,7 @@ class LockSettings(context: Context) {
         const val KEY_PIN_LENGTH = "pin_length"
         const val KEY_BIOMETRIC = "biometric"
         const val KEY_LOCK_AFTER = "lock_after"
+        const val KEY_LOCK_TIMEOUT = "lock_timeout"
         const val KEY_HIDE = "hide_content"
         const val KEY_FAILED = "pin_failed"
         const val KEY_LOCKOUT_UNTIL = "pin_lockout_until"

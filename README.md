@@ -23,7 +23,7 @@ Part of the [Ctrl series](#the-ctrl-series) by VKNXWorks.
 - **Built-in text editor** for config files and notes, also offered to other apps
 - **Read-only servers**: switch it on and FilesCtrl hides every option that would change something there, and refuses writes from other apps
 - **Checked connections**: SFTP host keys and self-signed WebDAV/FTPS certificates are only trusted after you confirm their fingerprint; SMB signing is on by default, with optional encryption
-- Passwords and keys are stored encrypted; **app lock** with PIN and fingerprint
+- Passwords and keys are stored encrypted; **app lock** with its own PIN and optional fingerprint, which keeps saved passwords encrypted while the app is locked
 - Light, dark and pure black themes with Material You colours; tablet layout
 
 ## Screenshots

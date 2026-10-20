@@ -444,7 +444,7 @@ fun ServerEditScreen(serverId: String?, onDone: (openId: String?) -> Unit) {
                         Spacer(Modifier.width(12.dp))
                         Text(if (privateKey.isBlank()) "No private key" else "Private key loaded", Modifier.weight(1f))
                         if (privateKey.isNotBlank()) TextButton(onClick = { privateKey = "" }) { Text("Remove") }
-                        OutlinedButton(onClick = { keyPicker.launch(arrayOf("*/*")) }) { Text(if (privateKey.isBlank()) "Choose key" else "Replace") }
+                        OutlinedButton(onClick = { com.vknxworks.filesctrl.ui.lock.AppLockState.expectReturn(); keyPicker.launch(arrayOf("*/*")) }) { Text(if (privateKey.isBlank()) "Choose key" else "Replace") }
                     }
                     if (hostKey.isNotBlank()) {
                         Row(verticalAlignment = Alignment.CenterVertically) {

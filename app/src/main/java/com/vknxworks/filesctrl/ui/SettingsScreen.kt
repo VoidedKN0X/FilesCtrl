@@ -69,7 +69,11 @@ import com.vknxworks.filesctrl.data.ThemeMode
 import com.vknxworks.filesctrl.ui.lock.PIN_MAX
 import com.vknxworks.filesctrl.ui.lock.PIN_MIN
 import com.vknxworks.filesctrl.ui.lock.biometricAvailable
-import com.vknxworks.filesctrl.ui.lock.clearBiometricKey
+import com.vknxworks.filesctrl.ui.lock.AppLockState
+import com.vknxworks.filesctrl.ui.lock.disableLock
+import com.vknxworks.filesctrl.ui.lock.migrate
+import com.vknxworks.filesctrl.ui.lock.obviousPin
+import com.vknxworks.filesctrl.data.lock.LockVault
 import com.vknxworks.filesctrl.ui.lock.showBiometricPrompt
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -142,7 +146,7 @@ fun SettingsTab() {
                     if (allFiles) "Allowed: this phone's storage can be browsed" else "Needed to browse this phone's storage; tap to allow",
                 ) {
                     val i = Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION, Uri.parse("package:${ctx.packageName}"))
-                    try { ctx.startActivity(i) } catch (_: Exception) { ctx.startActivity(Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION)) }
+                    com.vknxworks.filesctrl.ui.lock.AppLockState.expectReturn(); try { ctx.startActivity(i) } catch (_: Exception) { ctx.startActivity(Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION)) }
                 }
                 ItemDivider()
                 NavItem(
@@ -151,9 +155,9 @@ fun SettingsTab() {
                     else "Restricted. ColorOS and other phones may pause long copies in the background; tap to allow",
                 ) {
                     if (!unrestricted) {
-                        batteryLauncher.launch(Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS, Uri.parse("package:${ctx.packageName}")))
+                        run { com.vknxworks.filesctrl.ui.lock.AppLockState.expectReturn(); batteryLauncher.launch(Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS, Uri.parse("package:${ctx.packageName}"))) }
                     } else {
-                        batteryLauncher.launch(Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS))
+                        run { com.vknxworks.filesctrl.ui.lock.AppLockState.expectReturn(); batteryLauncher.launch(Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)) }
                     }
                 }
             }
@@ -161,32 +165,42 @@ fun SettingsTab() {
 
         item {
             SettingsSection("Security") {
-                ToggleItem(Icons.Outlined.Lock, "App lock", "Ask for a PIN when opening the app", lock.pinSet) { on ->
+                val vault = App.vault
+                ToggleItem(
+                    Icons.Outlined.Lock, "App lock",
+                    "Ask for a PIN of at least $PIN_MIN digits when opening the app. While it's locked, saved passwords and " +
+                        "keys stay encrypted with your PIN, and your servers don't show in other apps' file pickers. " +
+                        "Copies and moves that are already running finish.",
+                    vault.enabled,
+                ) { on ->
                     pinDialog = if (on) PinMode.New else PinMode.Disable
                 }
-                if (lock.pinSet) {
+                if (vault.enabled) {
                     ItemDivider()
                     ToggleItem(
                         Icons.Outlined.Fingerprint, "Unlock with fingerprint",
-                        if (bioAvailable) "Your PIN still works as a backup" else "No secure fingerprint unlock is set up on this phone",
-                        lock.biometricEnabled, enabled = bioAvailable,
+                        if (bioAvailable || vault.biometricEnabled) "Strong biometrics only. Your PIN is still needed after a restart and every 72 hours"
+                        else "No secure fingerprint unlock is set up on this phone",
+                        vault.biometricEnabled, enabled = bioAvailable || vault.biometricEnabled,
                     ) { on ->
                         val act = ctx as? FragmentActivity
-                        if (on && act != null) showBiometricPrompt(
-                            act, "Confirm to turn on", enrol = true,
-                            onUnavailable = { Toast.makeText(ctx, "Fingerprint unlock isn't available on this phone", Toast.LENGTH_SHORT).show() },
-                        ) { lock.biometricEnabled = true }
-                        else {
-                            lock.biometricEnabled = false
-                            clearBiometricKey()
-                        }
+                        if (on && act != null) {
+                            val cipher = vault.biometricEnrolCipher()
+                            if (cipher == null) Toast.makeText(ctx, "Fingerprint unlock isn't available on this phone", Toast.LENGTH_SHORT).show()
+                            else showBiometricPrompt(act, "Confirm to turn on", cipher) { unlocked ->
+                                if (!vault.finishBiometricEnrol(unlocked)) {
+                                    Toast.makeText(ctx, "Couldn't turn on fingerprint unlock", Toast.LENGTH_SHORT).show()
+                                }
+                            }
+                        } else vault.disableBiometric()
                     }
                     ItemDivider()
-                    val afters = listOf(0, 30, 60, 300)
-                    ChoiceItem(
-                        Icons.Outlined.Timer, "Lock again after leaving the app", listOf("Instantly", "30 s", "1 min", "5 min"),
-                        afters.indexOf(lock.lockAfterSeconds).coerceAtLeast(0),
-                    ) { lock.lockAfterSeconds = afters[it] }
+                    val afters = listOf(0, 60, 300, 900, 3600, -1)
+                    MenuChoiceItem(
+                        Icons.Outlined.Timer, "Lock again",
+                        listOf("As soon as you leave the app", "After 1 minute away", "After 5 minutes away", "After 15 minutes away", "After 1 hour away", "Only when the app restarts"),
+                        afters.indexOf(lock.lockTimeoutSeconds).coerceAtLeast(0),
+                    ) { lock.lockTimeoutSeconds = afters[it] }
                     ItemDivider()
                     ToggleItem(
                         Icons.Outlined.VisibilityOff, "Hide from recents & screenshots",
@@ -209,7 +223,7 @@ fun SettingsTab() {
 
         item {
             fun open(url: String) {
-                runCatching { ctx.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url))) }
+                com.vknxworks.filesctrl.ui.lock.AppLockState.expectReturn(); runCatching { ctx.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url))) }
             }
             val chevron: @Composable () -> Unit = { Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null, tint = MaterialTheme.colorScheme.onSurfaceVariant) }
             SettingsSection(stringResource(R.string.group_about)) {
@@ -242,12 +256,30 @@ private const val REPO_URL = "https://github.com/VoidedKN0X/FilesCtrl"
 private const val ISSUES_URL = "https://github.com/VoidedKN0X/FilesCtrl/issues"
 private const val LICENCE_URL = "https://www.gnu.org/licenses/gpl-3.0.html"
 
-enum class PinMode { New, Change, Disable }
+/** A setting with more choices than fit side by side: shows the current one, tap for a menu. */
+@Composable
+private fun MenuChoiceItem(icon: androidx.compose.ui.graphics.vector.ImageVector, title: String, options: List<String>, selected: Int, onSelect: (Int) -> Unit) {
+    var open by remember { mutableStateOf(false) }
+    androidx.compose.foundation.layout.Box {
+        NavItem(icon, title, options[selected]) { open = true }
+        androidx.compose.material3.DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+            options.forEachIndexed { i, label ->
+                androidx.compose.material3.DropdownMenuItem(
+                    text = { Text(label, fontWeight = if (i == selected) androidx.compose.ui.text.font.FontWeight.Bold else null) },
+                    onClick = { open = false; onSelect(i) },
+                )
+            }
+        }
+    }
+}
+
+/** [Upgrade]: an old, too short PIN was just used; a new one must be chosen before the app opens. */
+enum class PinMode { New, Change, Disable, Upgrade }
 
 @Composable
-private fun PinSetupDialog(mode: PinMode, onDismiss: () -> Unit) {
-    val lock = App.lock
-    val needsCurrent = mode != PinMode.New
+fun PinSetupDialog(mode: PinMode, onDismiss: () -> Unit) {
+    val vault = App.vault
+    val needsCurrent = mode == PinMode.Change || mode == PinMode.Disable
     val needsNew = mode != PinMode.Disable
     var current by remember { mutableStateOf("") }
     var first by remember { mutableStateOf("") }
@@ -258,11 +290,34 @@ private fun PinSetupDialog(mode: PinMode, onDismiss: () -> Unit) {
     fun digits(v: String) = v.filter { it.isDigit() }.take(PIN_MAX)
 
     AlertDialog(
-        onDismissRequest = onDismiss,
+        onDismissRequest = { if (mode != PinMode.Upgrade) onDismiss() },
+        properties = androidx.compose.ui.window.DialogProperties(
+            dismissOnBackPress = mode != PinMode.Upgrade,
+            dismissOnClickOutside = mode != PinMode.Upgrade,
+        ),
         icon = { Icon(Icons.Outlined.Lock, null) },
-        title = { Text(when (mode) { PinMode.New -> "Set a PIN"; PinMode.Change -> "Change PIN"; PinMode.Disable -> "Turn off app lock" }) },
+        title = {
+            Text(
+                when (mode) {
+                    PinMode.New -> "Set a PIN"
+                    PinMode.Change -> "Change PIN"
+                    PinMode.Disable -> "Turn off app lock"
+                    PinMode.Upgrade -> "Choose a new PIN"
+                },
+            )
+        },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                if (mode == PinMode.Upgrade) Text(
+                    "The app lock now needs at least $PIN_MIN digits, and encrypts your saved passwords with your PIN. " +
+                        "Choose a new PIN to continue.",
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+                if (mode == PinMode.New) Text(
+                    "Use a PIN that's different from your phone's. If you forget it, the saved passwords and keys of your " +
+                        "network locations are lost (the locations stay).",
+                    style = MaterialTheme.typography.bodyMedium,
+                )
                 if (needsCurrent) PinField("Current PIN", current) { current = digits(it) }
                 if (needsNew) {
                     PinField("New PIN ($PIN_MIN–$PIN_MAX digits)", first) { first = digits(it) }
@@ -275,23 +330,38 @@ private fun PinSetupDialog(mode: PinMode, onDismiss: () -> Unit) {
             TextButton(enabled = !working, onClick = {
                 scope.launch {
                     working = true
-                    val currentOk = !needsCurrent || withContext(Dispatchers.Default) { lock.checkPin(current) }
+                    // Wrong current PINs count towards the same lockout as the lock screen.
+                    val check = if (needsCurrent) withContext(Dispatchers.Default) { vault.unlockWithPin(current) } else LockVault.PinResult.Ok
                     error = when {
-                        !currentOk -> "Current PIN is wrong"
+                        check == LockVault.PinResult.LockedOut -> "Too many tries. Try again in ${(vault.lockoutRemaining() + 999) / 1000} s"
+                        check != LockVault.PinResult.Ok -> "Current PIN is wrong"
                         needsNew && first.length < PIN_MIN -> "Use at least $PIN_MIN digits"
                         needsNew && first != second -> "The PINs don't match"
-                        needsNew && first.toSet().size == 1 -> "Pick a PIN that isn't one repeated digit"
+                        needsNew && obviousPin(first) -> "Too easy to guess. Avoid repeated digits and runs like 123456"
                         else -> null
                     }
                     if (error == null) {
-                        withContext(Dispatchers.Default) { if (needsNew) lock.setPin(first) else lock.clearPin() }
-                        onDismiss()
+                        // Unlocked first, so the lock screen doesn't flash up while the new lock is saved.
+                        if (mode == PinMode.New) AppLockState.markUnlocked()
+                        val saved = runCatching {
+                            withContext(Dispatchers.Default) {
+                                when (mode) {
+                                    PinMode.New, PinMode.Upgrade -> migrate(first)
+                                    PinMode.Change -> vault.changePin(first)
+                                    PinMode.Disable -> disableLock()
+                                }
+                            }
+                        }
+                        if (saved.isSuccess) {
+                            if (mode == PinMode.Upgrade) AppLockState.mustChoosePin = false
+                            onDismiss()
+                        } else error = "Couldn't save the PIN: ${saved.exceptionOrNull()?.message ?: "unknown error"}"
                     }
                     working = false
                 }
             }) { Text(if (mode == PinMode.Disable) "Turn off" else "Save") }
         },
-        dismissButton = { TextButton(onDismiss) { Text("Cancel") } },
+        dismissButton = { if (mode != PinMode.Upgrade) TextButton(onDismiss) { Text("Cancel") } },
     )
 }
 

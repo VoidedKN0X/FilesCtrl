@@ -17,6 +17,7 @@ import android.system.ErrnoException
 import android.system.OsConstants
 import com.vknxworks.filesctrl.App
 import com.vknxworks.filesctrl.R
+import com.vknxworks.filesctrl.ui.lock.AppLockState
 import com.vknxworks.filesctrl.fs.ArchiveVfs
 import com.vknxworks.filesctrl.fs.FileEntry
 import com.vknxworks.filesctrl.fs.Mime
@@ -45,7 +46,11 @@ class NetDocumentsProvider : DocumentsProvider() {
         return true
     }
 
+    /** While FilesCtrl is locked, other apps can't browse or open anything on your servers. */
+    private fun locked(): Boolean = AppLockState.enabled && !AppLockState.unlocked
+
     private fun split(docId: String): Pair<RemoteVfs, String> {
+        if (locked()) throw FileNotFoundException("FilesCtrl is locked. Open it and unlock it first.")
         val i = docId.indexOf(':')
         if (i <= 0) throw FileNotFoundException("Bad document id")
         // Normalise the path and refuse "." / ".." segments, so an id can never climb out of a granted folder.
@@ -56,6 +61,7 @@ class NetDocumentsProvider : DocumentsProvider() {
 
     override fun queryRoots(projection: Array<out String>?): Cursor {
         val c = MatrixCursor(projection ?: ROOT_COLUMNS)
+        if (locked()) return c
         for (s in App.servers.all) {
             c.newRow().apply {
                 add(Root.COLUMN_ROOT_ID, s.id)
@@ -91,6 +97,7 @@ class NetDocumentsProvider : DocumentsProvider() {
      */
     private fun splitArchive(docId: String): Pair<ArchiveVfs, String>? {
         if (!docId.startsWith(ARC)) return null
+        if (locked()) throw FileNotFoundException("FilesCtrl is locked. Open it and unlock it first.")
         val i = docId.indexOf(':')
         if (i <= ARC.length) throw FileNotFoundException("Bad document id")
         val path = Paths.normalize(docId.substring(i + 1).ifEmpty { "/" }) ?: throw FileNotFoundException("Bad document id")

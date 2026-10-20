@@ -26,6 +26,12 @@ import com.vknxworks.filesctrl.ui.UriTextSource
 import com.vknxworks.filesctrl.ui.isAppInDarkTheme
 import com.vknxworks.filesctrl.ui.lock.AppLockViewModel
 import com.vknxworks.filesctrl.ui.lock.LockScreen
+import com.vknxworks.filesctrl.ui.lock.AppLockState
+import com.vknxworks.filesctrl.ui.PinMode
+import com.vknxworks.filesctrl.ui.PinSetupDialog
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.semantics.clearAndSetSemantics
 
 /**
  * The text editor on its own, for "Open with" / "Edit with" from other apps (file managers, mail, chat, the
@@ -67,32 +73,30 @@ class EditorActivity : FragmentActivity() {
                     else SystemBarStyle.light(Color.TRANSPARENT, Color.TRANSPARENT)
                     enableEdgeToEdge(statusBarStyle = style, navigationBarStyle = style)
                 }
-                val secure = App.lock.pinSet && App.lock.hideContent
+                val secure = AppLockState.enabled && App.lock.hideContent
                 LaunchedEffect(secure) {
                     if (secure) window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
                     else window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
                 }
                 val lockVm: AppLockViewModel = viewModel()
-                val owner = LocalLifecycleOwner.current
-                DisposableEffect(owner) {
-                    val obs = LifecycleEventObserver { _, e ->
-                        when (e) {
-                            Lifecycle.Event.ON_STOP -> if (!isChangingConfigurations) lockVm.onBackground()
-                            Lifecycle.Event.ON_START -> lockVm.onForeground()
-                            else -> Unit
-                        }
-                    }
-                    owner.lifecycle.addObserver(obs)
-                    onDispose { owner.lifecycle.removeObserver(obs) }
-                }
                 val source = remember { UriTextSource(this, uri, writable, from) }
+                val locked = lockVm.locked
+                val focus = LocalFocusManager.current
+                val keyboard = LocalSoftwareKeyboardController.current
+                LaunchedEffect(locked) { if (locked) { focus.clearFocus(force = true); keyboard?.hide() } }
                 Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
-                    if (lockVm.locked && App.lock.pinSet) {
-                        LockScreen(vm = lockVm, onForgot = {
-                            Toast.makeText(this, "Open FilesCtrl to reset the PIN", Toast.LENGTH_LONG).show()
-                        })
-                    } else {
-                        EditorScreen(source, onBack = { finish() })
+                    // The editor stays underneath the lock screen, so unsaved text isn't lost.
+                    androidx.compose.foundation.layout.Box(Modifier.fillMaxSize()) {
+                        androidx.compose.foundation.layout.Box(
+                            Modifier.fillMaxSize().then(if (locked) Modifier.clearAndSetSemantics { } else Modifier),
+                        ) { EditorScreen(source, onBack = { finish() }) }
+                        if (locked) {
+                            LockScreen(vm = lockVm, onForgot = {
+                                Toast.makeText(this@EditorActivity, "Open FilesCtrl to reset the PIN", Toast.LENGTH_LONG).show()
+                            })
+                        } else if (AppLockState.mustChoosePin) {
+                            PinSetupDialog(PinMode.Upgrade) {}
+                        }
                     }
                 }
             }

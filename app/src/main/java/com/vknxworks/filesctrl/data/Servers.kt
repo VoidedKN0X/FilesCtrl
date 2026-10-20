@@ -1,6 +1,7 @@
 package com.vknxworks.filesctrl.data
 
 import android.content.Context
+import com.vknxworks.filesctrl.data.lock.LockVault
 import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
 import android.util.Base64
@@ -132,19 +133,82 @@ data class NetServer(
     }
 }
 
-/** Saved servers, observable from Compose. Passwords and keys are encrypted with an Android Keystore key. */
-class ServerStore(context: Context) {
+/**
+ * Saved servers, observable from Compose. Passwords and keys are encrypted with an Android Keystore key and,
+ * while the app lock is on, also with the lock's vault key: while the app is locked they aren't in memory and
+ * can't be decrypted ([locked]); servers are still listed, without their secrets.
+ */
+class ServerStore(context: Context, private val vault: LockVault) {
     private val sp = context.getSharedPreferences("servers", Context.MODE_PRIVATE)
     val all = mutableStateListOf<NetServer>()
     private val listeners = mutableListOf<(String) -> Unit>()
 
-    init {
+    /** Server id -> its stored (vault-sealed) password and key, kept as they are while the app is locked. */
+    private val sealed = HashMap<String, Pair<String, String>>()
+
+    /** The app is locked: saved passwords and keys can't be used. */
+    @Volatile var locked = false
+        private set
+
+    init { load() }
+
+    @Synchronized
+    private fun load() {
         val raw = sp.getString("list", "[]") ?: "[]"
+        sealed.clear()
+        val list = ArrayList<NetServer>()
         try {
             val arr = JSONArray(raw)
-            for (i in 0 until arr.length()) all += NetServer.fromJson(arr.getJSONObject(i), ::decrypt)
+            for (i in 0 until arr.length()) {
+                val o = arr.getJSONObject(i)
+                val pw = decrypt(o.optString("password"))
+                val key = decrypt(o.optString("privateKey"))
+                val s = NetServer.fromJson(o) { "" }
+                if (LockVault.isSealed(pw) || LockVault.isSealed(key)) {
+                    val openPw = if (LockVault.isSealed(pw)) vault.open(pw) else pw
+                    val openKey = if (LockVault.isSealed(key)) vault.open(key) else key
+                    if (openPw == null || openKey == null) {
+                        sealed[s.id] = pw to key
+                        list += s
+                        continue
+                    }
+                    list += s.copy(password = openPw, privateKey = openKey)
+                } else list += s.copy(password = pw, privateKey = key)
+            }
         } catch (_: Exception) {}
+        locked = sealed.isNotEmpty() || (vault.enabled && !vault.isOpen)
+        all.clear()
+        all.addAll(list)
     }
+
+    /** The app locked (call before the vault closes): drop every password and key from memory. */
+    @Synchronized
+    fun lockSecrets() {
+        if (!vault.enabled) return
+        for (i in all.indices) {
+            val s = all[i]
+            if (s.password.isEmpty() && s.privateKey.isEmpty()) continue
+            sealed[s.id] = seal(s.password) to seal(s.privateKey)
+            all[i] = s.copy(password = "", privateKey = "")
+        }
+        locked = true
+    }
+
+    /** The app unlocked: decrypt the passwords and keys again. Open connections made without them are dropped. */
+    fun unlockSecrets() {
+        val ids = synchronized(this) {
+            val had = sealed.keys.toList()
+            load()
+            had
+        }
+        ids.forEach { id -> listeners.forEach { it(id) } }
+    }
+
+    /** The app lock was turned on (vault open): encrypt everything with its key too. */
+    fun sealAll() = persist()
+
+    /** The app lock is being turned off (still unlocked): save with the Keystore key only. */
+    fun unsealAll() = write(serialize(all, plain = true))
 
     fun get(id: String): NetServer? = all.firstOrNull { it.id == id }
 
@@ -173,9 +237,12 @@ class ServerStore(context: Context) {
     }
 
     /** Forgets every saved password and key (servers stay). Used when the app lock PIN is forgotten. */
+    @Synchronized
     fun forgetSecrets() {
+        sealed.clear()
+        locked = false
         for (i in all.indices) all[i] = all[i].copy(password = "", privateKey = "")
-        persist()
+        write(serialize(all, plain = true))
         all.forEach { s -> listeners.forEach { it(s.id) } }
     }
 
@@ -187,10 +254,25 @@ class ServerStore(context: Context) {
 
     private fun persist() = write(serialize(all))
 
-    private fun serialize(list: List<NetServer>): String {
+    @Synchronized
+    private fun serialize(list: List<NetServer>, plain: Boolean = false): String {
         val arr = JSONArray()
-        list.forEach { arr.put(it.toJson(::encrypt)) }
+        list.forEach { s ->
+            val kept = if (plain) null else sealed[s.id]
+            if (kept != null) {
+                // Locked: the secrets aren't in memory; keep what's stored.
+                arr.put(s.toJson { "" }.put("password", encrypt(kept.first)).put("privateKey", encrypt(kept.second)))
+            } else {
+                arr.put(s.toJson { v -> encrypt(if (plain) v else seal(v)) })
+            }
+        }
         return arr.toString()
+    }
+
+    /** With the app lock on, a secret is encrypted with the vault key first. Empty stays empty. */
+    private fun seal(plain: String): String {
+        if (plain.isEmpty() || !vault.enabled) return plain
+        return vault.seal(plain) ?: throw java.io.IOException("FilesCtrl is locked. Unlock it to save passwords.")
     }
 
     private fun write(json: String) { sp.edit().putString("list", json).apply() }

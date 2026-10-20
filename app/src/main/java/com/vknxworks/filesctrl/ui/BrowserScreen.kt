@@ -941,7 +941,7 @@ private fun PermissionGate() {
     ) {
         Button(onClick = {
             val i = Intent(AndroidSettings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION, Uri.parse("package:${ctx.packageName}"))
-            try { ctx.startActivity(i) } catch (_: Exception) {
+            com.vknxworks.filesctrl.ui.lock.AppLockState.expectReturn(); try { ctx.startActivity(i) } catch (_: Exception) {
                 ctx.startActivity(Intent(AndroidSettings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION))
             }
         }) { Text("Grant access") }
