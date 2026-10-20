@@ -1,0 +1,16 @@
+<p>A Material You file manager with network storage built in.</p>
+<ul>
+<li>Internal storage, SD cards and USB drives</li>
+<li>NFS v3/v4, SMB 2/3, SFTP, FTP/FTPS and WebDAV from one Add network button</li>
+<li>Stream and open network files in any app</li>
+<li>Your servers in the Android file picker</li>
+<li>Background copy, move, rename and delete between phone and servers</li>
+<li>Zip and unzip, multi-select, search and bookmarks</li>
+<li>Built-in text editor</li>
+<li>Read-only servers and fingerprint-checked connections</li>
+<li>Encrypted passwords and app lock with PIN and fingerprint</li>
+<li>Light, dark and pure black themes, tablet layout</li>
+</ul>
+<p>No root needed.</p>
+<p>Google-free and de-Googled: no Google Play services, Firebase or other Google services, and the app never contacts Google. It works the same on de-Googled phones (GrapheneOS, CalyxOS, /e/OS, LineageOS without Google apps).</p>
+<p>Telemetry-free: no analytics, crash reporting, usage stats or tracking of any kind.</p>
