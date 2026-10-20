@@ -124,8 +124,8 @@
                 <action android:name="android.content.action.DOCUMENTS_PROVIDER" />
             </intent-filter>
         </provider>
-        <!-- Google-free: don't let androidx.emoji2 ask Google Play services for a downloadable emoji
-             font at start-up. Emoji are drawn with the phone's own emoji font instead. -->
+        <!-- No downloadable emoji font: don't let androidx.emoji2 look one up from a font provider
+             at start-up. Emoji are drawn with the phone's own emoji font instead. -->
         <provider
             android:name="androidx.startup.InitializationProvider"
             android:authorities="${applicationId}.androidx-startup"
