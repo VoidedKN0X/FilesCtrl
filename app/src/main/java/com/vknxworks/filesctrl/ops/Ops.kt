@@ -122,7 +122,6 @@ object Ops {
         val verb = if (move) "Moving" else "Copying"
         val title = "$verb ${plural(items.size, "item")}"
         val touched = listOf(dest) + if (move) items.map { it.parentLocation } else emptyList()
-        App.telemetry.fileOperation(if (move) "move" else "copy", dest.vfsId)
         return launch(title, touched) { t ->
             val dst = App.vfs.get(dest.vfsId)
             for (src in items) {
@@ -258,7 +257,6 @@ object Ops {
     // ---------- Delete ----------
 
     fun delete(items: List<FileEntry>): OpTask {
-        App.telemetry.fileOperation("delete", items.firstOrNull()?.vfsId)
         return deleteTask(items)
     }
 
@@ -284,7 +282,6 @@ object Ops {
     // ---------- Archives ----------
 
     fun compress(items: List<FileEntry>, dest: Location, name: String, format: ArchiveFormat = ArchiveFormat.ZIP, password: CharArray? = null): OpTask {
-        App.telemetry.fileOperation("zip", dest.vfsId)
         return compressTask(items, dest, name, format, password?.takeIf { it.isNotEmpty() && format.passwords })
     }
 
@@ -352,7 +349,6 @@ object Ops {
      * after it, or, for a single compressed file like "notes.txt.gz", puts the one file straight into [dest].
      */
     fun extract(archive: FileEntry, dest: Location, password: CharArray? = null): OpTask {
-        App.telemetry.fileOperation("unzip", dest.vfsId)
         return extractTask(archive, dest, password)
     }
 

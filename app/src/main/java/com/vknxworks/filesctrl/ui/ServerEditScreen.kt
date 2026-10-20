@@ -237,7 +237,6 @@ fun ServerEditScreen(serverId: String?, onDone: (openId: String?) -> Unit) {
                         val s = build()
                         try {
                             App.servers.save(s)
-                            if (existing == null) App.telemetry.connectionAdded(s.type)
                             onDone(if (existing == null) s.id else null)
                         } catch (e: Exception) {
                             message = e.message ?: "Couldn't save the server"

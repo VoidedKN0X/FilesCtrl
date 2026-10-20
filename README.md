@@ -2,7 +2,7 @@
 
 **A file manager that opens your network shares.**
 
-[![Latest release](https://img.shields.io/github/v/release/VoidedKN0X/FilesCtrl?label=download)](https://github.com/VoidedKN0X/FilesCtrl/releases/latest) ![Android 13+](https://img.shields.io/badge/Android-13%2B-3DDC84?logo=android&logoColor=white) [![License: GPL-3.0](https://img.shields.io/badge/license-GPL--3.0-blue)](LICENSE) [![Sponsor](https://img.shields.io/badge/sponsor-GitHub-ea4aaa?logo=githubsponsors&logoColor=white)](https://github.com/sponsors/VoidedKN0X)
+[![Latest release](https://img.shields.io/github/v/release/VoidedKN0X/FilesCtrl?label=download)](https://github.com/VoidedKN0X/FilesCtrl/releases/latest) ![Android 13+](https://img.shields.io/badge/Android-13%2B-3DDC84?logo=android&logoColor=white) [![License: GPL-3.0](https://img.shields.io/badge/license-GPL--3.0-blue)](LICENSE) ![Telemetry-free](https://img.shields.io/badge/telemetry-none-brightgreen) [![Sponsor](https://img.shields.io/badge/sponsor-GitHub-ea4aaa?logo=githubsponsors&logoColor=white)](https://github.com/sponsors/VoidedKN0X)
 
 FilesCtrl is a Material You file manager for Android, in the spirit of [Material Files](https://github.com/zhanghai/MaterialFiles), with network storage built in: **NFS, SMB, SFTP, FTP and WebDAV**. No root needed.
 
@@ -67,16 +67,12 @@ If the Obtainium button doesn't open the app, add `https://github.com/VoidedKN0X
 
 Set the share's **uid/gid** in FilesCtrl to the owner of your files on the server (often `1000` on Linux, `1026` or higher on Synology).
 
-## Usage stats
+## Privacy
 
-FilesCtrl can share anonymous usage stats, **only if you say yes**. It asks once when you first open it, and you can change it any time in **Settings > Usage stats**.
+**Telemetry-free.** FilesCtrl has no analytics, crash reporting, usage stats or tracking of any kind. It only talks to the servers you add: your NFS, SMB, SFTP, FTP/FTPS and WebDAV servers.
 
-- **Shared:** which screens you open (Files, Places, Settings, server settings or the editor), which kinds of network storage you add and open (NFS, SMB, SFTP, FTP or WebDAV), whether you copy, move, delete, share, zip or unzip files and on which kind of storage, the app version, Android version, phone model, language, phone or tablet, and your theme setting.
-- **Never shared:** your server addresses, usernames or passwords, share or export names, file or folder names or paths, what you search for, or any ID that stays the same between sessions.
-- **Where:** VKNXWorks' own self-hosted [Aptabase](https://aptabase.com) server. Nothing goes to Google or analytics companies. Like any website, the server sees your IP address; Aptabase uses it only to work out the country and doesn't store it. Apart from this (and only when switched on), FilesCtrl only connects to the servers you add.
-- **Switching stats off** stops them straight away and throws away anything not yet sent.
-
-Builds from source don't include the stats key, so they can't send anything and the setting is hidden. The code is in [`Telemetry.kt`](app/src/main/java/com/vknxworks/filesctrl/data/Telemetry.kt).
+- Files on your phone never leave it unless you copy, move or share them yourself.
+- The Support, Report a bug, Source code and Licence links in Settings open in your browser, only when you tap them.
 
 ## Build from source
 

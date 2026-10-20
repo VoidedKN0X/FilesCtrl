@@ -15,6 +15,13 @@ enum class SortBy { Name, Size, Modified, Type }
 class Settings(context: Context) {
     private val sp = context.getSharedPreferences("settings", Context.MODE_PRIVATE)
 
+    init {
+        // FilesCtrl 1.1.2 removed the optional anonymous stats. Delete the two settings they used (their keys
+        // start with "usage_"), so nothing from them stays on the phone after the update.
+        val leftover = sp.all.keys.filter { it.startsWith("usage_") }
+        if (leftover.isNotEmpty()) sp.edit().apply { leftover.forEach { remove(it) } }.apply()
+    }
+
     private inner class Pref<T>(private val key: String, def: T, read: (String, T) -> T, private val write: (String, T) -> Unit) {
         val state: MutableState<T> = mutableStateOf(read(key, def))
         var value: T
@@ -63,10 +70,6 @@ class Settings(context: Context) {
 
     var askedNotifications by bool("asked_notifications", false)
 
-    /** Opt-in anonymous usage stats (off until the user says yes). */
-    var usageStats by bool("usage_stats", false)
-    /** Whether the one-time usage stats question has been answered. */
-    var usageStatsAsked by bool("usage_stats_asked", false)
 
     private operator fun <T> Pref<T>.getValue(thisRef: Any?, p: kotlin.reflect.KProperty<*>): T = value
     private operator fun <T> Pref<T>.setValue(thisRef: Any?, p: kotlin.reflect.KProperty<*>, v: T) { value = v }

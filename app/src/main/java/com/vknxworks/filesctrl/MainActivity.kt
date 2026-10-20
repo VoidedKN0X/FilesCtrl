@@ -79,7 +79,6 @@ import com.vknxworks.filesctrl.ui.PlacesTab
 import com.vknxworks.filesctrl.ui.ServerEditScreen
 import com.vknxworks.filesctrl.ui.SettingsTab
 import com.vknxworks.filesctrl.ui.TabIsland
-import com.vknxworks.filesctrl.ui.UsageStatsPrompt
 import com.vknxworks.filesctrl.ui.VfsTextSource
 import com.vknxworks.filesctrl.ui.isAppInDarkTheme
 import com.vknxworks.filesctrl.ui.lock.AppLockViewModel
@@ -94,7 +93,6 @@ class MainActivity : FragmentActivity() {
         // Keep file names and server contents out of the recent-apps thumbnail.
         setRecentsScreenshotEnabled(false)
         App.init(this)
-        if (savedInstanceState == null) App.telemetry.appOpened()
         enableEdgeToEdge()
         setContent {
             FilesTheme {
@@ -205,14 +203,6 @@ private fun Root(activity: FragmentActivity, lockVm: AppLockViewModel = viewMode
         return
     }
 
-    // Usage stats (only if the user opted in): the kind of screen, never the server, folder or file it shows.
-    val entry by nav.currentBackStackEntryAsState()
-    val screen = screenName(entry?.destination?.route, MainTab.selected)
-    LaunchedEffect(entry?.id, screen) {
-        if (screen != null) App.telemetry.track("screen_viewed", mapOf("screen" to screen))
-    }
-    UsageStatsPrompt()
-
     CompositionLocalProvider(LocalNav provides nav) {
         NavHost(
             nav, startDestination = "main",
@@ -244,18 +234,6 @@ private fun Root(activity: FragmentActivity, lockVm: AppLockViewModel = viewMode
             }
         }
     }
-}
-
-/**
- * "server/{id}" -> "ServerEdit", the main screen -> its tab. Only fixed names: the route templates hold no
- * arguments, and server IDs or file locations are never read here.
- */
-private fun screenName(route: String?, tab: Int): String? = when {
-    route == null -> null
-    route == "main" -> when (tab) { MainTab.PLACES -> "Places"; MainTab.SETTINGS -> "Settings"; else -> "Files" }
-    route.startsWith("server/") -> "ServerEdit"
-    route.startsWith("edit") -> "Editor"
-    else -> null
 }
 
 /**
