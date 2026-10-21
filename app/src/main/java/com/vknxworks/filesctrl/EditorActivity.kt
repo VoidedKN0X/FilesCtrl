@@ -73,7 +73,7 @@ class EditorActivity : FragmentActivity() {
                     else SystemBarStyle.light(Color.TRANSPARENT, Color.TRANSPARENT)
                     enableEdgeToEdge(statusBarStyle = style, navigationBarStyle = style)
                 }
-                val secure = App.lock.hideContent
+                val secure = App.lock.hideContent || com.vknxworks.filesctrl.ui.lock.SecureScreens.active > 0
                 LaunchedEffect(secure) {
                     if (secure) window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
                     else window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)

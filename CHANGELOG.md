@@ -4,6 +4,12 @@ What changed in each FilesCtrl version. Every release on the [Releases page](htt
 
 To publish a new version: bump `versionCode` and `versionName` in `app/build.gradle.kts`, add a section here, and push to `main`. Pushes without a version bump only build; they don't make a release.
 
+## 1.2.2 (2026-10-21)
+
+### Security
+
+- **Adding or editing a network location, the lock screen and the PIN screens are never in screenshots, screen recordings or casting**, even with "Hide in screenshots and recent apps" turned off. That's where you type server passwords and key passphrases, and a recording of the PIN pad would show which keys were pressed. This covers the file browser and the text editor.
+
 ## 1.2.1 (2026-10-21)
 
 The app lock and Settings now look and work the same as in every other Ctrl app.

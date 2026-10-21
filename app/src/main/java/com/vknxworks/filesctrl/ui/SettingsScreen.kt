@@ -167,7 +167,7 @@ fun SettingsTab() {
                 }
                 ToggleItem(
                     Icons.Outlined.VisibilityOff, "Hide in screenshots and recent apps",
-                    "Screenshots, screen recordings and the recent apps view show a blank screen", lock.hideContent,
+                    "Screenshots, screen recordings and the recent apps view show a blank screen. Server passwords and the lock screen are always hidden", lock.hideContent,
                 ) { lock.hideContent = it }
             }
         }
