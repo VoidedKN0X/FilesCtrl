@@ -4,6 +4,25 @@ What changed in each FilesCtrl version. Every release on the [Releases page](htt
 
 To publish a new version: bump `versionCode` and `versionName` in `app/build.gradle.kts`, add a section here, and push to `main`. Pushes without a version bump only build; they don't make a release.
 
+## 1.2.1 (2026-10-21)
+
+The app lock and Settings now look and work the same as in every other Ctrl app.
+
+### Changed
+
+- **New lock screen look**, the same as in the other Ctrl apps: a round lock badge, PIN dots that show a spinner while your PIN is checked, and **Forgot PIN?**, which now asks "Forgot your PIN?" first and explains what a reset forgets.
+- **Turning the app lock on, changing the PIN and turning the lock off now use the same full-screen PIN pad** as the lock screen, instead of a dialog with text boxes. Choosing a PIN asks for it twice; changing it asks for your current PIN first; turning the lock off asks for your PIN. After updating from an older, shorter PIN, the new PIN is chosen on the same full-screen pad.
+- **Settings are grouped like in the other Ctrl apps**: **Appearance** first, then **Privacy and security** (formerly "Security"), Files, Permissions, Other apps and **About** at the bottom. Rows have the same look as the other apps (also on the Places tab), and choices such as Theme and Lock again open a list to pick from.
+- **Privacy and security** has the same rows, wording and icons as every Ctrl app: **App lock**, **Change app PIN**, **Unlock with fingerprint**, **Lock again** and **Hide in screenshots and recent apps** (formerly "Hide from recents & screenshots"). A note under the section says FilesCtrl only connects to the network locations you add.
+- **Hide in screenshots and recent apps is now a setting of its own**, also without the app lock, like in the other Ctrl apps. Before, it only worked while the app lock was on. If you update without the app lock, it starts off so nothing changes; new installs have it on.
+- **Theme choices are the same as in the other Ctrl apps**: Follow system, Dark, Light or **Pure black**. Pure black is now one of the themes instead of a separate switch: if you had Dark with pure black on, you now get the Pure black theme; with "System" and pure black on, FilesCtrl follows the system with the normal dark colours (pick Pure black again if you want it). "Material You colours" is now called **Use wallpaper colours**.
+- **The fingerprint prompts** now say what they're for ("Confirm it's you to see your files" when unlocking, "Confirm your fingerprint" when turning fingerprint unlock on).
+- **README**: a new App lock section that explains the PIN, fingerprint unlock, the wrong-PIN wait, Lock again, hiding the app in screenshots and recent apps, and Forgot PIN. The Ctrl series table now lists AdCtrl and MemoCtrl.
+
+### Security
+
+- **Open dialogs and menus are covered by the lock.** When FilesCtrl locked while a dialog, menu or sheet was open (for example a rename or a server's password), that window could stay on top of the lock screen. The lock screen is now a full-screen window of its own above everything else, in the file browser and in the text editor.
+
 ## 1.2.0 (2026-10-21)
 
 The app lock now works the same way in every Ctrl app, with the strongest protection of the options compared.

@@ -27,8 +27,8 @@ import com.vknxworks.filesctrl.ui.isAppInDarkTheme
 import com.vknxworks.filesctrl.ui.lock.AppLockViewModel
 import com.vknxworks.filesctrl.ui.lock.LockScreen
 import com.vknxworks.filesctrl.ui.lock.AppLockState
-import com.vknxworks.filesctrl.ui.PinMode
-import com.vknxworks.filesctrl.ui.PinSetupDialog
+import com.vknxworks.filesctrl.ui.lock.ChooseNewPinScreen
+import com.vknxworks.filesctrl.ui.lock.LockWindow
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.semantics.clearAndSetSemantics
@@ -73,7 +73,7 @@ class EditorActivity : FragmentActivity() {
                     else SystemBarStyle.light(Color.TRANSPARENT, Color.TRANSPARENT)
                     enableEdgeToEdge(statusBarStyle = style, navigationBarStyle = style)
                 }
-                val secure = AppLockState.enabled && App.lock.hideContent
+                val secure = App.lock.hideContent
                 LaunchedEffect(secure) {
                     if (secure) window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
                     else window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
@@ -91,11 +91,13 @@ class EditorActivity : FragmentActivity() {
                             Modifier.fillMaxSize().then(if (locked) Modifier.clearAndSetSemantics { } else Modifier),
                         ) { EditorScreen(source, onBack = { finish() }) }
                         if (locked) {
-                            LockScreen(vm = lockVm, onForgot = {
-                                Toast.makeText(this@EditorActivity, "Open FilesCtrl to reset the PIN", Toast.LENGTH_LONG).show()
-                            })
+                            LockWindow {
+                                LockScreen(vm = lockVm, onForgot = {
+                                    Toast.makeText(this@EditorActivity, "Open FilesCtrl to reset the PIN", Toast.LENGTH_LONG).show()
+                                })
+                            }
                         } else if (AppLockState.mustChoosePin) {
-                            PinSetupDialog(PinMode.Upgrade) {}
+                            ChooseNewPinScreen()
                         }
                     }
                 }

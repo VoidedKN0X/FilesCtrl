@@ -85,8 +85,11 @@ import com.vknxworks.filesctrl.ui.lock.AppLockViewModel
 import com.vknxworks.filesctrl.ui.lock.LockScreen
 import com.vknxworks.filesctrl.ui.lock.AppLockState
 import com.vknxworks.filesctrl.ui.lock.resetLock
-import com.vknxworks.filesctrl.ui.PinMode
-import com.vknxworks.filesctrl.ui.PinSetupDialog
+import com.vknxworks.filesctrl.ui.lock.ChooseNewPinScreen
+import com.vknxworks.filesctrl.ui.lock.ForgotPinDialog
+import com.vknxworks.filesctrl.ui.lock.LockWindow
+import com.vknxworks.filesctrl.ui.lock.PinRequestScreen
+import com.vknxworks.filesctrl.ui.lock.PinRequests
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.semantics.clearAndSetSemantics
@@ -109,7 +112,7 @@ class MainActivity : FragmentActivity() {
                     else SystemBarStyle.light(Color.TRANSPARENT, Color.TRANSPARENT)
                     enableEdgeToEdge(statusBarStyle = style, navigationBarStyle = style)
                 }
-                val secure = AppLockState.enabled && App.lock.hideContent
+                val secure = App.lock.hideContent
                 LaunchedEffect(secure) {
                     if (secure) window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
                     else window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
@@ -197,10 +200,15 @@ private fun Root(activity: FragmentActivity, lockVm: AppLockViewModel = viewMode
     Box(Modifier.fillMaxSize()) {
         Box(Modifier.fillMaxSize().then(if (locked) Modifier.clearAndSetSemantics { } else Modifier)) { AppContent(nav, vm) }
         if (locked) {
-            LockScreen(vm = lockVm, onForgot = { confirmReset = true })
-            if (confirmReset) ResetLockDialog { confirmReset = false }
+            LockWindow {
+                LockScreen(vm = lockVm, onForgot = { confirmReset = true })
+                if (confirmReset) ResetLockDialog { confirmReset = false }
+            }
         } else if (AppLockState.mustChoosePin) {
-            PinSetupDialog(PinMode.Upgrade) {}
+            ChooseNewPinScreen()
+        } else {
+            // Turning the lock on or off, or changing the PIN (from Settings), on top of the app.
+            PinRequests.request?.let { PinRequestScreen(it) }
         }
     }
 }
@@ -208,24 +216,16 @@ private fun Root(activity: FragmentActivity, lockVm: AppLockViewModel = viewMode
 /** "Forgot PIN?" on the lock screen. */
 @Composable
 fun ResetLockDialog(onDismiss: () -> Unit) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Reset app lock?") },
-        text = {
-            Text(
-                "The PIN can't be recovered: it encrypts the saved passwords and keys of your network locations. " +
-                    "Resetting removes the PIN and forgets those passwords and keys. The locations stay; you'll enter " +
-                    "their passwords again.",
-            )
-        },
-        confirmButton = {
-            TextButton(onClick = {
-                onDismiss()
-                resetLock()
-            }) { Text("Reset", color = MaterialTheme.colorScheme.error) }
-        },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
-    )
+    ForgotPinDialog(
+        body = "The PIN can't be recovered, because it encrypts the saved passwords and keys of your network locations. " +
+            "FilesCtrl will turn the app lock off and forget those passwords and keys. The locations stay; you'll enter " +
+            "their passwords again.",
+        confirm = "Reset",
+        onDismiss = onDismiss,
+    ) {
+        onDismiss()
+        resetLock()
+    }
 }
 
 @Composable

@@ -49,6 +49,19 @@ class LockSettings(context: Context) {
         get() = _hide
         set(v) { _hide = v; prefs.edit().putBoolean(KEY_HIDE, v).apply() }
 
+    /**
+     * Before 1.2.1, "Hide in screenshots and recent apps" only applied with the app lock on. Now it's a setting of
+     * its own (on for new installs); after updating without the app lock it starts off, so nothing changes.
+     */
+    fun migrateHideContent(lockOn: Boolean) {
+        if (prefs.getBoolean(KEY_HIDE_SEPARATE, false)) return
+        val edit = prefs.edit().putBoolean(KEY_HIDE_SEPARATE, true)
+        val info = runCatching { appContext.packageManager.getPackageInfo(appContext.packageName, 0) }.getOrNull()
+        val updated = info != null && info.lastUpdateTime > info.firstInstallTime
+        if (updated && !lockOn) { edit.putBoolean(KEY_HIDE, false); _hide = false }
+        edit.apply()
+    }
+
     /** Lets the lock screen submit as soon as enough digits are entered. */
     val pinLength: Int get() = prefs.getInt(KEY_PIN_LENGTH, 0)
 
@@ -142,6 +155,7 @@ class LockSettings(context: Context) {
         const val KEY_LOCK_AFTER = "lock_after"
         const val KEY_LOCK_TIMEOUT = "lock_timeout"
         const val KEY_HIDE = "hide_content"
+        const val KEY_HIDE_SEPARATE = "hide_content_separate"
         const val KEY_FAILED = "pin_failed"
         const val KEY_LOCKOUT_UNTIL = "pin_lockout_until"
         const val KEY_LOCKOUT_REMAINING = "pin_lockout_remaining"

@@ -96,7 +96,7 @@ private fun ColorScheme.pureBlack(): ColorScheme = copy(
 fun isAppInDarkTheme(): Boolean = when (App.settings.theme) {
     ThemeMode.System -> isSystemInDarkTheme()
     ThemeMode.Light -> false
-    ThemeMode.Dark -> true
+    ThemeMode.Dark, ThemeMode.Black -> true
 }
 
 @Composable
