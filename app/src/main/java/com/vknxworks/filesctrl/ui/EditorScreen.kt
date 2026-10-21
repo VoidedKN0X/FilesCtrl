@@ -66,6 +66,8 @@ import java.nio.ByteBuffer
 import java.nio.charset.CharacterCodingException
 import java.nio.charset.Charset
 import java.nio.charset.CodingErrorAction
+import androidx.compose.ui.res.stringResource
+import com.vknxworks.filesctrl.R
 
 const val MAX_EDIT_BYTES = 4L * 1024 * 1024
 
@@ -88,7 +90,7 @@ class VfsTextSource(private val loc: Location) : TextSource {
 
     override fun read(): ByteArray {
         val vfs = App.vfs.get(loc.vfsId)
-        if (vfs.stat(loc.path).size > MAX_EDIT_BYTES) throw IOException("This file is too large to edit here (over 4 MB).")
+        if (vfs.stat(loc.path).size > MAX_EDIT_BYTES) throw IOException(App.str(R.string.this_file_is_too_large_to_edit_here))
         return vfs.openRead(loc.path).use { it.readBytes() }
     }
 
@@ -100,8 +102,8 @@ class VfsTextSource(private val loc: Location) : TextSource {
 
 /** A file another app asked us to open ("Open with" / "Edit with"). */
 class UriTextSource(private val ctx: Context, private val uri: Uri, writable: Boolean, from: String?) : TextSource {
-    override val name: String = displayName() ?: uri.lastPathSegment?.substringAfterLast('/') ?: "Text file"
-    override val subtitle: String = listOfNotNull(from?.let { "From $it" }, if (writable) null else "read-only").joinToString(" · ")
+    override val name: String = displayName() ?: uri.lastPathSegment?.substringAfterLast('/') ?: App.str(R.string.text_file)
+    override val subtitle: String = listOfNotNull(from?.let { App.str(R.string.from, it) }, if (writable) null else App.str(R.string.read_only_lower)).joinToString(" · ")
     override val readOnly: Boolean = !writable
 
     private fun displayName(): String? = try {
@@ -111,7 +113,7 @@ class UriTextSource(private val ctx: Context, private val uri: Uri, writable: Bo
     } catch (_: Exception) { null }
 
     override fun read(): ByteArray {
-        val input = ctx.contentResolver.openInputStream(uri) ?: throw IOException("The other app didn't hand over the file")
+        val input = ctx.contentResolver.openInputStream(uri) ?: throw IOException(App.str(R.string.the_other_app_didn_t_hand_over_the))
         input.use { s ->
             val out = java.io.ByteArrayOutputStream()
             val buf = ByteArray(64 * 1024)
@@ -119,7 +121,7 @@ class UriTextSource(private val ctx: Context, private val uri: Uri, writable: Bo
                 val n = s.read(buf)
                 if (n < 0) break
                 out.write(buf, 0, n)
-                if (out.size() > MAX_EDIT_BYTES) throw IOException("This file is too large to edit here (over 4 MB).")
+                if (out.size() > MAX_EDIT_BYTES) throw IOException(App.str(R.string.this_file_is_too_large_to_edit_here))
             }
             return out.toByteArray()
         }
@@ -129,14 +131,14 @@ class UriTextSource(private val ctx: Context, private val uri: Uri, writable: Bo
         // "wt" truncates; a few providers only know "w".
         val out = try { ctx.contentResolver.openOutputStream(uri, "wt") } catch (_: Exception) { null }
             ?: ctx.contentResolver.openOutputStream(uri, "w")
-            ?: throw IOException("The other app doesn't allow saving this file")
+            ?: throw IOException(App.str(R.string.the_other_app_doesn_t_allow_saving))
         out.use { it.write(bytes) }
     }
 }
 
 /** How a file's bytes were decoded, so saving writes them back the same way. */
 private data class Encoding(val charset: Charset, val bom: Boolean) {
-    val label: String get() = if (charset == Charsets.UTF_8) (if (bom) "UTF-8 BOM" else "UTF-8") else charset.displayName()
+    val label: String get() = if (charset == Charsets.UTF_8) (if (bom) App.str(R.string.utf_8_bom) else "UTF-8") else charset.displayName()
 
     fun encode(text: String): ByteArray {
         val body = text.toByteArray(charset)
@@ -181,7 +183,7 @@ fun EditorScreen(source: TextSource, onBack: () -> Unit) {
             val bytes = withContext(Dispatchers.IO) { source.read() }
             // NUL bytes near the start mean it isn't text (images, archives, executables).
             if (bytes.take(8000).any { it == 0.toByte() }) {
-                error = "This looks like a binary file, not text, so it can't be edited here."
+                error = App.str(R.string.this_looks_like_a_binary_file_not)
             } else {
                 val (s, enc) = Encoding.decode(bytes)
                 text = s
@@ -189,9 +191,9 @@ fun EditorScreen(source: TextSource, onBack: () -> Unit) {
                 encoding = enc
             }
         } catch (e: SecurityException) {
-            error = "The other app didn't give permission to read this file."
+            error = App.str(R.string.the_other_app_didn_t_give_permission)
         } catch (e: Exception) {
-            error = e.message ?: "Couldn't open the file"
+            error = e.message ?: App.str(R.string.couldn_t_open_the_file)
         }
     }
 
@@ -203,14 +205,14 @@ fun EditorScreen(source: TextSource, onBack: () -> Unit) {
         scope.launch {
             val err = withContext(Dispatchers.IO) {
                 try { write(encoding.encode(t)); null }
-                catch (e: SecurityException) { "Not allowed to save here. Use \"Save a copy\" instead." }
-                catch (e: Exception) { e.message ?: "Save failed" }
+                catch (e: SecurityException) { App.str(R.string.not_allowed_to_save_here_use_save_a) }
+                catch (e: Exception) { e.message ?: App.str(R.string.save_failed) }
             }
             saving = false
             if (err != null) Toast.makeText(ctx, err, Toast.LENGTH_LONG).show()
             else {
                 if (markClean) original = t
-                Toast.makeText(ctx, "Saved", Toast.LENGTH_SHORT).show()
+                Toast.makeText(ctx, App.str(R.string.saved), Toast.LENGTH_SHORT).show()
                 then?.invoke()
             }
         }
@@ -224,7 +226,7 @@ fun EditorScreen(source: TextSource, onBack: () -> Unit) {
         afterCopy = null
         if (uri != null) {
             saveTo({ bytes ->
-                (ctx.contentResolver.openOutputStream(uri, "wt") ?: throw IOException("Couldn't create the copy")).use { it.write(bytes) }
+                (ctx.contentResolver.openOutputStream(uri, "wt") ?: throw IOException(App.str(R.string.couldn_t_create_the_copy))).use { it.write(bytes) }
             }, next)
         }
     }
@@ -237,7 +239,7 @@ fun EditorScreen(source: TextSource, onBack: () -> Unit) {
             TopAppBar(
                 navigationIcon = {
                     IconButton(onClick = { if (dirty) askDiscard = true else onBack() }) {
-                        Icon(Icons.AutoMirrored.Outlined.ArrowBack, "Back")
+                        Icon(Icons.AutoMirrored.Outlined.ArrowBack, stringResource(R.string.back))
                     }
                 },
                 title = {
@@ -253,16 +255,16 @@ fun EditorScreen(source: TextSource, onBack: () -> Unit) {
                 },
                 actions = {
                     IconToggleButton(checked = wrap, onCheckedChange = { wrap = it }) {
-                        Icon(Icons.AutoMirrored.Outlined.WrapText, "Wrap lines")
+                        Icon(Icons.AutoMirrored.Outlined.WrapText, stringResource(R.string.wrap_lines))
                     }
                     if (saving) CircularProgressIndicator(Modifier.padding(12.dp).padding(end = 4.dp), strokeWidth = 2.dp)
-                    else if (!source.readOnly) IconButton(onClick = { save() }, enabled = dirty) { Icon(Icons.Outlined.Save, "Save") }
-                    else IconButton(onClick = { run { com.vknxworks.filesctrl.ui.lock.AppLockState.expectReturn(); saveCopy.launch(source.name) } }, enabled = text != null) { Icon(Icons.Outlined.SaveAs, "Save a copy") }
+                    else if (!source.readOnly) IconButton(onClick = { save() }, enabled = dirty) { Icon(Icons.Outlined.Save, stringResource(R.string.save)) }
+                    else IconButton(onClick = { run { com.vknxworks.filesctrl.ui.lock.AppLockState.expectReturn(); saveCopy.launch(source.name) } }, enabled = text != null) { Icon(Icons.Outlined.SaveAs, stringResource(R.string.save_a_copy)) }
                     Box {
-                        IconButton(onClick = { menu = true }) { Icon(Icons.Outlined.MoreVert, "More") }
+                        IconButton(onClick = { menu = true }) { Icon(Icons.Outlined.MoreVert, stringResource(R.string.more)) }
                         DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
                             DropdownMenuItem(
-                                text = { Text("Save a copy") },
+                                text = { Text(stringResource(R.string.save_a_copy)) },
                                 leadingIcon = { Icon(Icons.Outlined.SaveAs, null) },
                                 enabled = text != null,
                                 onClick = { menu = false; run { com.vknxworks.filesctrl.ui.lock.AppLockState.expectReturn(); saveCopy.launch(source.name) } },
@@ -306,21 +308,21 @@ fun EditorScreen(source: TextSource, onBack: () -> Unit) {
     if (askDiscard) {
         AlertDialog(
             onDismissRequest = { askDiscard = false },
-            title = { Text("Unsaved changes") },
+            title = { Text(stringResource(R.string.unsaved_changes)) },
             text = {
                 Text(
-                    if (source.readOnly) "${source.name} can't be changed in place. Save your edits as a copy?"
-                    else "Save your changes to ${source.name}?",
+                    if (source.readOnly) stringResource(R.string.can_t_be_changed_in_place_save_your, source.name)
+                    else stringResource(R.string.save_your_changes_to, source.name),
                 )
             },
             confirmButton = {
                 TextButton(onClick = {
                     askDiscard = false
                     if (source.readOnly) { afterCopy = onBack; run { com.vknxworks.filesctrl.ui.lock.AppLockState.expectReturn(); saveCopy.launch(source.name) } } else save(onBack)
-                }) { Text(if (source.readOnly) "Save a copy" else "Save") }
+                }) { Text(if (source.readOnly) stringResource(R.string.save_a_copy) else stringResource(R.string.save)) }
             },
             dismissButton = {
-                TextButton(onClick = { askDiscard = false; onBack() }) { Text("Discard") }
+                TextButton(onClick = { askDiscard = false; onBack() }) { Text(stringResource(R.string.discard)) }
             },
         )
     }

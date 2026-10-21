@@ -24,11 +24,12 @@ import java.security.MessageDigest
 import java.security.PublicKey
 import java.util.Base64
 import java.util.EnumSet
+import com.vknxworks.filesctrl.App
+import com.vknxworks.filesctrl.R
 
 /** Thrown when an SFTP server's host key differs from the one remembered for it. */
 class HostKeyChangedException(val fingerprint: String) : IOException(
-    "The server's identity changed (host key $fingerprint). If the server was reinstalled, clear the saved key " +
-        "in the share's settings; otherwise someone may be intercepting the connection.",
+    App.str(R.string.host_key_changed, fingerprint),
 )
 
 /** SSH host key fingerprints, written like OpenSSH does ("SHA256:base64"). */
@@ -104,7 +105,7 @@ class SftpVfs(server: NetServer, private val onLearned: (NetServer) -> Unit = {}
             return f
         } catch (e: Exception) {
             try { c.disconnect() } catch (_: Exception) {}
-            throw friendly(e, "Connecting")
+            throw friendly(e, App.str(R.string.connecting))
         }
     }
 
@@ -157,7 +158,7 @@ class SftpVfs(server: NetServer, private val onLearned: (NetServer) -> Unit = {}
         )
     }
 
-    override fun list(dir: String): List<FileEntry> = call("Listing", dir) { c ->
+    override fun list(dir: String): List<FileEntry> = call(App.str(R.string.listing), dir) { c ->
         // Drop "." / ".." and names with "/" or NUL: a hostile server could use them to escape the destination
         // folder when files are copied to the phone.
         c.ls(remote(dir)).filter { Paths.isSafeName(it.name) }.map { r ->
@@ -168,7 +169,7 @@ class SftpVfs(server: NetServer, private val onLearned: (NetServer) -> Unit = {}
         }
     }
 
-    override fun stat(path: String): FileEntry = call("Reading", path) { c ->
+    override fun stat(path: String): FileEntry = call(App.str(R.string.reading), path) { c ->
         val l = c.lstat(remote(path))
         val target = if (l.type == FileMode.Type.SYMLINK) try { c.stat(remote(path)) } catch (_: Exception) { null } else null
         entry(path, Paths.name(path), l, target)
@@ -176,7 +177,7 @@ class SftpVfs(server: NetServer, private val onLearned: (NetServer) -> Unit = {}
 
     override fun openRead(path: String): InputStream = openRead(path, 0)
 
-    override fun openRead(path: String, offset: Long): InputStream = call("Opening", path) { c ->
+    override fun openRead(path: String, offset: Long): InputStream = call(App.str(R.string.opening), path) { c ->
         val f = c.open(remote(path), EnumSet.of(OpenMode.READ))
         object : InputStream() {
             val inner = f.ReadAheadRemoteFileInputStream(16, offset)
@@ -186,7 +187,7 @@ class SftpVfs(server: NetServer, private val onLearned: (NetServer) -> Unit = {}
         }
     }
 
-    override fun openWrite(path: String): OutputStream = call("Creating", path) { c ->
+    override fun openWrite(path: String): OutputStream = call(App.str(R.string.creating), path) { c ->
         val f = c.open(remote(path), EnumSet.of(OpenMode.WRITE, OpenMode.CREAT, OpenMode.TRUNC))
         object : OutputStream() {
             val inner = f.RemoteFileOutputStream(0, 16)
@@ -197,7 +198,7 @@ class SftpVfs(server: NetServer, private val onLearned: (NetServer) -> Unit = {}
         }
     }
 
-    override fun openRandom(path: String, write: Boolean, truncate: Boolean): RandomFile = call("Opening", path) { c ->
+    override fun openRandom(path: String, write: Boolean, truncate: Boolean): RandomFile = call(App.str(R.string.opening), path) { c ->
         val modes = when {
             !write -> EnumSet.of(OpenMode.READ)
             truncate -> EnumSet.of(OpenMode.READ, OpenMode.WRITE, OpenMode.CREAT, OpenMode.TRUNC)
@@ -220,38 +221,38 @@ class SftpVfs(server: NetServer, private val onLearned: (NetServer) -> Unit = {}
         }
     }
 
-    override fun mkdir(path: String) = call("Creating folder", path) { c ->
-        if (c.statExistence(remote(path)) != null) throw IOException("${Paths.name(path)} already exists")
+    override fun mkdir(path: String) = call(App.str(R.string.creating_folder), path) { c ->
+        if (c.statExistence(remote(path)) != null) throw IOException(App.str(R.string.already_exists, Paths.name(path)))
         c.mkdir(remote(path))
     }
 
-    override fun createFile(path: String) = call("Creating file", path) { c ->
+    override fun createFile(path: String) = call(App.str(R.string.creating_file), path) { c ->
         c.open(remote(path), EnumSet.of(OpenMode.WRITE, OpenMode.CREAT, OpenMode.EXCL)).close()
     }
 
-    override fun delete(path: String, isDir: Boolean) = call("Deleting", path) { c ->
+    override fun delete(path: String, isDir: Boolean) = call(App.str(R.string.deleting), path) { c ->
         if (isDir) c.rmdir(remote(path)) else c.rm(remote(path))
     }
 
-    override fun rename(from: String, to: String) = call("Renaming", from) { c ->
-        if (from != to && c.statExistence(remote(to)) != null) throw IOException("${Paths.name(to)} already exists")
+    override fun rename(from: String, to: String) = call(App.str(R.string.renaming), from) { c ->
+        if (from != to && c.statExistence(remote(to)) != null) throw IOException(App.str(R.string.already_exists, Paths.name(to)))
         c.rename(remote(from), remote(to))
     }
 
     override fun setModified(path: String, time: Long) {
         try {
-            call("Setting time", path) { c ->
+            call(App.str(R.string.setting_time), path) { c ->
                 val secs = time / 1000
                 c.setattr(remote(path), FileAttributes.Builder().withAtimeMtime(secs, secs).build())
             }
         } catch (_: Exception) {}
     }
 
-    override fun chmod(path: String, mode: Int) = call("Changing permissions", path) { c ->
+    override fun chmod(path: String, mode: Int) = call(App.str(R.string.changing_permissions), path) { c ->
         c.chmod(remote(path), mode and 0xFFF)
     }
 
-    override fun readlink(path: String): String? = try { call("Reading link", path) { c -> c.readlink(remote(path)) } } catch (_: Exception) { null }
+    override fun readlink(path: String): String? = try { call(App.str(R.string.reading_link), path) { c -> c.readlink(remote(path)) } } catch (_: Exception) { null }
 
     // SFTP has no standard free-space call (the statvfs extension isn't exposed by the client library).
     override fun space(path: String): Space? = null
@@ -261,22 +262,22 @@ class SftpVfs(server: NetServer, private val onLearned: (NetServer) -> Unit = {}
         TlsPin.identityError(e)?.let { return it }
         return when (e) {
             is SFTPException -> when (e.statusCode) {
-                Response.StatusCode.NO_SUCH_FILE, Response.StatusCode.NO_SUCH_PATH -> FileNotFoundException("${path ?: "That"}: not found")
-                Response.StatusCode.PERMISSION_DENIED -> IOException("$what failed: permission denied$name")
-                Response.StatusCode.FILE_ALREADY_EXISTS -> IOException("$what failed: already exists$name")
-                Response.StatusCode.DIR_NOT_EMPTY -> IOException("$what failed: folder isn't empty$name")
-                Response.StatusCode.NO_SPACE_ON_FILESYSTEM -> IOException("$what failed: no space left")
-                else -> IOException("$what failed: ${e.message ?: e.statusCode}$name")
+                Response.StatusCode.NO_SUCH_FILE, Response.StatusCode.NO_SUCH_PATH -> FileNotFoundException(App.str(R.string.not_found, path ?: "That"))
+                Response.StatusCode.PERMISSION_DENIED -> IOException(App.str(R.string.failed_permission_denied, what, name))
+                Response.StatusCode.FILE_ALREADY_EXISTS -> IOException(App.str(R.string.failed_already_exists, what, name))
+                Response.StatusCode.DIR_NOT_EMPTY -> IOException(App.str(R.string.failed_folder_isn_t_empty, what, name))
+                Response.StatusCode.NO_SPACE_ON_FILESYSTEM -> IOException(App.str(R.string.failed_no_space_left, what))
+                else -> IOException(App.str(R.string.failed_4, what, e.message ?: e.statusCode, name))
             }
             is UserAuthException -> IOException(
-                if (server.privateKey.isNotBlank()) "The server didn't accept the key" else "Wrong username or password",
+                if (server.privateKey.isNotBlank()) App.str(R.string.the_server_didn_t_accept_the_key) else App.str(R.string.wrong_username_or_password),
             )
-            is TransportException -> IOException("$what failed: ${e.message}")
-            is java.net.SocketTimeoutException -> IOException("$what failed: the server stopped responding")
-            is java.net.ConnectException -> IOException("Couldn't reach ${server.host} on port ${server.effectivePort}. Is SSH running?")
-            is java.net.UnknownHostException -> IOException("Unknown server address ${server.host}")
-            is IOException -> if (e.message.isNullOrBlank()) IOException("$what failed") else e
-            else -> IOException("$what failed: ${e.message ?: e.javaClass.simpleName}")
+            is TransportException -> IOException(App.str(R.string.failed_3, what, e.message))
+            is java.net.SocketTimeoutException -> IOException(App.str(R.string.failed_the_server_stopped_responding, what))
+            is java.net.ConnectException -> IOException(App.str(R.string.couldn_t_reach_on_port_is_ssh, server.host, server.effectivePort))
+            is java.net.UnknownHostException -> IOException(App.str(R.string.unknown_server_address, server.host))
+            is IOException -> if (e.message.isNullOrBlank()) IOException(App.str(R.string.failed_2, what)) else e
+            else -> IOException(App.str(R.string.failed_3, what, e.message ?: e.javaClass.simpleName))
         }
     }
 }

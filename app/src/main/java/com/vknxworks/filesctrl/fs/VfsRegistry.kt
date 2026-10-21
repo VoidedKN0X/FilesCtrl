@@ -5,6 +5,8 @@ import com.vknxworks.filesctrl.data.ServerStore
 import java.io.File
 import java.io.IOException
 import java.util.concurrent.ConcurrentHashMap
+import com.vknxworks.filesctrl.App
+import com.vknxworks.filesctrl.R
 
 /** Hands out the file system for an id: "local", "net:<server id>" or "arc:<archive file>". */
 class VfsRegistry(context: Context, private val servers: ServerStore) {
@@ -46,12 +48,12 @@ class VfsRegistry(context: Context, private val servers: ServerStore) {
     /** Reads the archive again next time (e.g. when opened afresh, in case the file changed). Keeps no password. */
     fun forgetArchive(id: String) { synchronized(archives) { archives.remove(id) } }
 
-    fun get(id: String): Vfs = find(id) ?: throw IOException("That server no longer exists")
+    fun get(id: String): Vfs = find(id) ?: throw IOException(App.str(R.string.that_server_no_longer_exists))
 
     fun remote(serverId: String): RemoteVfs? {
         remotes[serverId]?.let { return it }
         // Locked: saved passwords and keys aren't available, so don't start a connection without them.
-        if (servers.locked) throw IOException("FilesCtrl is locked")
+        if (servers.locked) throw IOException(App.str(R.string.lock_title))
         val s = servers.get(serverId) ?: return null
         // Facts learned while connecting (an SFTP host key) are saved without dropping the connection.
         return remotes.getOrPut(serverId) { RemoteVfs.create(s) { learned -> servers.remember(learned) } }
@@ -96,11 +98,11 @@ class VfsArchiveSource(private val vfs: Vfs, private val path: String, private v
         val f = File(cacheDir, key)
         if (!f.exists() || f.length() != st.size) {
             val free = cacheDir.usableSpace
-            if (st.size > free - 64L * 1024 * 1024) throw IOException("Not enough free space on the phone to read this ${Paths.name(path)} (it has to be copied from the server first)")
+            if (st.size > free - 64L * 1024 * 1024) throw IOException(App.str(R.string.not_enough_free_space_on_the_phone, Paths.name(path)))
             val tmp = File(cacheDir, "$key.part")
             try {
                 vfs.openRead(path).use { input -> tmp.outputStream().use { input.copyTo(it, 1 shl 20) } }
-                if (!tmp.renameTo(f)) throw IOException("Couldn't store a copy of the archive")
+                if (!tmp.renameTo(f)) throw IOException(App.str(R.string.couldn_t_store_a_copy_of_the_archive))
             } finally { tmp.delete() }
         }
         f.setLastModified(System.currentTimeMillis())

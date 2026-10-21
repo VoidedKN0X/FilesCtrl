@@ -25,6 +25,8 @@ import java.util.TimeZone
 import java.util.concurrent.TimeUnit
 import javax.xml.parsers.DocumentBuilderFactory
 import kotlin.concurrent.thread
+import com.vknxworks.filesctrl.App
+import com.vknxworks.filesctrl.R
 
 /** WebDAV over HTTP or HTTPS (Nextcloud, ownCloud, Apache/nginx DAV, NAS WebDAV servers). */
 class WebDavVfs(override val server: NetServer) : RemoteVfs {
@@ -102,16 +104,16 @@ class WebDavVfs(override val server: NetServer) : RemoteVfs {
         val code = resp.code
         resp.close()
         throw when (code) {
-            404 -> FileNotFoundException("$path: not found")
-            401 -> IOException("Wrong username or password")
-            403 -> IOException("$what failed: permission denied (${Paths.name(path)})")
-            405 -> IOException("$what failed: not allowed here (${Paths.name(path)})")
-            409 -> IOException("$what failed: the parent folder doesn't exist")
-            412 -> IOException("$what failed: ${Paths.name(path)} already exists")
-            423 -> IOException("$what failed: ${Paths.name(path)} is locked")
-            507 -> IOException("$what failed: no space left on the server")
-            301, 302, 307, 308 -> IOException("$what failed: the server redirected to ${resp.header("Location")}. Check the path and http/https.")
-            else -> IOException("$what failed: HTTP $code")
+            404 -> FileNotFoundException(App.str(R.string.not_found, path))
+            401 -> IOException(App.str(R.string.wrong_username_or_password))
+            403 -> IOException(App.str(R.string.failed_permission_denied_2, what, Paths.name(path)))
+            405 -> IOException(App.str(R.string.failed_not_allowed_here, what, Paths.name(path)))
+            409 -> IOException(App.str(R.string.failed_the_parent_folder_doesn_t, what))
+            412 -> IOException(App.str(R.string.failed_already_exists_2, what, Paths.name(path)))
+            423 -> IOException(App.str(R.string.failed_is_locked, what, Paths.name(path)))
+            507 -> IOException(App.str(R.string.failed_no_space_left_on_the_server, what))
+            301, 302, 307, 308 -> IOException(App.str(R.string.webdav_redirected, what, resp.header("Location").orEmpty()))
+            else -> IOException(App.str(R.string.failed_http, what, code))
         }
     }
 
@@ -142,7 +144,7 @@ class WebDavVfs(override val server: NetServer) : RemoteVfs {
             .method("PROPFIND", propfindBody.toRequestBody("application/xml; charset=utf-8".toMediaType()))
             .header("Depth", depth.toString())
             .build()
-        val resp = exec(req, if (depth == 0) "Reading" else "Listing", path)
+        val resp = exec(req, if (depth == 0) App.str(R.string.reading) else App.str(R.string.listing), path)
         return resp.use { parse(readCapped(it.body!!.byteStream())) }
     }
 
@@ -154,14 +156,14 @@ class WebDavVfs(override val server: NetServer) : RemoteVfs {
             val n = input.read(buf)
             if (n < 0) break
             out.write(buf, 0, n)
-            if (out.size() > MAX_PROPFIND_BYTES) throw IOException("Listing failed: the server's reply is too large")
+            if (out.size() > MAX_PROPFIND_BYTES) throw IOException(App.str(R.string.listing_failed_the_server_s_reply_is))
         }
         return out.toByteArray()
     }
 
     private fun parse(xml: ByteArray): List<Prop> {
         // WebDAV replies never need a DOCTYPE. Refusing one rules out entity tricks (XXE, "billion laughs").
-        if (containsDoctype(xml)) throw IOException("Listing failed: the server sent an unexpected reply")
+        if (containsDoctype(xml)) throw IOException(App.str(R.string.listing_failed_the_server_sent_an))
         val f = DocumentBuilderFactory.newInstance().apply {
             isNamespaceAware = true
             isExpandEntityReferences = false
@@ -174,7 +176,7 @@ class WebDavVfs(override val server: NetServer) : RemoteVfs {
         }
         val builder = f.newDocumentBuilder().apply {
             // Android's parser ignores most of the features above, so also refuse to load any external entity or DTD.
-            setEntityResolver { _, _ -> throw org.xml.sax.SAXException("External entities are not allowed") }
+            setEntityResolver { _, _ -> throw org.xml.sax.SAXException(App.str(R.string.external_entities_are_not_allowed)) }
         }
         val doc = builder.parse(java.io.ByteArrayInputStream(xml))
         val out = ArrayList<Prop>()
@@ -231,7 +233,7 @@ class WebDavVfs(override val server: NetServer) : RemoteVfs {
     }
 
     override fun stat(path: String): FileEntry {
-        val p = propfind(path, 0, false).firstOrNull() ?: throw FileNotFoundException("$path: not found")
+        val p = propfind(path, 0, false).firstOrNull() ?: throw FileNotFoundException(App.str(R.string.not_found, path))
         return entryOf(path, Paths.name(path), p)
     }
 
@@ -240,7 +242,7 @@ class WebDavVfs(override val server: NetServer) : RemoteVfs {
     override fun openRead(path: String, offset: Long): InputStream {
         val b = Request.Builder().url(url(path)).get()
         if (offset > 0) b.header("Range", "bytes=$offset-")
-        val resp = exec(b.build(), "Opening", path)
+        val resp = exec(b.build(), App.str(R.string.opening), path)
         val s = resp.body!!.byteStream()
         // A server that ignores Range sends the whole file; skip to the offset ourselves.
         if (offset > 0 && resp.code == 200) {
@@ -260,7 +262,7 @@ class WebDavVfs(override val server: NetServer) : RemoteVfs {
         }
         val req = Request.Builder().url(url(path)).put(body).build()
         val worker = thread(name = "webdav-put") {
-            try { exec(req, "Saving", path).close() } catch (e: IOException) { error = e } finally {
+            try { exec(req, App.str(R.string.saving), path).close() } catch (e: IOException) { error = e } finally {
                 try { pipe.source.close() } catch (_: Exception) {}
             }
         }
@@ -281,17 +283,17 @@ class WebDavVfs(override val server: NetServer) : RemoteVfs {
     }
 
     override fun mkdir(path: String) {
-        if (exists(path)) throw IOException("${Paths.name(path)} already exists")
-        exec(Request.Builder().url(url(path, true)).method("MKCOL", null).build(), "Creating folder", path).close()
+        if (exists(path)) throw IOException(App.str(R.string.already_exists, Paths.name(path)))
+        exec(Request.Builder().url(url(path, true)).method("MKCOL", null).build(), App.str(R.string.creating_folder), path).close()
     }
 
     override fun createFile(path: String) {
-        if (exists(path)) throw IOException("${Paths.name(path)} already exists")
-        exec(Request.Builder().url(url(path)).put(ByteArray(0).toRequestBody()).build(), "Creating file", path).close()
+        if (exists(path)) throw IOException(App.str(R.string.already_exists, Paths.name(path)))
+        exec(Request.Builder().url(url(path)).put(ByteArray(0).toRequestBody()).build(), App.str(R.string.creating_file), path).close()
     }
 
     override fun delete(path: String, isDir: Boolean) {
-        exec(Request.Builder().url(url(path, isDir)).delete().build(), "Deleting", path).close()
+        exec(Request.Builder().url(url(path, isDir)).delete().build(), App.str(R.string.deleting), path).close()
     }
 
     override fun rename(from: String, to: String) {
@@ -300,7 +302,7 @@ class WebDavVfs(override val server: NetServer) : RemoteVfs {
             .header("Destination", url(to, dir).toString())
             .header("Overwrite", "F")
             .build()
-        exec(req, "Renaming", from).close()
+        exec(req, App.str(R.string.renaming), from).close()
     }
 
     override fun space(path: String): Space? = try {
@@ -310,12 +312,12 @@ class WebDavVfs(override val server: NetServer) : RemoteVfs {
 
     private fun friendly(e: IOException, what: String): IOException = when (e) {
         is javax.net.ssl.SSLException -> IOException(
-            if (server.insecureTls) "$what failed: TLS error (${e.message})"
-            else "$what failed: the server's certificate isn't trusted or doesn't match ${server.host}. Turn on \"Accept self-signed certificates\" if it's your own server.",
+            if (server.insecureTls) App.str(R.string.failed_tls_error, what, e.message)
+            else App.str(R.string.failed_the_server_s_certificate_isn, what, server.host),
         )
-        is java.net.SocketTimeoutException -> IOException("$what failed: the server stopped responding")
-        is java.net.ConnectException -> IOException("Couldn't reach ${server.host} on port ${server.effectivePort}")
-        is java.net.UnknownHostException -> IOException("Unknown server address ${server.host}")
-        else -> IOException("$what failed: ${e.message ?: e.javaClass.simpleName}")
+        is java.net.SocketTimeoutException -> IOException(App.str(R.string.failed_the_server_stopped_responding, what))
+        is java.net.ConnectException -> IOException(App.str(R.string.couldn_t_reach_on_port, server.host, server.effectivePort))
+        is java.net.UnknownHostException -> IOException(App.str(R.string.unknown_server_address, server.host))
+        else -> IOException(App.str(R.string.failed_3, what, e.message ?: e.javaClass.simpleName))
     }
 }

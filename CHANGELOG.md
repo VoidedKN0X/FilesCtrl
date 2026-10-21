@@ -4,6 +4,16 @@ What changed in each FilesCtrl version. Every release on the [Releases page](htt
 
 To publish a new version: bump `versionCode` and `versionName` in `app/build.gradle.kts`, add a section here, and push to `main`. Pushes without a version bump only build; they don't make a release.
 
+## 1.3.1 (2026-10-21)
+
+### Changed
+
+- **All text is now in one place, ready for translations.** About 400 pieces of text that were written straight into the code (the file browser and its menus, Places, the server editor, properties and permission dialogs, the text editor, compress and extract, file-operation progress and notifications, and the error messages from NFS, SMB, SFTP, FTP, WebDAV and archives) now come from the app's text resources. The wording stays the same.
+
+### Fixed
+
+- **Counts read correctly in the singular and plural**: "Left out 2 entries" instead of "2 entrys", and "1 result", "1 item to copy", "Moving 1 item", "Deleting 1 item", "1 operation running", "Done with 1 problem" and "1 share found" now use the right form everywhere, including the progress notification.
+
 ## 1.3.0 (2026-10-21)
 
 Settings now open from your profile picture, the same in every Ctrl app.

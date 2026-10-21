@@ -273,8 +273,8 @@ private fun AppContent(nav: androidx.navigation.NavHostController, vm: BrowserVi
 private fun MainShell(vm: BrowserViewModel) {
     val nav = LocalNav.current
     val tabs = listOf(
-        IslandTab(MainTab.FILES, Icons.Outlined.Folder, "Files"),
-        IslandTab(MainTab.PLACES, Icons.Outlined.Storage, "Places"),
+        IslandTab(MainTab.FILES, Icons.Outlined.Folder, App.str(R.string.files)),
+        IslandTab(MainTab.PLACES, Icons.Outlined.Storage, App.str(R.string.places)),
     )
 
     // Back from another tab returns to Files; the Files tab handles its own back (folder history).

@@ -44,6 +44,8 @@ import com.vknxworks.filesctrl.fs.RemoteVfs
 import com.vknxworks.filesctrl.fs.Space
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import androidx.compose.ui.res.stringResource
+import com.vknxworks.filesctrl.R
 
 /** Icon for a kind of network location. */
 fun protoIcon(p: Proto): ImageVector = when (p) {
@@ -70,10 +72,10 @@ fun PlacesTab(current: Location, onOpen: (Location) -> Unit, onAddServer: () -> 
     val volumes = remember { App.vfs.local.volumes() }
 
     LazyColumn(Modifier.fillMaxSize(), contentPadding = ListBottom) {
-        item { TabTitle("Places") }
+        item { TabTitle(stringResource(R.string.places)) }
 
         item {
-            SettingsSection("This phone") {
+            SettingsSection(stringResource(R.string.you_this_phone)) {
                 volumes.forEachIndexed { i, v ->
                     if (i > 0) ItemDivider()
                     var space by remember(v.path) { mutableStateOf<Space?>(null) }
@@ -84,7 +86,7 @@ fun PlacesTab(current: Location, onOpen: (Location) -> Unit, onAddServer: () -> 
                     NavItem(
                         icon = when { v.primary -> Icons.Outlined.PhoneAndroid; v.label.contains("USB", true) -> Icons.Outlined.Usb; else -> Icons.Outlined.SdCard },
                         title = v.label,
-                        subtitle = sp?.let { "${Fmt.size(ctx, it.free)} free of ${Fmt.size(ctx, it.total)}" },
+                        subtitle = sp?.let { App.str(R.string.free_of, Fmt.size(ctx, it.free), Fmt.size(ctx, it.total)) },
                         below = sp?.let { { UsageBar(it) } },
                         trailing = mark,
                     ) { onOpen(Location(LocalVfs.ID, v.path)) }
@@ -93,7 +95,7 @@ fun PlacesTab(current: Location, onOpen: (Location) -> Unit, onAddServer: () -> 
         }
 
         item {
-            SettingsSection("Network") {
+            SettingsSection(stringResource(R.string.network)) {
                 App.servers.all.forEach { s ->
                     val id = RemoteVfs.idFor(s.id)
                     // Storage use for servers that are connected; just the address otherwise (the list never connects).
@@ -106,22 +108,22 @@ fun PlacesTab(current: Location, onOpen: (Location) -> Unit, onAddServer: () -> 
                     NavItem(
                         icon = protoIcon(s.type),
                         title = s.title,
-                        subtitle = sp?.let { "${Fmt.size(ctx, it.total - it.free)} of ${Fmt.size(ctx, it.total)} used" }
+                        subtitle = sp?.let { App.str(R.string.of_used, Fmt.size(ctx, it.total - it.free), Fmt.size(ctx, it.total)) }
                             ?: "${s.type.label} · ${s.host}",
                         below = sp?.let { { UsageBar(it) } },
                         trailing = {
-                            IconButton(onClick = { onEditServer(s.id) }) { Icon(Icons.Outlined.Edit, "Edit ${s.title}", Modifier.size(20.dp)) }
+                            IconButton(onClick = { onEditServer(s.id) }) { Icon(Icons.Outlined.Edit, stringResource(R.string.edit, s.title), Modifier.size(20.dp)) }
                         },
                     ) { onOpen(Location(id, "/")) }
                     ItemDivider()
                 }
-                NavItem(Icons.Outlined.Add, "Add network", "NFS, SMB, SFTP, FTP or WebDAV") { onAddServer() }
+                NavItem(Icons.Outlined.Add, stringResource(R.string.add_network), stringResource(R.string.nfs_smb_sftp_ftp_or_webdav)) { onAddServer() }
             }
         }
 
         if (App.bookmarks.all.isNotEmpty()) {
             item {
-                SettingsSection("Bookmarks") {
+                SettingsSection(stringResource(R.string.bookmarks)) {
                     App.bookmarks.all.forEachIndexed { i, b ->
                         if (i > 0) ItemDivider()
                         NavItem(
@@ -130,7 +132,7 @@ fun PlacesTab(current: Location, onOpen: (Location) -> Unit, onAddServer: () -> 
                             subtitle = App.vfs.find(b.location.vfsId)?.title,
                             trailing = {
                                 IconButton(onClick = { App.bookmarks.remove(b.location) }) {
-                                    Icon(Icons.Outlined.Close, "Remove bookmark", Modifier.size(18.dp))
+                                    Icon(Icons.Outlined.Close, stringResource(R.string.remove_bookmark), Modifier.size(18.dp))
                                 }
                             },
                         ) { onOpen(b.location) }
@@ -144,5 +146,5 @@ fun PlacesTab(current: Location, onOpen: (Location) -> Unit, onAddServer: () -> 
 /** Marks the place that's open in the Files tab. */
 @Composable
 private fun OpenDot() {
-    Text("Open", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(end = 4.dp))
+    Text(stringResource(R.string.open), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(end = 4.dp))
 }

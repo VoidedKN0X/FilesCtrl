@@ -18,10 +18,12 @@ import java.io.IOException
 import java.io.InputStream
 import java.io.OutputStream
 import java.util.Base64
+import com.vknxworks.filesctrl.App
+import com.vknxworks.filesctrl.R
 
 /** The archive needs a password ([wrong] = the one given didn't work). */
 class ArchivePasswordException(val wrong: Boolean) :
-    IOException(if (wrong) "Wrong password for this archive" else "This archive is password-protected")
+    IOException(if (wrong) App.str(R.string.wrong_password_for_this_archive) else App.str(R.string.this_archive_is_password_protected))
 
 /** Where an archive's bytes come from: a stream for one pass, or a local file for random access. */
 interface ArchiveSource {
@@ -81,7 +83,7 @@ class ArchiveVfs(override val id: String, private val source: ArchiveSource) : V
                 Format.SEVENZ -> "7z"
                 Format.RAR -> "RAR"
                 Format.STREAM -> (archiver ?: "tar").uppercase() + (compressor?.let { " · " + compressorLabel(it) } ?: "")
-                Format.SINGLE -> compressorLabel(compressor ?: "") + " compressed file"
+                Format.SINGLE -> App.str(R.string.compressed_file, compressorLabel(compressor ?: ""))
                 null -> ""
             }
         }
@@ -177,7 +179,7 @@ class ArchiveVfs(override val id: String, private val source: ArchiveSource) : V
             when {
                 starts(0x37, 0x7A, 0xBC, 0xAF, 0x27, 0x1C) -> { format = Format.SEVENZ; return }
                 starts(0x52, 0x61, 0x72, 0x21, 0x1A, 0x07) -> {
-                    if (n >= 7 && head[6] == 0x01.toByte()) throw IOException("RAR5 archives can't be opened yet. Only older RAR (RAR4) archives are supported.")
+                    if (n >= 7 && head[6] == 0x01.toByte()) throw IOException(App.str(R.string.rar5_archives_can_t_be_opened_yet))
                     format = Format.RAR; return
                 }
                 starts(0x50, 0x4B, 0x03, 0x04) || starts(0x50, 0x4B, 0x05, 0x06) || starts(0x50, 0x4B, 0x07, 0x08) -> { format = Format.ZIP; return }
@@ -195,7 +197,7 @@ class ArchiveVfs(override val id: String, private val source: ArchiveSource) : V
             if (archiver == "7z") { format = Format.SEVENZ; return }
             if (archiver != null) { format = Format.STREAM; return }
         }
-        throw IOException("${source.name} isn't an archive FilesCtrl can open")
+        throw IOException(App.str(R.string.isn_t_an_archive_filesctrl_can_open, source.name))
     }
 
     private fun singleName(): String {
@@ -231,7 +233,7 @@ class ArchiveVfs(override val id: String, private val source: ArchiveSource) : V
     private fun mapZip(e: net.lingala.zip4j.exception.ZipException): IOException = when {
         e.type == net.lingala.zip4j.exception.ZipException.Type.WRONG_PASSWORD -> ArchivePasswordException(password != null)
         e.message.orEmpty().contains("password", true) -> ArchivePasswordException(password != null)
-        else -> IOException("Couldn't read the zip: ${e.message}")
+        else -> IOException(App.str(R.string.couldn_t_read_the_zip, e.message))
     }
 
     private fun openSevenZ(): SevenZFile {
@@ -260,13 +262,13 @@ class ArchiveVfs(override val id: String, private val source: ArchiveSource) : V
     private fun openRar(): Archive = try {
         Archive(source.localFile(), password?.let { String(it) })
     } catch (e: UnsupportedRarV5Exception) {
-        throw IOException("RAR5 archives can't be opened yet. Only older RAR (RAR4) archives are supported.")
+        throw IOException(App.str(R.string.rar5_archives_can_t_be_opened_yet))
     } catch (e: UnsupportedRarEncryptedException) {
-        throw IOException("This RAR archive uses encryption FilesCtrl can't read")
+        throw IOException(App.str(R.string.this_rar_archive_uses_encryption))
     } catch (e: com.github.junrar.exception.RarException) {
         val m = e.message.orEmpty()
         throw if (m.contains("password", true) || m.contains("crypt", true)) ArchivePasswordException(password != null)
-        else IOException("Couldn't read the RAR archive: ${m.ifBlank { e.javaClass.simpleName }}")
+        else IOException(App.str(R.string.couldn_t_read_the_rar_archive, m.ifBlank { e.javaClass.simpleName }))
     }
 
     private inline fun <T> withRar(block: (Archive) -> T): T {
@@ -291,15 +293,15 @@ class ArchiveVfs(override val id: String, private val source: ArchiveSource) : V
     // ---------- Vfs ----------
 
     private fun node(path: String): Node {
-        val p = Paths.normalize(path) ?: throw FileNotFoundException("$path: not found")
-        return index()[p] ?: throw FileNotFoundException("$path: not found")
+        val p = Paths.normalize(path) ?: throw FileNotFoundException(App.str(R.string.not_found, path))
+        return index()[p] ?: throw FileNotFoundException(App.str(R.string.not_found, path))
     }
 
     private fun entry(n: Node) = FileEntry(id, n.path, n.name, n.isDir, n.size, n.mtime, n.mode, isLink = n.isLink)
 
     override fun list(dir: String): List<FileEntry> {
         val n = node(dir)
-        if (!n.isDir) throw IOException("Not a folder")
+        if (!n.isDir) throw IOException(App.str(R.string.not_a_folder))
         return children[n.path].orEmpty().map(::entry)
     }
 
@@ -307,13 +309,13 @@ class ArchiveVfs(override val id: String, private val source: ArchiveSource) : V
 
     override fun openRead(path: String): InputStream {
         val n = node(path)
-        if (n.isDir) throw IOException("That's a folder")
-        val key = n.key ?: throw FileNotFoundException("$path: not found")
+        if (n.isDir) throw IOException(App.str(R.string.that_s_a_folder))
+        val key = n.key ?: throw FileNotFoundException(App.str(R.string.not_found, path))
         return when (format) {
             Format.ZIP -> {
                 val z = net.lingala.zip4j.ZipFile(source.localFile(), password)
                 try {
-                    val h = z.getFileHeader(key) ?: throw FileNotFoundException("$path: not found")
+                    val h = z.getFileHeader(key) ?: throw FileNotFoundException(App.str(R.string.not_found, path))
                     if (h.isEncrypted && password == null) throw ArchivePasswordException(false)
                     val s = z.getInputStream(h)
                     object : FilterInputStream(s) {
@@ -329,7 +331,7 @@ class ArchiveVfs(override val id: String, private val source: ArchiveSource) : V
             Format.SEVENZ -> {
                 val z = openSevenZ()
                 try {
-                    val e = z.entries.firstOrNull { it.name == key } ?: throw FileNotFoundException("$path: not found")
+                    val e = z.entries.firstOrNull { it.name == key } ?: throw FileNotFoundException(App.str(R.string.not_found, path))
                     val s = z.getInputStream(e)
                     object : FilterInputStream(s) {
                         override fun read(b: ByteArray, off: Int, len: Int): Int = try { super.read(b, off, len) } catch (e: IOException) { throw map7z(e) }
@@ -340,7 +342,7 @@ class ArchiveVfs(override val id: String, private val source: ArchiveSource) : V
             Format.RAR -> {
                 val r = openRar()
                 try {
-                    val h = r.fileHeaders.firstOrNull { it.fileName == key } ?: throw FileNotFoundException("$path: not found")
+                    val h = r.fileHeaders.firstOrNull { it.fileName == key } ?: throw FileNotFoundException(App.str(R.string.not_found, path))
                     val s = r.getInputStream(h)
                     object : FilterInputStream(s) {
                         override fun close() { try { super.close() } finally { r.close() } }
@@ -354,14 +356,14 @@ class ArchiveVfs(override val id: String, private val source: ArchiveSource) : V
                 val ais = ArchiveStreamFactory().createArchiveInputStream<ArchiveInputStream<out ArchiveEntry>>(archiver!!, raw)
                 try {
                     while (true) {
-                        val e = ais.nextEntry ?: throw FileNotFoundException("$path: not found")
+                        val e = ais.nextEntry ?: throw FileNotFoundException(App.str(R.string.not_found, path))
                         if (e.name == key && ais.canReadEntryData(e)) break
                     }
                     object : FilterInputStream(ais) {}
                 } catch (e: IOException) { ais.close(); throw e }
             }
             Format.SINGLE -> decompressed()
-            null -> throw IOException("Unknown archive")
+            null -> throw IOException(App.str(R.string.unknown_archive))
         }
     }
 
@@ -453,7 +455,7 @@ class ArchiveVfs(override val id: String, private val source: ArchiveSource) : V
     /** True when this is a single compressed file (".log.gz"), not an archive of several. */
     val isSingleFile: Boolean get() { index(); return format == Format.SINGLE }
 
-    private fun readOnly(): Nothing = throw IOException("Archives are read-only here. Extract or copy files out to change them.")
+    private fun readOnly(): Nothing = throw IOException(App.str(R.string.archives_are_read_only_here_extract))
     override fun openWrite(path: String): OutputStream = readOnly()
     override fun mkdir(path: String) = readOnly()
     override fun createFile(path: String) = readOnly()

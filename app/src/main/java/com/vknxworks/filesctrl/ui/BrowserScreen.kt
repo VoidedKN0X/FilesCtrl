@@ -147,6 +147,9 @@ import com.vknxworks.filesctrl.ops.Ops
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.res.pluralStringResource
+import com.vknxworks.filesctrl.R
 
 /** Bottom padding for this screen's lists, so they scroll clear of the island and paste card. */
 private val LocalListPadding = androidx.compose.runtime.compositionLocalOf { PaddingValues(bottom = 96.dp) }
@@ -307,7 +310,7 @@ fun BrowserScreen(vm: BrowserViewModel, islandSpace: Dp) {
     vm.lockedArchive?.let { ex ->
         if (!vm.passwordPromptHidden) {
             PasswordDialog(
-                title = "Password for ${vm.title}",
+                title = stringResource(R.string.password_for, vm.title),
                 wrong = ex.wrong,
                 onDismiss = { vm.passwordPromptHidden = true },
             ) { pw -> vm.unlockArchive(pw) }
@@ -316,9 +319,9 @@ fun BrowserScreen(vm: BrowserViewModel, islandSpace: Dp) {
     when (val d = dlg) {
         null -> {}
         is Dlg.New -> NameDialog(
-            title = if (d.folder) "New folder" else "New file",
+            title = if (d.folder) stringResource(R.string.new_folder) else stringResource(R.string.new_file),
             initial = "",
-            confirm = "Create",
+            confirm = stringResource(R.string.create),
             onDismiss = { dlg = null },
         ) { name ->
             dlg = null
@@ -330,21 +333,21 @@ fun BrowserScreen(vm: BrowserViewModel, islandSpace: Dp) {
                         val p = Paths.join(loc.path, name)
                         if (d.folder) v.mkdir(p) else v.createFile(p)
                         null
-                    } catch (e: Exception) { e.message ?: "Failed" }
+                    } catch (e: Exception) { e.message ?: App.str(R.string.failed_5) }
                 }
-                if (err != null) dlg = Dlg.Error("Couldn't create $name", err) else vm.load(quiet = true)
+                if (err != null) dlg = Dlg.Error(App.str(R.string.couldn_t_create, name), err) else vm.load(quiet = true)
             }
         }
-        is Dlg.Rename -> NameDialog("Rename", d.e.name, "Rename", onDismiss = { dlg = null }) { name ->
+        is Dlg.Rename -> NameDialog(stringResource(R.string.rename), d.e.name, stringResource(R.string.rename), onDismiss = { dlg = null }) { name ->
             dlg = null
             if (name == d.e.name) return@NameDialog
             scope.launch {
                 val err = withContext(Dispatchers.IO) {
                     try {
                         App.vfs.get(d.e.vfsId).rename(d.e.path, Paths.join(Paths.parent(d.e.path), name)); null
-                    } catch (e: Exception) { e.message ?: "Failed" }
+                    } catch (e: Exception) { e.message ?: App.str(R.string.failed_5) }
                 }
-                if (err != null) dlg = Dlg.Error("Couldn't rename", err) else vm.load(quiet = true)
+                if (err != null) dlg = Dlg.Error(App.str(R.string.couldn_t_rename_2), err) else vm.load(quiet = true)
             }
         }
         is Dlg.Delete -> DeleteDialog(d.items, remote = d.items.firstOrNull()?.vfsId?.startsWith(RemoteVfs.PREFIX) == true, onDismiss = { dlg = null }) {
@@ -390,7 +393,7 @@ private fun MainBar(vm: BrowserViewModel, onDialog: (Dlg) -> Unit) {
         navigationIcon = {
             if (vm.searchOpen) {
                 IconButton(onClick = { vm.searchOpen = false; vm.filter = ""; vm.closeDeepSearch() }) {
-                    Icon(Icons.AutoMirrored.Outlined.ArrowBack, "Close search")
+                    Icon(Icons.AutoMirrored.Outlined.ArrowBack, stringResource(R.string.close_search))
                 }
             }
         },
@@ -400,7 +403,7 @@ private fun MainBar(vm: BrowserViewModel, onDialog: (Dlg) -> Unit) {
                 TextField(
                     value = vm.filter,
                     onValueChange = { vm.filter = it },
-                    placeholder = { Text("Filter, or search subfolders") },
+                    placeholder = { Text(stringResource(R.string.filter_or_search_subfolders)) },
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
                     keyboardActions = KeyboardActions(onSearch = { vm.deepSearch(vm.filter) }),
@@ -414,7 +417,7 @@ private fun MainBar(vm: BrowserViewModel, onDialog: (Dlg) -> Unit) {
                 Column {
                     Text(vm.title, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     Text(
-                        subtitle(vm) + if (vm.readOnly && !vm.isArchive) " · read-only" else "",
+                        if (vm.readOnly && !vm.isArchive) stringResource(R.string.subtitle_read_only, subtitle(vm)) else subtitle(vm),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1,
@@ -425,13 +428,13 @@ private fun MainBar(vm: BrowserViewModel, onDialog: (Dlg) -> Unit) {
         actions = {
             if (vm.searchOpen) {
                 if (vm.filter.isNotBlank()) {
-                    IconButton(onClick = { vm.deepSearch(vm.filter) }) { Icon(Icons.Outlined.Search, "Search subfolders") }
+                    IconButton(onClick = { vm.deepSearch(vm.filter) }) { Icon(Icons.Outlined.Search, stringResource(R.string.search_subfolders)) }
                 }
                 return@TopAppBar
             }
-            IconButton(onClick = { vm.searchOpen = true }) { Icon(Icons.Outlined.Search, "Search") }
+            IconButton(onClick = { vm.searchOpen = true }) { Icon(Icons.Outlined.Search, stringResource(R.string.search)) }
             Box {
-                IconButton(onClick = { sortMenu = true }) { Icon(Icons.AutoMirrored.Outlined.Sort, "Sort") }
+                IconButton(onClick = { sortMenu = true }) { Icon(Icons.AutoMirrored.Outlined.Sort, stringResource(R.string.sort)) }
                 DropdownMenu(expanded = sortMenu, onDismissRequest = { sortMenu = false }) {
                     SortBy.entries.forEach { by ->
                         DropdownMenuItem(
@@ -442,43 +445,43 @@ private fun MainBar(vm: BrowserViewModel, onDialog: (Dlg) -> Unit) {
                     }
                     HorizontalDivider()
                     DropdownMenuItem(
-                        text = { Text("Descending") },
+                        text = { Text(stringResource(R.string.descending)) },
                         leadingIcon = { if (s.sortDescending) Icon(Icons.Outlined.Check, null) else Spacer(Modifier.size(24.dp)) },
                         onClick = { s.sortDescending = !s.sortDescending; sortMenu = false },
                     )
                     DropdownMenuItem(
-                        text = { Text("Folders first") },
+                        text = { Text(stringResource(R.string.folders_first)) },
                         leadingIcon = { if (s.foldersFirst) Icon(Icons.Outlined.Check, null) else Spacer(Modifier.size(24.dp)) },
                         onClick = { s.foldersFirst = !s.foldersFirst; sortMenu = false },
                     )
                 }
             }
             Box {
-                IconButton(onClick = { menu = true }) { Icon(Icons.Outlined.MoreVert, "More") }
+                IconButton(onClick = { menu = true }) { Icon(Icons.Outlined.MoreVert, stringResource(R.string.more)) }
                 DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
                     DropdownMenuItem(
-                        text = { Text(if (s.gridView) "List view" else "Grid view") },
+                        text = { Text(if (s.gridView) stringResource(R.string.list_view) else stringResource(R.string.grid_view)) },
                         leadingIcon = { Icon(if (s.gridView) Icons.Outlined.ViewList else Icons.Outlined.GridView, null) },
                         onClick = { s.gridView = !s.gridView; menu = false },
                     )
                     DropdownMenuItem(
-                        text = { Text(if (s.showHidden) "Hide hidden files" else "Show hidden files") },
+                        text = { Text(if (s.showHidden) stringResource(R.string.hide_hidden_files) else stringResource(R.string.show_hidden_files)) },
                         leadingIcon = { Icon(if (s.showHidden) Icons.Outlined.VisibilityOff else Icons.Outlined.Visibility, null) },
                         onClick = { s.showHidden = !s.showHidden; menu = false },
                     )
                     DropdownMenuItem(
-                        text = { Text("Select all") },
+                        text = { Text(stringResource(R.string.select_all)) },
                         leadingIcon = { Icon(Icons.Outlined.SelectAll, null) },
                         onClick = { vm.selectAll(); menu = false },
                     )
                     DropdownMenuItem(
-                        text = { Text("Refresh") },
+                        text = { Text(stringResource(R.string.refresh)) },
                         leadingIcon = { Icon(Icons.Outlined.Refresh, null) },
                         onClick = { vm.load(); menu = false },
                     )
                     val marked = App.bookmarks.contains(vm.location)
                     DropdownMenuItem(
-                        text = { Text(if (marked) "Remove bookmark" else "Bookmark this folder") },
+                        text = { Text(if (marked) stringResource(R.string.remove_bookmark) else stringResource(R.string.bookmark_this_folder)) },
                         leadingIcon = { Icon(if (marked) Icons.Outlined.BookmarkRemove else Icons.Outlined.BookmarkAdd, null) },
                         onClick = {
                             if (marked) App.bookmarks.remove(vm.location)
@@ -487,18 +490,18 @@ private fun MainBar(vm: BrowserViewModel, onDialog: (Dlg) -> Unit) {
                         },
                     )
                     DropdownMenuItem(
-                        text = { Text("Copy path") },
+                        text = { Text(stringResource(R.string.copy_path)) },
                         leadingIcon = { Icon(Icons.Outlined.Link, null) },
                         onClick = {
                             val loc = vm.location
-                            copyText(ctx, "Path", displayPath(FileEntry(loc.vfsId, loc.path, Paths.name(loc.path), true, 0, 0)))
-                            Toast.makeText(ctx, "Path copied", Toast.LENGTH_SHORT).show()
+                            copyText(ctx, App.str(R.string.path), displayPath(FileEntry(loc.vfsId, loc.path, Paths.name(loc.path), true, 0, 0)))
+                            Toast.makeText(ctx, App.str(R.string.path_copied), Toast.LENGTH_SHORT).show()
                             menu = false
                         },
                     )
                     vm.archiveFile?.let { arc ->
                         DropdownMenuItem(
-                            text = { Text("Extract all") },
+                            text = { Text(stringResource(R.string.extract_all)) },
                             leadingIcon = { Icon(Icons.Outlined.Unarchive, null) },
                             onClick = {
                                 menu = false
@@ -507,7 +510,7 @@ private fun MainBar(vm: BrowserViewModel, onDialog: (Dlg) -> Unit) {
                         )
                     }
                     DropdownMenuItem(
-                        text = { Text("Folder properties") },
+                        text = { Text(stringResource(R.string.folder_properties)) },
                         leadingIcon = { Icon(Icons.Outlined.Info, null) },
                         onClick = {
                             menu = false
@@ -529,10 +532,10 @@ private fun subtitle(vm: BrowserViewModel): String {
     if (vm.isLocal) return vm.vfsTitle
     if (vm.isArchive) {
         val label = (App.vfs.find(vm.location.vfsId) as? ArchiveVfs)?.loadedFormatLabel
-        return (label?.let { "$it archive" } ?: "Archive") + " · read-only"
+        return App.str(R.string.subtitle_read_only, label?.let { App.str(R.string.archive_2, it) } ?: App.str(R.string.archive))
     }
     val sp = vm.space
-    if (sp != null && sp.total > 0) return "${Fmt.size(ctx, sp.total - sp.free)} of ${Fmt.size(ctx, sp.total)} used"
+    if (sp != null && sp.total > 0) return App.str(R.string.of_used, Fmt.size(ctx, sp.total - sp.free), Fmt.size(ctx, sp.total))
     return App.servers.get(vm.location.vfsId.removePrefix(RemoteVfs.PREFIX))?.host ?: vm.vfsTitle
 }
 
@@ -544,36 +547,36 @@ private fun SelectionBar(vm: BrowserViewModel, readOnly: Boolean, onDialog: (Dlg
     val single = sel.singleOrNull()
     TopAppBar(
         colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.secondaryContainer),
-        navigationIcon = { IconButton(onClick = { vm.selection.clear() }) { Icon(Icons.Outlined.Close, "Clear selection") } },
-        title = { Text("${vm.selection.size} selected") },
+        navigationIcon = { IconButton(onClick = { vm.selection.clear() }) { Icon(Icons.Outlined.Close, stringResource(R.string.clear_selection)) } },
+        title = { Text(stringResource(R.string.selected, vm.selection.size)) },
         actions = {
-            IconButton(onClick = { vm.copySelection(cut = false) }) { Icon(Icons.Outlined.ContentCopy, "Copy") }
-            if (!readOnly) IconButton(onClick = { vm.copySelection(cut = true) }) { Icon(Icons.Outlined.ContentCut, "Cut") }
+            IconButton(onClick = { vm.copySelection(cut = false) }) { Icon(Icons.Outlined.ContentCopy, stringResource(R.string.copy)) }
+            if (!readOnly) IconButton(onClick = { vm.copySelection(cut = true) }) { Icon(Icons.Outlined.ContentCut, stringResource(R.string.cut)) }
             if (!readOnly) IconButton(onClick = {
                 if (App.settings.confirmDelete) onDialog(Dlg.Delete(sel)) else { vm.selection.clear(); Ops.delete(sel) }
-            }) { Icon(Icons.Outlined.Delete, "Delete") }
+            }) { Icon(Icons.Outlined.Delete, stringResource(R.string.lock_delete)) }
             Box {
-                IconButton(onClick = { menu = true }) { Icon(Icons.Outlined.MoreVert, "More") }
+                IconButton(onClick = { menu = true }) { Icon(Icons.Outlined.MoreVert, stringResource(R.string.more)) }
                 DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
-                    DropdownMenuItem(text = { Text("Select all") }, leadingIcon = { Icon(Icons.Outlined.SelectAll, null) },
+                    DropdownMenuItem(text = { Text(stringResource(R.string.select_all)) }, leadingIcon = { Icon(Icons.Outlined.SelectAll, null) },
                         onClick = { vm.selectAll(); menu = false })
-                    if (sel.any { !it.isDir }) DropdownMenuItem(text = { Text("Share") }, leadingIcon = { Icon(Icons.Outlined.Share, null) },
+                    if (sel.any { !it.isDir }) DropdownMenuItem(text = { Text(stringResource(R.string.share)) }, leadingIcon = { Icon(Icons.Outlined.Share, null) },
                         onClick = { menu = false; shareFiles(ctx, sel) })
-                    if (single != null && !readOnly) DropdownMenuItem(text = { Text("Rename") }, leadingIcon = { Icon(Icons.Outlined.DriveFileRenameOutline, null) },
+                    if (single != null && !readOnly) DropdownMenuItem(text = { Text(stringResource(R.string.rename)) }, leadingIcon = { Icon(Icons.Outlined.DriveFileRenameOutline, null) },
                         onClick = { menu = false; vm.selection.clear(); onDialog(Dlg.Rename(single)) })
-                    if (!readOnly) DropdownMenuItem(text = { Text("Compress") }, leadingIcon = { Icon(Icons.Outlined.FolderZip, null) },
+                    if (!readOnly) DropdownMenuItem(text = { Text(stringResource(R.string.compress)) }, leadingIcon = { Icon(Icons.Outlined.FolderZip, null) },
                         onClick = { menu = false; onDialog(Dlg.Compress(sel)) })
-                    if (single != null && Mime.canBrowseAsArchive(single) && !readOnly) DropdownMenuItem(text = { Text("Extract here") }, leadingIcon = { Icon(Icons.Outlined.Unarchive, null) },
+                    if (single != null && Mime.canBrowseAsArchive(single) && !readOnly) DropdownMenuItem(text = { Text(stringResource(R.string.extract_here)) }, leadingIcon = { Icon(Icons.Outlined.Unarchive, null) },
                         onClick = { menu = false; vm.selection.clear(); onDialog(Dlg.Extract(single, vm.location)) })
-                    if (single != null && !single.isDir) DropdownMenuItem(text = { Text("Open with") }, leadingIcon = { Icon(Icons.AutoMirrored.Outlined.OpenInNew, null) },
+                    if (single != null && !single.isDir) DropdownMenuItem(text = { Text(stringResource(R.string.open_with)) }, leadingIcon = { Icon(Icons.AutoMirrored.Outlined.OpenInNew, null) },
                         onClick = { menu = false; openFile(ctx, single, chooser = true) })
-                    DropdownMenuItem(text = { Text("Copy path") }, leadingIcon = { Icon(Icons.Outlined.Link, null) },
+                    DropdownMenuItem(text = { Text(stringResource(R.string.copy_path)) }, leadingIcon = { Icon(Icons.Outlined.Link, null) },
                         onClick = {
                             menu = false
-                            copyText(ctx, "Paths", sel.joinToString("\n") { displayPath(it) })
-                            Toast.makeText(ctx, if (sel.size == 1) "Path copied" else "${sel.size} paths copied", Toast.LENGTH_SHORT).show()
+                            copyText(ctx, App.str(R.string.paths), sel.joinToString("\n") { displayPath(it) })
+                            Toast.makeText(ctx, if (sel.size == 1) App.str(R.string.path_copied) else App.str(R.string.paths_copied, sel.size), Toast.LENGTH_SHORT).show()
                         })
-                    if (single != null) DropdownMenuItem(text = { Text("Properties") }, leadingIcon = { Icon(Icons.Outlined.Info, null) },
+                    if (single != null) DropdownMenuItem(text = { Text(stringResource(R.string.properties)) }, leadingIcon = { Icon(Icons.Outlined.Info, null) },
                         onClick = { menu = false; onDialog(Dlg.Props(single)) })
                 }
             }
@@ -611,8 +614,8 @@ private fun handleItemAction(
             else App.bookmarks.add(Bookmark(e.name, e.location))
         }
         ItemAction.CopyPath -> {
-            copyText(ctx, "Path", displayPath(e))
-            Toast.makeText(ctx, "Path copied", Toast.LENGTH_SHORT).show()
+            copyText(ctx, App.str(R.string.path), displayPath(e))
+            Toast.makeText(ctx, App.str(R.string.path_copied), Toast.LENGTH_SHORT).show()
         }
         ItemAction.Properties -> onDialog(Dlg.Props(e))
         ItemAction.OpenLocation -> vm.navigate(e.parentLocation)
@@ -626,30 +629,30 @@ private fun ItemMenu(e: FileEntry, readOnly: Boolean, inSearch: Boolean, expande
         fun entry(label: String, icon: ImageVector, a: ItemAction) {
             DropdownMenuItem(text = { Text(label) }, leadingIcon = { Icon(icon, null) }, onClick = { onDismiss(); onAction(a) })
         }
-        if (inSearch) entry("Show in folder", Icons.Outlined.FolderOpen, ItemAction.OpenLocation)
+        if (inSearch) entry(stringResource(R.string.show_in_folder), Icons.Outlined.FolderOpen, ItemAction.OpenLocation)
         if (!e.isDir) {
-            entry("Open with", Icons.AutoMirrored.Outlined.OpenInNew, ItemAction.OpenWith)
-            if (!readOnly) entry("Edit with", Icons.Outlined.Edit, ItemAction.EditWith)
-            if (e.size < MAX_EDIT_BYTES) entry("Edit as text", Icons.Outlined.Edit, ItemAction.EditText)
-            entry("Share", Icons.Outlined.Share, ItemAction.Share)
+            entry(stringResource(R.string.open_with), Icons.AutoMirrored.Outlined.OpenInNew, ItemAction.OpenWith)
+            if (!readOnly) entry(stringResource(R.string.edit_with), Icons.Outlined.Edit, ItemAction.EditWith)
+            if (e.size < MAX_EDIT_BYTES) entry(stringResource(R.string.edit_as_text), Icons.Outlined.Edit, ItemAction.EditText)
+            entry(stringResource(R.string.share), Icons.Outlined.Share, ItemAction.Share)
         }
-        entry("Copy", Icons.Outlined.ContentCopy, ItemAction.Copy)
+        entry(stringResource(R.string.copy), Icons.Outlined.ContentCopy, ItemAction.Copy)
         if (!readOnly) {
-            entry("Cut", Icons.Outlined.ContentCut, ItemAction.Cut)
-            entry("Rename", Icons.Outlined.DriveFileRenameOutline, ItemAction.Rename)
-            entry("Delete", Icons.Outlined.Delete, ItemAction.Delete)
-            entry("Compress", Icons.Outlined.FolderZip, ItemAction.Compress)
-            if (Mime.canBrowseAsArchive(e)) entry("Extract here", Icons.Outlined.Unarchive, ItemAction.Extract)
+            entry(stringResource(R.string.cut), Icons.Outlined.ContentCut, ItemAction.Cut)
+            entry(stringResource(R.string.rename), Icons.Outlined.DriveFileRenameOutline, ItemAction.Rename)
+            entry(stringResource(R.string.lock_delete), Icons.Outlined.Delete, ItemAction.Delete)
+            entry(stringResource(R.string.compress), Icons.Outlined.FolderZip, ItemAction.Compress)
+            if (Mime.canBrowseAsArchive(e)) entry(stringResource(R.string.extract_here), Icons.Outlined.Unarchive, ItemAction.Extract)
         }
         // Zip-based files with their own app (APKs, e-books, office files) open normally; look inside from here.
-        if (Mime.canBrowseAsArchive(e) && !Mime.isArchive(e)) entry("Browse contents", Icons.Outlined.FolderZip, ItemAction.Browse)
+        if (Mime.canBrowseAsArchive(e) && !Mime.isArchive(e)) entry(stringResource(R.string.browse_contents), Icons.Outlined.FolderZip, ItemAction.Browse)
         if (e.isDir) entry(
-            if (App.bookmarks.contains(e.location)) "Remove bookmark" else "Bookmark",
+            if (App.bookmarks.contains(e.location)) stringResource(R.string.remove_bookmark) else stringResource(R.string.bookmark),
             if (App.bookmarks.contains(e.location)) Icons.Outlined.BookmarkRemove else Icons.Outlined.BookmarkAdd,
             ItemAction.Bookmark,
         )
-        entry("Copy path", Icons.Outlined.Link, ItemAction.CopyPath)
-        entry("Properties", Icons.Outlined.Info, ItemAction.Properties)
+        entry(stringResource(R.string.copy_path), Icons.Outlined.Link, ItemAction.CopyPath)
+        entry(stringResource(R.string.properties), Icons.Outlined.Info, ItemAction.Properties)
     }
 }
 
@@ -732,7 +735,7 @@ private fun FileRow(
         }
         Box {
             IconButton(onClick = { menu = true }) {
-                Icon(Icons.Outlined.MoreVert, "Options", tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                Icon(Icons.Outlined.MoreVert, stringResource(R.string.options), tint = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             ItemMenu(e, readOnly, inSearch, menu, onDismiss = { menu = false }, onAction = onAction)
         }
@@ -799,9 +802,10 @@ private fun SearchResults(vm: BrowserViewModel, onOpen: (FileEntry) -> Unit, onM
     Column(Modifier.fillMaxSize()) {
         Text(
             buildString {
-                append(if (vm.deepSearching) "Searching" else "${vm.deepResults.size} result${if (vm.deepResults.size == 1) "" else "s"}")
-                append(" for \"${vm.deepQuery}\" in ${vm.title}")
-                if (vm.deepSearching) append("…")
+                append(
+                    if (vm.deepSearching) stringResource(R.string.searching_for, vm.deepQuery, vm.title)
+                    else pluralStringResource(R.plurals.results_for, vm.deepResults.size, vm.deepResults.size, vm.deepQuery, vm.title),
+                )
             },
             style = MaterialTheme.typography.labelLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -811,7 +815,7 @@ private fun SearchResults(vm: BrowserViewModel, onOpen: (FileEntry) -> Unit, onM
             items(vm.deepResults, key = { it.path }) { e ->
                 val rel = Paths.parent(e.path).removePrefix(vm.location.path).trimStart('/')
                 FileRow(
-                    e, e.path in vm.selection, if (rel.isEmpty()) "in this folder" else "in $rel",
+                    e, e.path in vm.selection, if (rel.isEmpty()) stringResource(R.string.in_this_folder) else stringResource(R.string.in_text, rel),
                     vm.readOnly, inSearch = true,
                     onClick = { if (vm.selecting) vm.toggle(e) else onOpen(e) },
                     onLongClick = { vm.toggle(e) },
@@ -828,12 +832,12 @@ private fun SpeedDial(pasteVisible: Boolean, onNewFolder: () -> Unit, onNewFile:
     Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(12.dp)) {
         AnimatedVisibility(open, enter = fadeIn() + scaleIn(), exit = fadeOut() + scaleOut()) {
             Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                DialItem("New file", Icons.Outlined.NoteAdd) { open = false; onNewFile() }
-                DialItem("New folder", Icons.Outlined.CreateNewFolder) { open = false; onNewFolder() }
+                DialItem(stringResource(R.string.new_file), Icons.Outlined.NoteAdd) { open = false; onNewFile() }
+                DialItem(stringResource(R.string.new_folder), Icons.Outlined.CreateNewFolder) { open = false; onNewFolder() }
             }
         }
         FloatingActionButton(onClick = { open = !open }) {
-            Icon(if (open) Icons.Outlined.Close else Icons.Outlined.Add, if (open) "Close" else "Create")
+            Icon(if (open) Icons.Outlined.Close else Icons.Outlined.Add, if (open) stringResource(R.string.close) else stringResource(R.string.create))
         }
     }
 }
@@ -870,7 +874,7 @@ private fun PasteBar(readOnly: Boolean, modifier: Modifier = Modifier, onPaste: 
             Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f)) {
                 Text(
-                    "${Ops.plural(n, "item")} to ${if (FileClipboard.cut) "move" else "copy"}",
+                    pluralStringResource(if (FileClipboard.cut) R.plurals.items_to_move else R.plurals.items_to_copy, n, n),
                     style = MaterialTheme.typography.bodyMedium,
                 )
                 Text(
@@ -880,11 +884,11 @@ private fun PasteBar(readOnly: Boolean, modifier: Modifier = Modifier, onPaste: 
                     maxLines = 1, overflow = TextOverflow.Ellipsis,
                 )
             }
-            TextButton(onClick = { FileClipboard.clear() }) { Text("Cancel") }
+            TextButton(onClick = { FileClipboard.clear() }) { Text(stringResource(R.string.lock_cancel)) }
             Button(onClick = onPaste, enabled = !readOnly) {
                 Icon(Icons.Outlined.ContentPaste, null, Modifier.size(18.dp))
                 Spacer(Modifier.width(6.dp))
-                Text("Paste")
+                Text(stringResource(R.string.paste))
             }
         }
     }
@@ -915,18 +919,18 @@ private fun CenteredMessage(icon: ImageVector, title: String, body: String?, con
 
 @Composable
 private fun EmptyState(filtered: Boolean) {
-    CenteredMessage(Icons.Outlined.FolderOff, if (filtered) "No matches" else "This folder is empty",
-        if (filtered) "Press search on the keyboard to look in subfolders too." else null)
+    CenteredMessage(Icons.Outlined.FolderOff, if (filtered) stringResource(R.string.no_matches) else stringResource(R.string.this_folder_is_empty),
+        if (filtered) stringResource(R.string.press_search_on_the_keyboard_to_look) else null)
 }
 
 @Composable
 private fun ErrorState(message: String, vm: BrowserViewModel, nav: androidx.navigation.NavHostController) {
-    CenteredMessage(Icons.Outlined.CloudOff, "Couldn't open this folder", message) {
+    CenteredMessage(Icons.Outlined.CloudOff, stringResource(R.string.couldn_t_open_this_folder), message) {
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            if (vm.lockedArchive != null) FilledTonalButton(onClick = { vm.passwordPromptHidden = false }) { Text("Enter password") }
-            else FilledTonalButton(onClick = { vm.load() }) { Text("Retry") }
+            if (vm.lockedArchive != null) FilledTonalButton(onClick = { vm.passwordPromptHidden = false }) { Text(stringResource(R.string.enter_password)) }
+            else FilledTonalButton(onClick = { vm.load() }) { Text(stringResource(R.string.retry)) }
             if (vm.location.vfsId.startsWith(RemoteVfs.PREFIX)) {
-                OutlinedButton(onClick = { nav.go("server/" + vm.location.vfsId.removePrefix(RemoteVfs.PREFIX)) }) { Text("Edit server") }
+                OutlinedButton(onClick = { nav.go("server/" + vm.location.vfsId.removePrefix(RemoteVfs.PREFIX)) }) { Text(stringResource(R.string.edit_server)) }
             }
         }
     }
@@ -937,14 +941,14 @@ private fun PermissionGate() {
     val ctx = LocalContext.current
     CenteredMessage(
         Icons.Outlined.Storage,
-        "Allow access to your files",
-        "FilesCtrl needs \"All files access\" to browse this phone's storage. NFS shares in the menu work without it.",
+        stringResource(R.string.allow_access_to_your_files),
+        stringResource(R.string.filesctrl_needs_all_files_access_to),
     ) {
         Button(onClick = {
             val i = Intent(AndroidSettings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION, Uri.parse("package:${ctx.packageName}"))
             com.vknxworks.filesctrl.ui.lock.AppLockState.expectReturn(); try { ctx.startActivity(i) } catch (_: Exception) {
                 ctx.startActivity(Intent(AndroidSettings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION))
             }
-        }) { Text("Grant access") }
+        }) { Text(stringResource(R.string.grant_access)) }
     }
 }
