@@ -84,6 +84,8 @@ private sealed interface TestResult {
 /** Add or edit a network location. [serverId] null = new. */
 @Composable
 fun ServerEditScreen(serverId: String?, onDone: (openId: String?) -> Unit) {
+    // Passwords and keys are typed here: never in screenshots, recordings or casting.
+    com.vknxworks.filesctrl.ui.lock.SecureWindow()
     val ctx = LocalContext.current
     val existing = serverId?.let { App.servers.get(it) }
     val base = existing ?: NetServer(type = Proto.SMB, path = "")

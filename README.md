@@ -77,7 +77,7 @@ Turn it on in **Settings → Privacy and security → App lock**. It's off until
 - **Saved passwords and keys stay encrypted while FilesCtrl is locked**, with a key that only exists in memory while the app is unlocked and is wiped the moment it locks. Your servers don't show in other apps' file pickers while it's locked. Copies and moves that are already running finish; nothing new can connect until you unlock.
 - **Lock again**: as soon as you leave the app (the default), after 1, 5 or 15 minutes or 1 hour away, or only when the app restarts. Opening a file in another app, sharing, picking a file or folder, choosing an SFTP key or opening Android's settings from FilesCtrl doesn't count as leaving, unless you're away for more than 5 minutes.
 - The file browser and the text editor lock and unlock together.
-- **Hide in screenshots and recent apps** (on for new installs, also without the app lock): screenshots, screen recordings and the recent apps view show a blank screen.
+- **Hide in screenshots and recent apps** (on for new installs, also without the app lock): screenshots, screen recordings and the recent apps view show a blank screen. Adding or editing a network location, the lock screen and the PIN screens are always hidden.
 - **Forgot PIN?** on the lock screen turns the app lock off and forgets the saved passwords and keys. Your network locations stay; you enter their passwords again.
 
 ## Privacy

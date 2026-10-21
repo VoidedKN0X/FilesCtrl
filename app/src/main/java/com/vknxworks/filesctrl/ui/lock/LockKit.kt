@@ -266,6 +266,9 @@ fun PinPadScreen(
 ) {
     val cs = MaterialTheme.colorScheme
     val haptics = LocalHapticFeedback.current
+    // The PIN pad is never in screenshots, screen recordings or casting, whatever the app's setting says:
+    // a recording would show which keys were pressed.
+    KeepOutOfScreenshots()
     Surface(Modifier.fillMaxSize(), color = cs.background) {
         Column(
             Modifier.fillMaxSize().systemBarsPadding().verticalScroll(rememberScrollState()).padding(24.dp),

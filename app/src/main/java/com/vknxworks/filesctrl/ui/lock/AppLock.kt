@@ -467,6 +467,26 @@ fun LockWindow(content: @Composable () -> Unit) {
             dismissOnClickOutside = false,
             usePlatformDefaultWidth = false,
             decorFitsSystemWindows = false,
+            // Its own window, so it needs its own FLAG_SECURE: never in screenshots or recordings.
+            securePolicy = androidx.compose.ui.window.SecureFlagPolicy.SecureOn,
         ),
     ) { content() }
 }
+
+/** Screens that must never be captured (server passwords, the lock screen, PIN screens) bump [active] while shown. */
+object SecureScreens {
+    var active by mutableIntStateOf(0)
+}
+
+/** Keeps FLAG_SECURE on while the calling screen is showing, whatever "Hide in screenshots and recent apps" says. */
+@Composable
+fun SecureWindow() {
+    androidx.compose.runtime.DisposableEffect(Unit) {
+        SecureScreens.active++
+        onDispose { SecureScreens.active-- }
+    }
+}
+
+/** The lock and PIN screens are always kept out of screenshots, recordings and casting. */
+@Composable
+internal fun KeepOutOfScreenshots() = SecureWindow()
