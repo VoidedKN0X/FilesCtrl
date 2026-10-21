@@ -8,7 +8,8 @@ import com.vknxworks.filesctrl.fs.Location
 import org.json.JSONArray
 import org.json.JSONObject
 
-enum class ThemeMode { System, Light, Dark }
+/** The theme choices every Ctrl app offers. Stored by position, so new ones go at the end. */
+enum class ThemeMode(val label: String) { System("Follow system"), Light("Light"), Dark("Dark"), Black("Pure black") }
 enum class SortBy { Name, Size, Modified, Type }
 
 /** App preferences, backed by SharedPreferences and observable from Compose. */
@@ -20,6 +21,12 @@ class Settings(context: Context) {
         // start with "usage_"), so nothing from them stays on the phone after the update.
         val leftover = sp.all.keys.filter { it.startsWith("usage_") }
         if (leftover.isNotEmpty()) sp.edit().apply { leftover.forEach { remove(it) } }.apply()
+        // Before 1.2.1, pure black was a separate switch: Dark with it on is now the Pure black theme.
+        if (sp.contains("pure_black")) {
+            val edit = sp.edit().remove("pure_black")
+            if (sp.getBoolean("pure_black", false) && sp.getInt("theme", 0) == ThemeMode.Dark.ordinal) edit.putInt("theme", ThemeMode.Black.ordinal)
+            edit.apply()
+        }
     }
 
     private inner class Pref<T>(private val key: String, def: T, read: (String, T) -> T, private val write: (String, T) -> Unit) {
@@ -35,14 +42,14 @@ class Settings(context: Context) {
 
     private val _theme = int("theme", 0)
     var theme: ThemeMode
-        get() = ThemeMode.entries[_theme.value.coerceIn(0, 2)]
+        get() = ThemeMode.entries[_theme.value.coerceIn(0, ThemeMode.entries.size - 1)]
         set(v) { _theme.value = v.ordinal }
 
     private val _dynamic = bool("dynamic_color", true)
     var dynamicColor by _dynamic
 
-    private val _black = bool("pure_black", false)
-    var pureBlack by _black
+    /** True black backgrounds (the "Pure black" theme). */
+    val pureBlack: Boolean get() = theme == ThemeMode.Black
 
     private val _hidden = bool("show_hidden", false)
     var showHidden by _hidden

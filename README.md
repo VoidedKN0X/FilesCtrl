@@ -23,8 +23,8 @@ Part of the [Ctrl series](#the-ctrl-series) by VKNXWorks.
 - **Built-in text editor** for config files and notes, also offered to other apps
 - **Read-only servers**: switch it on and FilesCtrl hides every option that would change something there, and refuses writes from other apps
 - **Checked connections**: SFTP host keys and self-signed WebDAV/FTPS certificates are only trusted after you confirm their fingerprint; SMB signing is on by default, with optional encryption
-- Passwords and keys are stored encrypted; **app lock** with its own PIN and optional fingerprint, which keeps saved passwords encrypted while the app is locked
-- Light, dark and pure black themes with Material You colours; tablet layout
+- Passwords and keys are stored encrypted; **app lock** with its own PIN and optional fingerprint unlock, which keeps saved passwords and keys encrypted while the app is locked
+- Follow system, dark, light or pure black themes, colours from your wallpaper, and a tablet layout
 
 ## Screenshots
 
@@ -67,6 +67,19 @@ If the Obtainium button doesn't open the app, add `https://github.com/VoidedKN0X
 
 Set the share's **uid/gid** in FilesCtrl to the owner of your files on the server (often `1000` on Linux, `1026` or higher on Synology).
 
+## App lock
+
+Turn it on in **Settings → Privacy and security → App lock**. It's off until you turn it on.
+
+- **An app PIN of its own**, at least 6 digits and separate from your phone's. Very obvious PINs, like 111111 or 123456, are refused. The PIN is never stored: it's stretched with 600,000 rounds of PBKDF2 and mixed with a key that never leaves the phone's secure hardware, so a copy of the app's files isn't enough to guess it somewhere else.
+- **Unlock with fingerprint** (optional): strong biometrics only, checked by the phone's secure hardware. Adding a fingerprint to the phone turns it off until you turn it on again. The PIN is still needed after the phone restarts and at least every 72 hours.
+- **Wrong PINs make you wait**: 30 seconds after 5 wrong tries, doubling up to 15 minutes. Restarting the app or the phone, or changing the clock, doesn't end the wait.
+- **Saved passwords and keys stay encrypted while FilesCtrl is locked**, with a key that only exists in memory while the app is unlocked and is wiped the moment it locks. Your servers don't show in other apps' file pickers while it's locked. Copies and moves that are already running finish; nothing new can connect until you unlock.
+- **Lock again**: as soon as you leave the app (the default), after 1, 5 or 15 minutes or 1 hour away, or only when the app restarts. Opening a file in another app, sharing, picking a file or folder, choosing an SFTP key or opening Android's settings from FilesCtrl doesn't count as leaving, unless you're away for more than 5 minutes.
+- The file browser and the text editor lock and unlock together.
+- **Hide in screenshots and recent apps** (on for new installs, also without the app lock): screenshots, screen recordings and the recent apps view show a blank screen.
+- **Forgot PIN?** on the lock screen turns the app lock off and forgets the saved passwords and keys. Your network locations stay; you enter their passwords again.
+
 ## Privacy
 
 **Telemetry-free.** FilesCtrl has no analytics, crash reporting, usage stats or tracking of any kind. It only talks to the servers you add: your NFS, SMB, SFTP, FTP/FTPS and WebDAV servers.
@@ -104,6 +117,7 @@ Native Android apps for self-hosted services and everyday tools, all with the sa
 
 | App | What it's for |
 | --- | --- |
+| [AdCtrl](https://github.com/VoidedKN0X/AdCtrl) | Control your AdGuard Home DNS server |
 | [ArrCtrl](https://github.com/VoidedKN0X/ArrCtrl) | Radarr, Sonarr, Prowlarr, Bazarr, qBittorrent, autobrr and Cleanuparr in one app |
 | [BeamCtrl](https://github.com/VoidedKN0X/BeamCtrl) | TV remote for phones with an IR blaster |
 | [CraftyCtrl](https://github.com/VoidedKN0X/CraftyCtrl) | Manage Minecraft servers on Crafty Controller |
@@ -112,6 +126,7 @@ Native Android apps for self-hosted services and everyday tools, all with the sa
 | [FrigateCtrl](https://github.com/VoidedKN0X/FrigateCtrl) | Watch and review your Frigate NVR cameras |
 | [ImmichCtrl](https://github.com/VoidedKN0X/ImmichCtrl) | Photos and backup for your Immich server |
 | [JellyCtrl](https://github.com/VoidedKN0X/JellyCtrl) | Movies, shows, music and Live TV from Jellyfin |
+| [MemoCtrl](https://github.com/VoidedKN0X/MemoCtrl) | Notes on your Memos server |
 | [NaviCtrl](https://github.com/VoidedKN0X/NaviCtrl) | Music player for Navidrome servers |
 | [PaperCtrl](https://github.com/VoidedKN0X/PaperCtrl) | Scan and browse documents on Paperless-ngx |
 | [PrintCtrl](https://github.com/VoidedKN0X/PrintCtrl) | Bambu Lab printers through Bambuddy, and Spoolman spools |

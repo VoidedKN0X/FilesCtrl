@@ -59,6 +59,7 @@ object App {
         bookmarks = Bookmarks(context)
         vfs = VfsRegistry(context, servers)
         lock = com.vknxworks.filesctrl.data.LockSettings(context)
+        lock.migrateHideContent(lockOn = vault.enabled || lock.pinSet)
         servers.onChange { id ->
             if (servers.get(id) == null) bookmarks.removeVfs(RemoteVfs.idFor(id))
             // Let the system file picker see the new list of shares.
