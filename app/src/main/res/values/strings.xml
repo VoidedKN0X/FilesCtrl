@@ -12,6 +12,19 @@
     <string name="licence_title">Licence</string>
     <string name="licence_subtitle">GNU General Public License v3.0</string>
     <string name="about_footer">FilesCtrl %1$s · VKNXWorks</string>
+
+    <!-- You page (tap the profile picture) -->
+    <string name="you_title">You</string>
+    <string name="you_and_settings">You and settings</string>
+    <string name="you_this_phone">This phone</string>
+    <string name="you_android_version">Android %1$s</string>
+    <string name="you_no_servers">No network locations yet</string>
+    <plurals name="you_server_count">
+        <item quantity="one">%d network location</item>
+        <item quantity="other">%d network locations</item>
+    </plurals>
+    <string name="settings">Settings</string>
+    <string name="settings_subtitle">Appearance, privacy and security, files, permissions and other apps</string>
     <!-- App lock and Privacy and security, shared by every Ctrl app -->
     <string name="lock_enter_pin">Enter your PIN</string>
     <string name="lock_pin_due">Enter your PIN. It\'s needed after a restart and every 72 hours.</string>

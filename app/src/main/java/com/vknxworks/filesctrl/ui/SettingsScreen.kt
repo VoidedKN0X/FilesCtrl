@@ -9,6 +9,7 @@ import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -18,10 +19,6 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.outlined.Sort
-import androidx.compose.material.icons.filled.BugReport
-import androidx.compose.material.icons.filled.Code
-import androidx.compose.material.icons.filled.Favorite
-import androidx.compose.material.icons.filled.Gavel
 import androidx.compose.material.icons.outlined.BatteryChargingFull
 import androidx.compose.material.icons.outlined.Contrast
 import androidx.compose.material.icons.outlined.DarkMode
@@ -43,6 +40,7 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -64,7 +62,6 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.vknxworks.filesctrl.App
-import com.vknxworks.filesctrl.BuildConfig
 import com.vknxworks.filesctrl.R
 import com.vknxworks.filesctrl.data.ThemeMode
 import com.vknxworks.filesctrl.ui.lock.PIN_MAX
@@ -82,8 +79,10 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
+/** Settings, opened from the You page (tap your profile picture). About is on the You page itself. */
 @Composable
-fun SettingsTab() {
+fun SettingsScreen() {
+    val nav = LocalNav.current
     val s = App.settings
     val lock = App.lock
     val ctx = LocalContext.current
@@ -108,8 +107,11 @@ fun SettingsTab() {
         unrestricted = pm.isIgnoringBatteryOptimizations(ctx.packageName)
     }
 
-    LazyColumn(Modifier.fillMaxSize(), contentPadding = ListBottom) {
-        item { TabTitle("Settings") }
+    Scaffold(topBar = { BackBar(stringResource(R.string.settings), onBack = { nav.back() }) }) { pad ->
+    LazyColumn(
+        Modifier.fillMaxSize().padding(pad),
+        contentPadding = PaddingValues(bottom = 24.dp),
+    ) {
 
         item {
             SettingsSection(stringResource(R.string.group_appearance)) {
@@ -223,40 +225,9 @@ fun SettingsTab() {
                 ) {}
             }
         }
-
-        item {
-            fun open(url: String) {
-                com.vknxworks.filesctrl.ui.lock.AppLockState.expectReturn(); runCatching { ctx.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url))) }
-            }
-            val chevron: @Composable () -> Unit = { Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null, tint = MaterialTheme.colorScheme.onSurfaceVariant) }
-            SettingsSection(stringResource(R.string.group_about)) {
-                NavItem(Icons.Filled.Favorite, stringResource(R.string.support_title), stringResource(R.string.support_subtitle), trailing = chevron) { open(SPONSOR_URL) }
-                ItemDivider()
-                NavItem(Icons.Filled.BugReport, stringResource(R.string.bugs_title), stringResource(R.string.bugs_subtitle), trailing = chevron) { open(ISSUES_URL) }
-                ItemDivider()
-                NavItem(Icons.Filled.Code, stringResource(R.string.source_title), stringResource(R.string.source_subtitle), trailing = chevron) { open(REPO_URL) }
-                ItemDivider()
-                NavItem(Icons.Filled.Gavel, stringResource(R.string.licence_title), stringResource(R.string.licence_subtitle), trailing = chevron) { open(LICENCE_URL) }
-            }
-        }
-
-        item {
-            Text(
-                stringResource(R.string.about_footer, BuildConfig.VERSION_NAME),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.fillMaxWidth().padding(16.dp),
-                textAlign = TextAlign.Center,
-            )
-        }
     }
-
+    }
 }
-
-private const val SPONSOR_URL = "https://github.com/sponsors/VoidedKN0X"
-private const val REPO_URL = "https://github.com/VoidedKN0X/FilesCtrl"
-private const val ISSUES_URL = "https://github.com/VoidedKN0X/FilesCtrl/issues"
-private const val LICENCE_URL = "https://www.gnu.org/licenses/gpl-3.0.html"
 
 /** In the same order as every Ctrl app. */
 private val THEMES = listOf(ThemeMode.System, ThemeMode.Dark, ThemeMode.Light, ThemeMode.Black)

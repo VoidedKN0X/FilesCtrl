@@ -4,6 +4,21 @@ What changed in each FilesCtrl version. Every release on the [Releases page](htt
 
 To publish a new version: bump `versionCode` and `versionName` in `app/build.gradle.kts`, add a section here, and push to `main`. Pushes without a version bump only build; they don't make a release.
 
+## 1.3.0 (2026-10-21)
+
+Settings now open from your profile picture, the same in every Ctrl app.
+
+### New
+
+- **A profile picture at the top right** of the Files and Places tabs (on Files, after the search, sort and ⋮ buttons). FilesCtrl has no accounts, so it's the same round placeholder picture the other Ctrl apps use. Tapping it opens the new **You** page
+- **The You page** has a card for this phone (its name, Android version and how many network locations you've saved), then **Settings**, and **About** (Support FilesCtrl, Report a bug, Source code, Licence) with the version underneath, in the same layout as the other Ctrl apps
+
+### Changed
+
+- **Settings moved to your profile picture**: before, Settings was the third tab in the bottom bar. The Settings tab is gone, so the bottom bar (or the side rail on tablets and unfolded foldables) only has **Files** and **Places**. Tap your profile picture, then **Settings** for Appearance, Privacy and security, Files, Permissions and Other apps. It's the only way in, as in every Ctrl app. Settings now opens as its own page with a back arrow
+- **About moved from the bottom of Settings to the bottom of the You page**, with the same four rows
+- **README**: Getting started says where Settings and About are; the App lock, Privacy and Support sections say "tap your profile picture" instead of the Settings tab
+
 ## 1.2.3 (2026-10-21)
 
 ### Changed

@@ -57,6 +57,8 @@ If the Obtainium button doesn't open the app, add `https://github.com/VoidedKN0X
 2. Choose the type (NFS, SMB, SFTP, FTP or WebDAV) and enter your server's address and login.
 3. Your server now appears next to your phone's storage.
 
+Settings and About are behind your profile picture at the top right of the Files and Places tabs: tap it to open the You page, then **Settings**.
+
 ## Tips and troubleshooting
 
 **NFS server setup.** Android apps can't use privileged ports, so your NFS export must allow them:
@@ -69,7 +71,7 @@ Set the share's **uid/gid** in FilesCtrl to the owner of your files on the serve
 
 ## App lock
 
-Turn it on under **Settings > Privacy and security > App lock**. It's off until you turn it on.
+Turn it on under **Settings > Privacy and security > App lock** (tap your profile picture at the top right, then **Settings**). It's off until you turn it on.
 
 - **Its own app PIN** of at least 6 digits, separate from your phone's screen lock. Very obvious PINs such as 111111 or 123456 are refused.
 - **Unlock with fingerprint** (optional) only accepts strong biometrics, such as the fingerprint sensor, checked by the phone's secure hardware. Face unlock that only uses the camera isn't accepted. The PIN is still needed after the phone restarts and at least every 72 hours, and adding a new fingerprint to the phone turns fingerprint unlock off until you turn it on again.
@@ -87,7 +89,7 @@ Turn it on under **Settings > Privacy and security > App lock**. It's off until 
 **Telemetry-free.** FilesCtrl has no analytics, crash reporting, usage stats or tracking of any kind. It only talks to the servers you add: your NFS, SMB, SFTP, FTP/FTPS and WebDAV servers.
 
 - Files on your phone never leave it unless you copy, move or share them yourself.
-- The Support, Report a bug, Source code and Licence links in Settings open in your browser, only when you tap them.
+- The Support, Report a bug, Source code and Licence links on the You page (tap your profile picture) open in your browser, only when you tap them.
 
 ## Build from source
 
@@ -111,7 +113,7 @@ Gradle downloads the Android NDK and CMake it needs automatically on the first b
 
 ## Support the project
 
-FilesCtrl is free and open source. If it's useful to you, you can support development on [GitHub Sponsors](https://github.com/sponsors/VoidedKN0X). In the app, **Settings → About** has **Support FilesCtrl** and **Report a bug**, which opens the [issue tracker](https://github.com/VoidedKN0X/FilesCtrl/issues). Starring the repo helps too.
+FilesCtrl is free and open source. If it's useful to you, you can support development on [GitHub Sponsors](https://github.com/sponsors/VoidedKN0X). In the app, tap your profile picture: **About** at the bottom of the You page has **Support FilesCtrl** and **Report a bug**, which opens the [issue tracker](https://github.com/VoidedKN0X/FilesCtrl/issues). Starring the repo helps too.
 
 ## The Ctrl series
 
