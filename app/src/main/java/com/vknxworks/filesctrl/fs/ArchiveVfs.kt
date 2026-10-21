@@ -82,7 +82,7 @@ class ArchiveVfs(override val id: String, private val source: ArchiveSource) : V
                 Format.ZIP -> "ZIP"
                 Format.SEVENZ -> "7z"
                 Format.RAR -> "RAR"
-                Format.STREAM -> (archiver ?: "tar").uppercase() + (compressor?.let { " · " + compressorLabel(it) } ?: "")
+                Format.STREAM -> (archiver ?: "tar").uppercase().let { a -> compressor?.let { App.str(R.string.archive_format_with_compressor, a, compressorLabel(it)) } ?: a }
                 Format.SINGLE -> App.str(R.string.compressed_file, compressorLabel(compressor ?: ""))
                 null -> ""
             }

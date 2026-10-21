@@ -696,7 +696,7 @@ private fun Breadcrumbs(vm: BrowserViewModel, onClick: (Location) -> Unit) {
 private fun subtitleFor(e: FileEntry): String {
     val ctx = LocalContext.current
     val date = Fmt.date(ctx, e.modified)
-    return if (e.isDir) date else listOf(date, Fmt.size(ctx, e.size)).filter { it.isNotEmpty() }.joinToString(" · ")
+    return if (e.isDir) date else listOf(date, Fmt.size(ctx, e.size)).filter { it.isNotEmpty() }.joinToString(App.str(R.string.list_separator))
 }
 
 @Composable

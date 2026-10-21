@@ -14,7 +14,7 @@ internal object JvmStrings {
         listOf("src/main/res/values/strings.xml", "app/src/main/res/values/strings.xml")
             .map(::File).firstOrNull { it.isFile }?.readText().orEmpty()
 
-    private fun unescape(s: String) = s.replace("\\'", "'").replace("\\\"", "\"").replace("\\n", "\n")
+    private fun unescape(raw: String) = raw.removeSurrounding("\"").replace("\\'", "'").replace("\\\"", "\"").replace("\\n", "\n")
         .replace("&lt;", "<").replace("&gt;", ">").replace("&amp;", "&")
 
     private fun load(tag: String): Map<String, String> =
