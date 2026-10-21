@@ -121,7 +121,6 @@ object Ops {
 
     fun paste(items: List<FileEntry>, dest: Location, move: Boolean, conflict: Conflict): OpTask {
         val title = App.plural(if (move) R.plurals.moving_items else R.plurals.copying_items, items.size, items.size)
-        val title = "$verb ${plural(items.size, "item")}"
         val touched = listOf(dest) + if (move) items.map { it.parentLocation } else emptyList()
         return launch(title, touched) { t ->
             val dst = App.vfs.get(dest.vfsId)
