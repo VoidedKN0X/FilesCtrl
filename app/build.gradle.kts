@@ -14,8 +14,8 @@ android {
         targetSdk = 35
         // CI passes the run number so every build installs over the previous one.
         // Bump both to publish a new release (see CHANGELOG.md).
-        versionCode = 40
-        versionName = "1.3.2"
+        versionCode = 41
+        versionName = "1.3.3"
 
         // 64-bit ARM phones only (arm64-v8a), like every Ctrl app. The NFS client (libnfs) is native.
         ndk { abiFilters += listOf("arm64-v8a") }
@@ -86,6 +86,11 @@ android {
     }
     packaging {
         resources { excludes += listOf("META-INF/versions/9/OSGI-INF/MANIFEST.MF", "META-INF/DEPENDENCIES", "META-INF/LICENSE*", "META-INF/NOTICE*", "META-INF/INDEX.LIST") }
+    }
+    // No dependency metadata blob in the APK: it's encrypted for Google Play, so nobody checking the build can read it.
+    dependenciesInfo {
+        includeInApk = false
+        includeInBundle = false
     }
     lint {
         checkReleaseBuilds = false

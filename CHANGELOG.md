@@ -4,6 +4,12 @@ What changed in each FilesCtrl version. Every release on the [Releases page](htt
 
 To publish a new version: bump `versionCode` and `versionName` in `app/build.gradle.kts`, add a section here, and push to `main`. Pushes without a version bump only build; they don't make a release.
 
+## 1.3.3 (2026-10-21)
+
+### Privacy
+
+- **No hidden dependency list in the app file any more**: the build tools used to tuck an encrypted list of the libraries FilesCtrl is built with into the APK's signature block. Only Google can read it, so nobody checking the app could see what it holds. It's now left out, the same as in the other Ctrl apps. Nothing changes in how the app works.
+
 ## 1.3.2 (2026-10-21)
 
 ### Changed
