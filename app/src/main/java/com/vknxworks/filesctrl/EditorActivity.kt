@@ -41,8 +41,6 @@ class EditorActivity : FragmentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         App.init(this)
-        // Keep the file's contents out of the recent-apps thumbnail.
-        setRecentsScreenshotEnabled(false)
         val uri = intent?.data
         if (uri == null) {
             Toast.makeText(this, "No file to open", Toast.LENGTH_SHORT).show()
@@ -73,7 +71,10 @@ class EditorActivity : FragmentActivity() {
                     else SystemBarStyle.light(Color.TRANSPARENT, Color.TRANSPARENT)
                     enableEdgeToEdge(statusBarStyle = style, navigationBarStyle = style)
                 }
-                val secure = App.lock.hideContent || com.vknxworks.filesctrl.ui.lock.SecureScreens.active > 0
+                val secure = App.lock.hideScreenshots || com.vknxworks.filesctrl.ui.lock.SecureScreens.active > 0
+                // "Hide in recent apps", and always with the app lock on: a blank card instead of a snapshot.
+                val blankRecents = App.lock.hideRecents || AppLockState.enabled
+                LaunchedEffect(blankRecents) { setRecentsScreenshotEnabled(!blankRecents) }
                 LaunchedEffect(secure) {
                     if (secure) window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
                     else window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)

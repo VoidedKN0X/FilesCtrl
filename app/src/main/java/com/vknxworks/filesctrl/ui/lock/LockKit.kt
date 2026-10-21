@@ -58,6 +58,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import com.vknxworks.filesctrl.data.lock.LockVault
+import com.vknxworks.filesctrl.R
+import androidx.compose.ui.res.stringResource
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -93,7 +95,8 @@ internal fun CoroutineScope.shakePin(shake: Animatable<Float, AnimationVector1D>
 }
 
 /** "Too many tries" with the seconds left. */
-fun lockoutText(ms: Long) = "Too many tries. Try again in ${(ms + 999) / 1000} s"
+@Composable
+fun lockoutText(ms: Long) = stringResource(R.string.lock_too_many, ((ms + 999) / 1000).toInt())
 
 @Composable
 fun LockBadge() {
@@ -110,10 +113,10 @@ fun LockScreenButtons(showFingerprint: Boolean, onFingerprint: () -> Unit, onFor
         TextButton(onClick = onFingerprint) {
             Icon(Icons.Outlined.Fingerprint, null)
             Spacer(Modifier.size(8.dp))
-            Text("Use fingerprint")
+            Text(stringResource(R.string.lock_use_fingerprint))
         }
     }
-    TextButton(onClick = onForgot) { Text("Forgot PIN?") }
+    TextButton(onClick = onForgot) { Text(stringResource(R.string.lock_forgot)) }
 }
 
 /** Asks before "Forgot PIN?" resets the app. [body] says what's removed. */
@@ -121,12 +124,12 @@ fun LockScreenButtons(showFingerprint: Boolean, onFingerprint: () -> Unit, onFor
 fun ForgotPinDialog(body: String, confirm: String, onDismiss: () -> Unit, onConfirm: () -> Unit) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Forgot your PIN?") },
+        title = { Text(stringResource(R.string.lock_forgot_title)) },
         text = { Text(body) },
         confirmButton = {
             TextButton(onClick = onConfirm) { Text(confirm, color = MaterialTheme.colorScheme.error) }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.lock_cancel)) } },
     )
 }
 
@@ -145,7 +148,8 @@ fun PinSetupScreen(
     onCancel: () -> Unit,
     verifyOnly: Boolean = false,
 ) {
-    val activity = LocalContext.current.lockActivity()
+    val context = LocalContext.current
+    val activity = context.lockActivity()
     val scope = rememberCoroutineScope()
     val haptics = LocalHapticFeedback.current
     val shake = remember { Animatable(0f) }
@@ -175,7 +179,7 @@ fun PinSetupScreen(
     fun finish(newPin: String) {
         busy = true
         scope.launch {
-            runCatching { onDone(newPin) }.onFailure { busy = false; wrong("Couldn't save the PIN. Try again.") }
+            runCatching { onDone(newPin) }.onFailure { busy = false; wrong(context.getString(R.string.lock_save_failed)) }
         }
     }
 
@@ -196,14 +200,14 @@ fun PinSetupScreen(
                         if (verifyOnly) finish(entered) else step = 1
                     } else {
                         lockout = vault.lockoutRemaining()
-                        wrong("Wrong PIN")
+                        wrong(context.getString(R.string.lock_wrong_pin))
                     }
                 }
             }
             1 -> {
                 if (pin.length < LockVault.PIN_MIN) return
                 if (isObviousPin(pin)) {
-                    wrong("Too easy to guess. Try a less obvious PIN.")
+                    wrong(context.getString(R.string.lock_too_easy))
                     return
                 }
                 first = pin
@@ -215,7 +219,7 @@ fun PinSetupScreen(
                 if (pin != first) {
                     first = ""
                     step = 1
-                    wrong("The PINs didn't match. Start again.")
+                    wrong(context.getString(R.string.lock_mismatch))
                     return
                 }
                 finish(pin)
@@ -228,9 +232,9 @@ fun PinSetupScreen(
         message = when {
             lockout > 0 -> lockoutText(lockout)
             message != null -> message!!
-            step == 0 -> "Enter your current PIN"
+            step == 0 -> stringResource(R.string.lock_current_pin)
             step == 1 -> intro
-            else -> "Enter the same PIN again"
+            else -> stringResource(R.string.lock_repeat_pin)
         },
         isError = lockout > 0 || message != null,
         pin = pin,
@@ -241,8 +245,8 @@ fun PinSetupScreen(
         onBackspace = { pin = pin.dropLast(1) },
         onConfirm = ::next,
         showConfirm = pin.length >= LockVault.PIN_MIN,
-        confirmLabel = if (step == 2 || (step == 0 && verifyOnly)) "Done" else "Next",
-        bottom = { if (cancellable) TextButton(onClick = onCancel) { Text("Cancel") } },
+        confirmLabel = stringResource(if (step == 2 || (step == 0 && verifyOnly)) R.string.lock_done else R.string.lock_next),
+        bottom = { if (cancellable) TextButton(onClick = onCancel) { Text(stringResource(R.string.lock_cancel)) } },
     )
 }
 
@@ -260,7 +264,7 @@ fun PinPadScreen(
     onBackspace: () -> Unit,
     onConfirm: () -> Unit,
     showConfirm: Boolean,
-    confirmLabel: String = "OK",
+    confirmLabel: String = stringResource(R.string.lock_ok),
     minDots: Int = LockVault.PIN_MIN,
     bottom: @Composable () -> Unit,
 ) {
@@ -309,7 +313,7 @@ fun PinPadScreen(
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(20.dp), verticalAlignment = Alignment.CenterVertically) {
                     IconButton(onClick = onBackspace, enabled = enabled && pin.isNotEmpty(), modifier = Modifier.size(72.dp)) {
-                        Icon(Icons.AutoMirrored.Outlined.Backspace, "Delete")
+                        Icon(Icons.AutoMirrored.Outlined.Backspace, stringResource(R.string.lock_delete))
                     }
                     DigitKey("0", enabled) {
                         haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)

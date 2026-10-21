@@ -1,6 +1,8 @@
 package com.vknxworks.filesctrl.data
 
 import android.content.Context
+import androidx.annotation.StringRes
+import com.vknxworks.filesctrl.R
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
@@ -9,7 +11,9 @@ import org.json.JSONArray
 import org.json.JSONObject
 
 /** The theme choices every Ctrl app offers. Stored by position, so new ones go at the end. */
-enum class ThemeMode(val label: String) { System("Follow system"), Light("Light"), Dark("Dark"), Black("Pure black") }
+enum class ThemeMode(@StringRes val label: Int) {
+    System(R.string.theme_system), Light(R.string.theme_light), Dark(R.string.theme_dark), Black(R.string.theme_black),
+}
 enum class SortBy { Name, Size, Modified, Type }
 
 /** App preferences, backed by SharedPreferences and observable from Compose. */
