@@ -112,7 +112,7 @@ fun YouScreen() {
                         stringResource(R.string.you_android_version, Build.VERSION.RELEASE),
                         if (servers == 0) stringResource(R.string.you_no_servers)
                         else pluralStringResource(R.plurals.you_server_count, servers, servers),
-                    ).joinToString("  ·  "),
+                    ).joinToString(App.str(R.string.list_separator_wide)),
                     style = MaterialTheme.typography.bodyMedium,
                     color = cs.onSurfaceVariant,
                     textAlign = TextAlign.Center,

@@ -103,7 +103,7 @@ class VfsTextSource(private val loc: Location) : TextSource {
 /** A file another app asked us to open ("Open with" / "Edit with"). */
 class UriTextSource(private val ctx: Context, private val uri: Uri, writable: Boolean, from: String?) : TextSource {
     override val name: String = displayName() ?: uri.lastPathSegment?.substringAfterLast('/') ?: App.str(R.string.text_file)
-    override val subtitle: String = listOfNotNull(from?.let { App.str(R.string.from, it) }, if (writable) null else App.str(R.string.read_only_lower)).joinToString(" · ")
+    override val subtitle: String = listOfNotNull(from?.let { App.str(R.string.from, it) }, if (writable) null else App.str(R.string.read_only_lower)).joinToString(App.str(R.string.list_separator))
     override val readOnly: Boolean = !writable
 
     private fun displayName(): String? = try {
@@ -246,7 +246,7 @@ fun EditorScreen(source: TextSource, onBack: () -> Unit) {
                     Column {
                         Text((if (dirty) "• " else "") + source.name, maxLines = 1, overflow = TextOverflow.Ellipsis)
                         Text(
-                            listOf(source.subtitle, if (text != null) encoding.label else "").filter { it.isNotBlank() }.joinToString(" · "),
+                            listOf(source.subtitle, if (text != null) encoding.label else "").filter { it.isNotBlank() }.joinToString(App.str(R.string.list_separator)),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             maxLines = 1,

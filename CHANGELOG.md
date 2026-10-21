@@ -4,8 +4,11 @@ What changed in each FilesCtrl version. Every release on the [Releases page](htt
 
 To publish a new version: bump `versionCode` and `versionName` in `app/build.gradle.kts`, add a section here, and push to `main`. Pushes without a version bump only build; they don't make a release.
 
-## Unreleased
+## 1.3.2 (2026-10-21)
 
+### Changed
+
+- **Whole sentences instead of joined pieces, ready for translations**: archive types ("TAR · gzip") and the " · " between details in the file list, the text editor and the You page now come from the app's text resources as single pieces of text. The wording stays the same.
 - No change in the app: the automatic protocol and archive tests now read the app's text from its text resources, so they check the same error messages you see.
 
 ## 1.3.1 (2026-10-21)

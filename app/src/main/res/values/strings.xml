@@ -549,4 +549,11 @@
 
     <!-- Moved from code -->
     <string name="auto_lower">auto</string>
+
+    <!-- Whole sentences instead of joined pieces -->
+    <string name="list_separator">" · "</string>
+    <string name="list_separator_wide">"  ·  "</string>
+
+    <!-- Whole sentences instead of joined pieces -->
+    <string name="archive_format_with_compressor">%1$s · %2$s</string>
 </resources>
