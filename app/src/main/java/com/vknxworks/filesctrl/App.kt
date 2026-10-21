@@ -47,10 +47,12 @@ object App {
     val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     /** Text from strings.xml for code that has no Context of its own (file systems, operations, errors). */
-    fun str(@StringRes id: Int, vararg args: Any?): String = context.getString(id, *args)
+    fun str(@StringRes id: Int, vararg args: Any?): String =
+        if (::context.isInitialized) context.getString(id, *args) else JvmStrings.str(id, *args)
 
     /** A plural from strings.xml, for code that has no Context of its own. */
-    fun plural(@PluralsRes id: Int, count: Int, vararg args: Any?): String = context.resources.getQuantityString(id, count, *args)
+    fun plural(@PluralsRes id: Int, count: Int, vararg args: Any?): String =
+        if (::context.isInitialized) context.resources.getQuantityString(id, count, *args) else JvmStrings.plural(id, count, *args)
 
     @Synchronized
     fun init(ctx: Context) {
