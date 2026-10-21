@@ -31,6 +31,7 @@ import androidx.compose.material.icons.outlined.FolderSpecial
 import androidx.compose.material.icons.outlined.GridView
 import androidx.compose.material.icons.outlined.Image
 import androidx.compose.material.icons.outlined.LightMode
+import androidx.compose.material.icons.outlined.Layers
 import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.Palette
 import androidx.compose.material.icons.outlined.Password
@@ -111,64 +112,67 @@ fun SettingsTab() {
         item { TabTitle("Settings") }
 
         item {
-            SettingsSection("Appearance") {
+            SettingsSection(stringResource(R.string.group_appearance)) {
                 ChoiceItem(
-                    Icons.Outlined.DarkMode, "Theme",
-                    THEMES.map { it.label },
+                    Icons.Outlined.DarkMode, stringResource(R.string.theme),
+                    THEMES.map { stringResource(it.label) },
                     THEMES.indexOf(s.theme).coerceAtLeast(0),
                 ) { s.theme = THEMES[it] }
-                ToggleItem(Icons.Outlined.Palette, "Use wallpaper colours", "Replaces the default colours with ones from your wallpaper", s.dynamicColor) { s.dynamicColor = it }
+                ToggleItem(Icons.Outlined.Palette, stringResource(R.string.dynamic_colour), stringResource(R.string.dynamic_colour_subtitle), s.dynamicColor) { s.dynamicColor = it }
                 ToggleItem(Icons.Outlined.GridView, "Grid view", "Show files as tiles instead of a list", s.gridView) { s.gridView = it }
             }
         }
 
         item {
             SettingsSection(
-                "Privacy and security",
-                footer = "FilesCtrl has no analytics or tracking. It only connects to the network locations you add.",
+                stringResource(R.string.group_privacy),
+                footer = stringResource(R.string.privacy_footer),
             ) {
                 val vault = App.vault
                 ToggleItem(
-                    Icons.Outlined.Lock, "App lock",
-                    "Ask for an app PIN (and optionally your fingerprint) when opening FilesCtrl. While locked, saved passwords " +
-                        "and keys stay encrypted with the PIN, and your servers don't show in other apps' file pickers. " +
-                        "Copies and moves that are already running finish.",
+                    Icons.Outlined.Lock, stringResource(R.string.lock_app),
+                    stringResource(R.string.lock_app_subtitle),
                     vault.enabled,
                 ) { on -> PinRequests.request = if (on) PinRequest.ENABLE else PinRequest.DISABLE }
                 if (vault.enabled) {
                     NavItem(
-                        Icons.Outlined.Password, "Change app PIN", "At least $PIN_MIN digits, separate from your phone's PIN",
+                        Icons.Outlined.Password, stringResource(R.string.lock_change_pin), stringResource(R.string.lock_change_pin_subtitle, PIN_MIN),
                         trailing = { Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null, tint = MaterialTheme.colorScheme.onSurfaceVariant) },
                     ) { PinRequests.request = PinRequest.CHANGE }
                     ToggleItem(
-                        Icons.Outlined.Fingerprint, "Unlock with fingerprint",
-                        if (bioAvailable || vault.biometricEnabled) "Only strong biometrics such as your fingerprint, checked by the phone's " +
-                            "secure hardware. The PIN is still needed after a restart and every 72 hours."
-                        else "Set up a fingerprint on this phone first",
+                        Icons.Outlined.Fingerprint, stringResource(R.string.lock_fingerprint),
+                        stringResource(if (bioAvailable || vault.biometricEnabled) R.string.lock_fingerprint_settings_subtitle else R.string.lock_fingerprint_unavailable),
                         vault.biometricEnabled, enabled = bioAvailable || vault.biometricEnabled,
                     ) { on ->
                         val act = ctx.lockActivity() as? FragmentActivity
                         if (on && act != null) {
                             val cipher = vault.biometricEnrolCipher()
-                            if (cipher == null) Toast.makeText(ctx, "Couldn't set up fingerprint unlock", Toast.LENGTH_SHORT).show()
-                            else showBiometricPrompt(act, "Turn on fingerprint unlock", cipher, subtitle = "Confirm your fingerprint") { unlocked ->
+                            if (cipher == null) Toast.makeText(ctx, R.string.lock_fingerprint_setup_failed, Toast.LENGTH_SHORT).show()
+                            else showBiometricPrompt(act, ctx.getString(R.string.lock_fingerprint_enable_title), cipher, subtitle = ctx.getString(R.string.lock_fingerprint_enable_subtitle)) { unlocked ->
                                 if (!vault.finishBiometricEnrol(unlocked)) {
-                                    Toast.makeText(ctx, "Couldn't set up fingerprint unlock", Toast.LENGTH_SHORT).show()
+                                    Toast.makeText(ctx, R.string.lock_fingerprint_setup_failed, Toast.LENGTH_SHORT).show()
                                 }
                             }
                         } else if (!on) vault.disableBiometric()
                     }
                     val afters = listOf(0, 60, 300, 900, 3600, -1)
                     ChoiceItem(
-                        Icons.Outlined.Timer, "Lock again",
-                        listOf("As soon as you leave the app", "After 1 minute away", "After 5 minutes away", "After 15 minutes away", "After 1 hour away", "Only when the app restarts"),
+                        Icons.Outlined.Timer, stringResource(R.string.lock_again),
+                        listOf(
+                            R.string.lock_again_immediately, R.string.lock_again_1m, R.string.lock_again_5m,
+                            R.string.lock_again_15m, R.string.lock_again_1h, R.string.lock_again_restart,
+                        ).map { stringResource(it) },
                         afters.indexOf(lock.lockTimeoutSeconds).coerceAtLeast(0),
                     ) { lock.lockTimeoutSeconds = afters[it] }
                 }
                 ToggleItem(
-                    Icons.Outlined.VisibilityOff, "Hide in screenshots and recent apps",
-                    "Screenshots, screen recordings and the recent apps view show a blank screen. Server passwords and the lock screen are always hidden", lock.hideContent,
-                ) { lock.hideContent = it }
+                    Icons.Outlined.VisibilityOff, stringResource(R.string.hide_screenshots),
+                    stringResource(R.string.hide_screenshots_subtitle), lock.hideScreenshots,
+                ) { lock.hideScreenshots = it }
+                ToggleItem(
+                    Icons.Outlined.Layers, stringResource(R.string.hide_recents),
+                    stringResource(R.string.hide_recents_subtitle), lock.hideRecents,
+                ) { lock.hideRecents = it }
             }
         }
 

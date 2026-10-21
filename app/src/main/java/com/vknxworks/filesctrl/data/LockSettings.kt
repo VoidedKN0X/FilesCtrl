@@ -43,24 +43,28 @@ class LockSettings(context: Context) {
         get() = _timeout
         set(v) { _timeout = v; prefs.edit().putInt(KEY_LOCK_TIMEOUT, v).remove(KEY_LOCK_AFTER).apply() }
 
-    /** Hide the app in the recent-apps screen and block screenshots/screen recording. */
-    private var _hide by mutableStateOf(prefs.getBoolean(KEY_HIDE, true))
-    var hideContent: Boolean
-        get() = _hide
-        set(v) { _hide = v; prefs.edit().putBoolean(KEY_HIDE, v).apply() }
-
-    /**
-     * Before 1.2.1, "Hide in screenshots and recent apps" only applied with the app lock on. Now it's a setting of
-     * its own (on for new installs); after updating without the app lock it starts off, so nothing changes.
-     */
-    fun migrateHideContent(lockOn: Boolean) {
-        if (prefs.getBoolean(KEY_HIDE_SEPARATE, false)) return
-        val edit = prefs.edit().putBoolean(KEY_HIDE_SEPARATE, true)
-        val info = runCatching { appContext.packageManager.getPackageInfo(appContext.packageName, 0) }.getOrNull()
-        val updated = info != null && info.lastUpdateTime > info.firstInstallTime
-        if (updated && !lockOn) { edit.putBoolean(KEY_HIDE, false); _hide = false }
-        edit.apply()
+    init {
+        // Before 1.2.3 one setting, "Hide in screenshots and recent apps", did both. Only a choice the user made
+        // themselves is kept: turned on, both new switches are on; otherwise both start off.
+        if (prefs.contains(KEY_HIDE)) {
+            val on = prefs.getBoolean(KEY_HIDE, false)
+            val edit = prefs.edit().remove(KEY_HIDE).remove(KEY_HIDE_SEPARATE)
+            if (on) edit.putBoolean(KEY_HIDE_SCREENSHOTS, true).putBoolean(KEY_HIDE_RECENTS, true)
+            edit.commit()
+        }
     }
+
+    /** FLAG_SECURE: screenshots and screen recordings show a blank screen. Off by default. */
+    private var _hideShots by mutableStateOf(prefs.getBoolean(KEY_HIDE_SCREENSHOTS, false))
+    var hideScreenshots: Boolean
+        get() = _hideShots
+        set(v) { _hideShots = v; prefs.edit().putBoolean(KEY_HIDE_SCREENSHOTS, v).apply() }
+
+    /** The recent-apps view shows a blank card instead of the app. Off by default. */
+    private var _hideRecents by mutableStateOf(prefs.getBoolean(KEY_HIDE_RECENTS, false))
+    var hideRecents: Boolean
+        get() = _hideRecents
+        set(v) { _hideRecents = v; prefs.edit().putBoolean(KEY_HIDE_RECENTS, v).apply() }
 
     /** Lets the lock screen submit as soon as enough digits are entered. */
     val pinLength: Int get() = prefs.getInt(KEY_PIN_LENGTH, 0)
@@ -156,6 +160,8 @@ class LockSettings(context: Context) {
         const val KEY_LOCK_TIMEOUT = "lock_timeout"
         const val KEY_HIDE = "hide_content"
         const val KEY_HIDE_SEPARATE = "hide_content_separate"
+        const val KEY_HIDE_SCREENSHOTS = "hide_screenshots"
+        const val KEY_HIDE_RECENTS = "hide_recents"
         const val KEY_FAILED = "pin_failed"
         const val KEY_LOCKOUT_UNTIL = "pin_lockout_until"
         const val KEY_LOCKOUT_REMAINING = "pin_lockout_remaining"

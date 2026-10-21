@@ -69,16 +69,18 @@ Set the share's **uid/gid** in FilesCtrl to the owner of your files on the serve
 
 ## App lock
 
-Turn it on in **Settings → Privacy and security → App lock**. It's off until you turn it on.
+Turn it on under **Settings > Privacy and security > App lock**. It's off until you turn it on.
 
-- **An app PIN of its own**, at least 6 digits and separate from your phone's. Very obvious PINs, like 111111 or 123456, are refused. The PIN is never stored: it's stretched with 600,000 rounds of PBKDF2 and mixed with a key that never leaves the phone's secure hardware, so a copy of the app's files isn't enough to guess it somewhere else.
-- **Unlock with fingerprint** (optional): strong biometrics only, checked by the phone's secure hardware. Adding a fingerprint to the phone turns it off until you turn it on again. The PIN is still needed after the phone restarts and at least every 72 hours.
-- **Wrong PINs make you wait**: 30 seconds after 5 wrong tries, doubling up to 15 minutes. Restarting the app or the phone, or changing the clock, doesn't end the wait.
-- **Saved passwords and keys stay encrypted while FilesCtrl is locked**, with a key that only exists in memory while the app is unlocked and is wiped the moment it locks. Your servers don't show in other apps' file pickers while it's locked. Copies and moves that are already running finish; nothing new can connect until you unlock.
-- **Lock again**: as soon as you leave the app (the default), after 1, 5 or 15 minutes or 1 hour away, or only when the app restarts. Opening a file in another app, sharing, picking a file or folder, choosing an SFTP key or opening Android's settings from FilesCtrl doesn't count as leaving, unless you're away for more than 5 minutes.
-- The file browser and the text editor lock and unlock together.
-- **Hide in screenshots and recent apps** (on for new installs, also without the app lock): screenshots, screen recordings and the recent apps view show a blank screen. Adding or editing a network location, the lock screen and the PIN screens are always hidden.
-- **Forgot PIN?** on the lock screen turns the app lock off and forgets the saved passwords and keys. Your network locations stay; you enter their passwords again.
+- **Its own app PIN** of at least 6 digits, separate from your phone's screen lock. Very obvious PINs such as 111111 or 123456 are refused.
+- **Unlock with fingerprint** (optional) only accepts strong biometrics, such as the fingerprint sensor, checked by the phone's secure hardware. Face unlock that only uses the camera isn't accepted. The PIN is still needed after the phone restarts and at least every 72 hours, and adding a new fingerprint to the phone turns fingerprint unlock off until you turn it on again.
+- **The saved passwords and keys of your network locations are encrypted with the PIN while FilesCtrl is locked.** The key only exists in memory while the app is unlocked and is wiped the moment it locks. The PIN itself is never stored: it's stretched with 600,000 rounds of PBKDF2 and mixed with a key held in the phone's secure hardware, so a copy of the app's files isn't enough to guess it on a computer.
+- **Wrong PINs:** after 5 tries you wait 30 seconds, doubling up to 15 minutes. Restarting the app or the phone, or changing the clock, doesn't skip the wait.
+- **Lock again:** as soon as you leave the app (the default), after 1, 5 or 15 minutes or 1 hour away, or only when the app restarts. Opening a file in another app, sharing, picking a file or folder, choosing an SFTP key and opening Android's settings from FilesCtrl don't count as leaving, unless you stay away for more than 5 minutes.
+- **Change app PIN** asks for your current PIN first, and turning the app lock off asks for the PIN too.
+- **Forgot your PIN?** It can't be recovered, because it encrypts the saved passwords and keys. The lock screen offers to turn the app lock off and forget those passwords and keys; your network locations stay, and you enter their passwords again.
+- **With the app lock on**, the recent-apps screen always shows a blank card, your servers don't show in other apps' file pickers while FilesCtrl is locked, and copies and moves that are already running finish but nothing new can connect until you unlock. The file browser and the text editor lock and unlock together.
+
+**Hide in screenshots** and **Hide in recent apps** are in the same section, work without the app lock too, and are both off by default. The first keeps FilesCtrl out of screenshots and screen recordings; the second shows a blank card in the recent-apps view instead of the app. Adding or editing a network location (where you type passwords and key passphrases), the lock screen and the PIN screens are always kept out of screenshots, whatever the switches say.
 
 ## Privacy
 

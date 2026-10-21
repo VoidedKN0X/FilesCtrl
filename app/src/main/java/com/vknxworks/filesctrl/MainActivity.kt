@@ -88,6 +88,7 @@ import com.vknxworks.filesctrl.ui.lock.resetLock
 import com.vknxworks.filesctrl.ui.lock.ChooseNewPinScreen
 import com.vknxworks.filesctrl.ui.lock.ForgotPinDialog
 import com.vknxworks.filesctrl.ui.lock.LockWindow
+import androidx.compose.ui.res.stringResource
 import com.vknxworks.filesctrl.ui.lock.PinRequestScreen
 import com.vknxworks.filesctrl.ui.lock.PinRequests
 import androidx.compose.ui.platform.LocalFocusManager
@@ -100,8 +101,6 @@ import dev.chrisbanes.haze.hazeSource
 class MainActivity : FragmentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        // Keep file names and server contents out of the recent-apps thumbnail.
-        setRecentsScreenshotEnabled(false)
         App.init(this)
         enableEdgeToEdge()
         setContent {
@@ -112,7 +111,10 @@ class MainActivity : FragmentActivity() {
                     else SystemBarStyle.light(Color.TRANSPARENT, Color.TRANSPARENT)
                     enableEdgeToEdge(statusBarStyle = style, navigationBarStyle = style)
                 }
-                val secure = App.lock.hideContent || com.vknxworks.filesctrl.ui.lock.SecureScreens.active > 0
+                val secure = App.lock.hideScreenshots || com.vknxworks.filesctrl.ui.lock.SecureScreens.active > 0
+                // "Hide in recent apps", and always with the app lock on: a blank card instead of a snapshot.
+                val blankRecents = App.lock.hideRecents || AppLockState.enabled
+                LaunchedEffect(blankRecents) { setRecentsScreenshotEnabled(!blankRecents) }
                 LaunchedEffect(secure) {
                     if (secure) window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
                     else window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
@@ -217,10 +219,8 @@ private fun Root(activity: FragmentActivity, lockVm: AppLockViewModel = viewMode
 @Composable
 fun ResetLockDialog(onDismiss: () -> Unit) {
     ForgotPinDialog(
-        body = "The PIN can't be recovered, because it encrypts the saved passwords and keys of your network locations. " +
-            "FilesCtrl will turn the app lock off and forget those passwords and keys. The locations stay; you'll enter " +
-            "their passwords again.",
-        confirm = "Reset",
+        body = stringResource(R.string.lock_forgot_body),
+        confirm = stringResource(R.string.lock_forgot_confirm),
         onDismiss = onDismiss,
     ) {
         onDismiss()

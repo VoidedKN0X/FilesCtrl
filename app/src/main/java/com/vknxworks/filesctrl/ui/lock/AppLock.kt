@@ -76,6 +76,8 @@ import javax.crypto.Cipher
 import javax.crypto.KeyGenerator
 import javax.crypto.SecretKey
 import kotlin.math.roundToInt
+import androidx.compose.ui.res.stringResource
+import com.vknxworks.filesctrl.R
 
 const val PIN_MIN = LockVault.PIN_MIN
 const val PIN_MAX = LockVault.PIN_MAX
@@ -114,7 +116,7 @@ fun showBiometricPrompt(
         object : BiometricPrompt.AuthenticationCallback() {
             override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
                 val c = result.cryptoObject?.cipher
-                if (c != null) onSuccess(c) else onError("Fingerprint didn't unlock the key")
+                if (c != null) onSuccess(c) else onError(activity.getString(R.string.lock_fingerprint_failed))
             }
 
             override fun onAuthenticationError(errorCode: Int, errString: CharSequence) {
@@ -128,7 +130,7 @@ fun showBiometricPrompt(
         BiometricPrompt.PromptInfo.Builder()
             .setTitle(title)
             .apply { if (subtitle != null) setSubtitle(subtitle) }
-            .setNegativeButtonText("Use PIN")
+            .setNegativeButtonText(activity.getString(R.string.lock_use_pin))
             .setAllowedAuthenticators(BIOMETRIC_STRONG)
             .build(),
         BiometricPrompt.CryptoObject(cipher),
@@ -214,7 +216,8 @@ class AppLockViewModel : ViewModel() {
     val vault = App.vault
 
     val locked: Boolean get() = AppLockState.enabled && !AppLockState.unlocked
-    var pinError by mutableStateOf<String?>(null)
+    /** A string resource: why the last try didn't unlock. */
+    var pinError by mutableStateOf<Int?>(null)
         private set
     var checking by mutableStateOf(false)
         private set
@@ -251,7 +254,7 @@ class AppLockViewModel : ViewModel() {
             checking = false
             if (ok) { unlocked(); return@launch }
             refreshLockout()
-            pinError = "Wrong PIN"
+            pinError = R.string.lock_wrong_pin
             onWrong()
         }
     }
@@ -344,11 +347,11 @@ fun LockScreen(vm: AppLockViewModel, onForgot: () -> Unit) {
         val cipher = vm.vault.biometricUnlockCipher()
         if (cipher == null) {
             // Invalidated by a newly added fingerprint: the vault turned fingerprint unlock off.
-            if (!vm.vault.biometricEnabled) bioMessage = "A fingerprint was added or removed. Unlock with your PIN, then turn fingerprint unlock on again."
+            if (!vm.vault.biometricEnabled) bioMessage = context.getString(R.string.lock_fingerprint_changed)
         } else if (activity != null) runCatching {
-            showBiometricPrompt(activity, "Unlock FilesCtrl", cipher, subtitle = "Confirm it's you to see your files", onError = { bioMessage = it }) { unlockedCipher ->
+            showBiometricPrompt(activity, context.getString(R.string.lock_fingerprint_title), cipher, subtitle = context.getString(R.string.lock_fingerprint_subtitle), onError = { bioMessage = it }) { unlockedCipher ->
                 if (vm.vault.unlockWithBiometric(unlockedCipher)) vm.unlocked()
-                else bioMessage = "Couldn't unlock with your fingerprint. Use your PIN."
+                else bioMessage = context.getString(R.string.lock_fingerprint_failed)
             }
         }
     }
@@ -363,14 +366,14 @@ fun LockScreen(vm: AppLockViewModel, onForgot: () -> Unit) {
     val min = if (legacy) LEGACY_PIN_MIN else PIN_MIN
 
     PinPadScreen(
-        title = "FilesCtrl is locked",
+        title = stringResource(R.string.lock_title),
         message = when {
             vm.lockoutRemaining > 0 -> lockoutText(vm.lockoutRemaining)
-            vm.pinError != null -> vm.pinError!!
+            vm.pinError != null -> stringResource(vm.pinError!!)
             bioMessage != null -> bioMessage!!
-            legacy -> "Enter your PIN to finish the security update"
-            vm.vault.biometricEnabled && vm.vault.pinRequired() -> "Enter your PIN. It's needed after a restart and every 72 hours."
-            else -> "Enter your PIN"
+            legacy -> stringResource(R.string.lock_legacy_pin)
+            vm.vault.biometricEnabled && vm.vault.pinRequired() -> stringResource(R.string.lock_pin_due)
+            else -> stringResource(R.string.lock_enter_pin)
         },
         isError = vm.pinError != null || vm.lockoutRemaining > 0 || bioMessage != null,
         pin = pin,
@@ -398,9 +401,8 @@ fun LockScreen(vm: AppLockViewModel, onForgot: () -> Unit) {
 fun ChooseNewPinScreen() {
     PinSetupScreen(
         vault = App.vault,
-        title = "Choose an app PIN",
-        intro = "PINs now need at least $PIN_MIN digits, different from your phone's PIN. " +
-            "Your saved passwords and keys are encrypted with it while the app is locked.",
+        title = stringResource(R.string.lock_choose_title),
+        intro = stringResource(R.string.lock_migrate_intro, PIN_MIN),
         verifyCurrent = false,
         cancellable = false,
         onDone = { pin ->
@@ -419,9 +421,8 @@ fun PinRequestScreen(request: PinRequest) {
     when (request) {
         PinRequest.ENABLE -> PinSetupScreen(
             vault = vault,
-            title = "Choose an app PIN",
-            intro = "At least $PIN_MIN digits, different from your phone's PIN. If you forget it, the saved passwords and " +
-                "keys of your network locations are lost (the locations stay).",
+            title = stringResource(R.string.lock_choose_title),
+            intro = stringResource(R.string.lock_choose_intro, PIN_MIN),
             verifyCurrent = false,
             cancellable = true,
             onDone = { pin ->
@@ -434,8 +435,8 @@ fun PinRequestScreen(request: PinRequest) {
         )
         PinRequest.CHANGE -> PinSetupScreen(
             vault = vault,
-            title = "Change app PIN",
-            intro = "At least $PIN_MIN digits, different from your phone's PIN.",
+            title = stringResource(R.string.lock_change_title),
+            intro = stringResource(R.string.lock_change_intro, PIN_MIN),
             verifyCurrent = true,
             cancellable = true,
             // Same key, new PIN: fingerprint unlock keeps working.
@@ -444,8 +445,8 @@ fun PinRequestScreen(request: PinRequest) {
         )
         PinRequest.DISABLE -> PinSetupScreen(
             vault = vault,
-            title = "Turn off app lock",
-            intro = "Enter your app PIN to turn the lock off.",
+            title = stringResource(R.string.lock_disable_title),
+            intro = stringResource(R.string.lock_disable_intro),
             verifyCurrent = true,
             verifyOnly = true,
             cancellable = true,
