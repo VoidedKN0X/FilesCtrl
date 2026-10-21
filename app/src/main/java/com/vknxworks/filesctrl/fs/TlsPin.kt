@@ -13,6 +13,8 @@ import javax.net.ssl.SSLEngine
 import javax.net.ssl.TrustManagerFactory
 import javax.net.ssl.X509ExtendedTrustManager
 import javax.net.ssl.X509TrustManager
+import com.vknxworks.filesctrl.App
+import com.vknxworks.filesctrl.R
 
 /**
  * A server whose identity (SSH host key or TLS certificate) isn't trusted yet. The UI shows [fingerprint] and,
@@ -23,19 +25,18 @@ open class UntrustedIdentityException(val fingerprint: String, message: String) 
 /** First connection to an SFTP server: its host key needs confirming. */
 class HostKeyUnknownException(fingerprint: String) : UntrustedIdentityException(
     fingerprint,
-    "This SFTP server hasn't been trusted yet. Open it in FilesCtrl and check its host key ($fingerprint).",
+    App.str(R.string.this_sftp_server_hasn_t_been_trusted, fingerprint),
 )
 
 /** A TLS server with a certificate the system doesn't trust, and no pin saved yet. */
 class CertUnknownException(fingerprint: String) : UntrustedIdentityException(
     fingerprint,
-    "The server's certificate isn't trusted yet. Open the server in FilesCtrl and check its fingerprint ($fingerprint).",
+    App.str(R.string.the_server_s_certificate_isn_t, fingerprint),
 )
 
 /** A pinned TLS certificate that no longer matches. */
 class CertChangedException(val fingerprint: String) : IOException(
-    "The server's certificate changed (SHA-256 $fingerprint). If you replaced it, forget the saved certificate in " +
-        "the server's settings; otherwise someone may be intercepting the connection.",
+    App.str(R.string.cert_changed, fingerprint),
 )
 
 /** Trust-on-first-use certificate pinning for servers with self-signed certificates (FTPS, WebDAV over HTTPS). */
@@ -69,7 +70,7 @@ object TlsPin {
 
         private fun refuse(e: CertificateException): Nothing {
             refusedLeaf = lastLeaf
-            throw CertificateException(if (pin.isBlank()) "Certificate not trusted yet" else "Certificate doesn't match the saved one", e)
+            throw CertificateException(if (pin.isBlank()) App.str(R.string.certificate_not_trusted_yet) else App.str(R.string.certificate_doesn_t_match_the_saved), e)
         }
 
         override fun checkServerTrusted(chain: Array<out X509Certificate>?, authType: String?) {
@@ -91,9 +92,9 @@ object TlsPin {
             } catch (e: CertificateException) { refuse(e) }
         }
 
-        override fun checkClientTrusted(chain: Array<out X509Certificate>?, authType: String?) { throw CertificateException("Not a server") }
-        override fun checkClientTrusted(chain: Array<out X509Certificate>?, authType: String?, socket: Socket?) { throw CertificateException("Not a server") }
-        override fun checkClientTrusted(chain: Array<out X509Certificate>?, authType: String?, engine: SSLEngine?) { throw CertificateException("Not a server") }
+        override fun checkClientTrusted(chain: Array<out X509Certificate>?, authType: String?) { throw CertificateException(App.str(R.string.not_a_server)) }
+        override fun checkClientTrusted(chain: Array<out X509Certificate>?, authType: String?, socket: Socket?) { throw CertificateException(App.str(R.string.not_a_server)) }
+        override fun checkClientTrusted(chain: Array<out X509Certificate>?, authType: String?, engine: SSLEngine?) { throw CertificateException(App.str(R.string.not_a_server)) }
         override fun getAcceptedIssuers(): Array<X509Certificate> = system.acceptedIssuers
 
         fun sslContext(): SSLContext = SSLContext.getInstance("TLS").apply { init(null, arrayOf(this@PinningTrustManager), null) }

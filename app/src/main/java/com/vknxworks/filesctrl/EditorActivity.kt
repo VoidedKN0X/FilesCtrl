@@ -43,14 +43,14 @@ class EditorActivity : FragmentActivity() {
         App.init(this)
         val uri = intent?.data
         if (uri == null) {
-            Toast.makeText(this, "No file to open", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, App.str(R.string.no_file_to_open), Toast.LENGTH_SHORT).show()
             finish()
             return
         }
         // Any app can start the editor. FilesCtrl may read (and write) more than the sender can, so only accept
         // content:// URIs, and file:// paths in shared storage, never FilesCtrl's own private files.
         if (!acceptable(uri)) {
-            Toast.makeText(this, "FilesCtrl can't open this file", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, App.str(R.string.filesctrl_can_t_open_this_file), Toast.LENGTH_SHORT).show()
             finish()
             return
         }
@@ -94,7 +94,7 @@ class EditorActivity : FragmentActivity() {
                         if (locked) {
                             LockWindow {
                                 LockScreen(vm = lockVm, onForgot = {
-                                    Toast.makeText(this@EditorActivity, "Open FilesCtrl to reset the PIN", Toast.LENGTH_LONG).show()
+                                    Toast.makeText(this@EditorActivity, App.str(R.string.open_filesctrl_to_reset_the_pin), Toast.LENGTH_LONG).show()
                                 })
                             }
                         } else if (AppLockState.mustChoosePin) {

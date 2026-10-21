@@ -38,7 +38,7 @@ class OpService : Service() {
         App.init(this)
         createChannels(this)
         try {
-            startForeground(NOTIF_ID, build("Starting…", null), ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC)
+            startForeground(NOTIF_ID, build(App.str(R.string.starting), null), ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC)
         } catch (_: Exception) {
             // Android 15+ daily data-sync budget used up (or started from the background): tasks still run
             // while the app is open, just without the keep-alive.
@@ -64,7 +64,7 @@ class OpService : Service() {
                     continue
                 }
                 val first = running.first()
-                val title = if (running.size == 1) first.title else "${running.size} operations running"
+                val title = if (running.size == 1) first.title else App.plural(R.plurals.operations_running, running.size, running.size)
                 getSystemService(NotificationManager::class.java).notify(NOTIF_ID, build(title + "\n" + first.detail, first.progress))
                 delay(700)
             }
@@ -85,7 +85,7 @@ class OpService : Service() {
             // Every startForegroundService() must be answered with startForeground(), even when already running.
             val first = Ops.active.firstOrNull()
             try {
-                startForeground(NOTIF_ID, build((first?.title ?: "Working…") + "\n" + (first?.detail ?: ""), first?.progress), ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC)
+                startForeground(NOTIF_ID, build((first?.title ?: App.str(R.string.working)) + "\n" + (first?.detail ?: ""), first?.progress), ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC)
             } catch (_: Exception) { stopSelf() }
         }
         return START_NOT_STICKY
@@ -108,10 +108,10 @@ class OpService : Service() {
             .setOnlyAlertOnce(true)
             .setSilent(true)
             .setContentIntent(open)
-            .addAction(0, "Cancel", cancel)
+            .addAction(0, App.str(R.string.lock_cancel), cancel)
             .setProgress(100, ((progress ?: 0f) * 100).toInt(), progress == null)
             .setForegroundServiceBehavior(NotificationCompat.FOREGROUND_SERVICE_IMMEDIATE)
-            .lockScreenSafe(CHANNEL, "File operation in progress")
+            .lockScreenSafe(CHANNEL, App.str(R.string.file_operation_in_progress))
             .build()
     }
 
@@ -127,7 +127,7 @@ class OpService : Service() {
                 .setContentText(text)
                 .setAutoCancel(true)
                 .setContentIntent(PendingIntent.getActivity(this, 0, Intent(this, MainActivity::class.java), PendingIntent.FLAG_IMMUTABLE))
-                .lockScreenSafe(CHANNEL_DONE, "File operation finished")
+                .lockScreenSafe(CHANNEL_DONE, App.str(R.string.file_operation_finished))
                 .build()
             if (!MainActivity.inForeground) nm.notify(DONE_ID, n)
         }
@@ -165,8 +165,8 @@ class OpService : Service() {
 
         fun createChannels(ctx: Context) {
             val nm = ctx.getSystemService(NotificationManager::class.java)
-            nm.createNotificationChannel(NotificationChannel(CHANNEL, "File operations", NotificationManager.IMPORTANCE_LOW))
-            nm.createNotificationChannel(NotificationChannel(CHANNEL_DONE, "Finished operations", NotificationManager.IMPORTANCE_DEFAULT))
+            nm.createNotificationChannel(NotificationChannel(CHANNEL, App.str(R.string.file_operations), NotificationManager.IMPORTANCE_LOW))
+            nm.createNotificationChannel(NotificationChannel(CHANNEL_DONE, App.str(R.string.finished_operations), NotificationManager.IMPORTANCE_DEFAULT))
         }
     }
 }

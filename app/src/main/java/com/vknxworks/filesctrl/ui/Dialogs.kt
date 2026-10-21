@@ -60,6 +60,8 @@ import com.vknxworks.filesctrl.ops.TaskState
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import androidx.compose.ui.res.stringResource
+import com.vknxworks.filesctrl.R
 
 /** Asks for a file or folder name. The part before the extension is pre-selected, like Material Files. */
 @Composable
@@ -95,25 +97,25 @@ fun NameDialog(
             )
         },
         confirmButton = { TextButton(onClick = { onConfirm(value.text.trim()) }, enabled = canConfirm) { Text(confirm) } },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.lock_cancel)) } },
     )
 }
 
 @Composable
 fun DeleteDialog(items: List<FileEntry>, remote: Boolean, onDismiss: () -> Unit, onConfirm: () -> Unit) {
-    val what = if (items.size == 1) "\"${items[0].name}\"" else "${items.size} items"
+    val what = if (items.size == 1) "\"${items[0].name}\"" else App.plural(R.plurals.items_count, items.size, items.size)
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Delete $what?") },
+        title = { Text(stringResource(R.string.delete_2, what)) },
         text = {
             Text(
-                if (remote) "This deletes from the server. There is no recycle bin." else "This can't be undone.",
+                if (remote) stringResource(R.string.this_deletes_from_the_server_there) else stringResource(R.string.this_can_t_be_undone),
             )
         },
         confirmButton = {
-            TextButton(onClick = onConfirm) { Text("Delete", color = MaterialTheme.colorScheme.error) }
+            TextButton(onClick = onConfirm) { Text(stringResource(R.string.lock_delete), color = MaterialTheme.colorScheme.error) }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.lock_cancel)) } },
     )
 }
 
@@ -123,7 +125,7 @@ fun ConflictDialog(names: List<String>, onDismiss: () -> Unit, onChoose: (Confli
     var choice by remember { mutableStateOf(Conflict.KeepBoth) }
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(if (names.size == 1) "\"${names[0]}\" already exists" else "${names.size} items already exist") },
+        title = { Text(if (names.size == 1) stringResource(R.string.already_exists_3, names[0]) else stringResource(R.string.items_already_exist, names.size)) },
         text = {
             Column {
                 if (names.size > 1) {
@@ -136,9 +138,9 @@ fun ConflictDialog(names: List<String>, onDismiss: () -> Unit, onChoose: (Confli
                     Spacer(Modifier.height(8.dp))
                 }
                 listOf(
-                    Conflict.KeepBoth to "Keep both (rename the new ones)",
-                    Conflict.Replace to "Replace (folders are merged)",
-                    Conflict.Skip to "Skip these",
+                    Conflict.KeepBoth to App.str(R.string.keep_both_rename_the_new_ones),
+                    Conflict.Replace to App.str(R.string.replace_folders_are_merged),
+                    Conflict.Skip to App.str(R.string.skip_these),
                 ).forEach { (c, label) ->
                     Row(
                         Modifier.fillMaxWidth().padding(vertical = 2.dp),
@@ -150,8 +152,8 @@ fun ConflictDialog(names: List<String>, onDismiss: () -> Unit, onChoose: (Confli
                 }
             }
         },
-        confirmButton = { TextButton(onClick = { onChoose(choice) }) { Text("Paste") } },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+        confirmButton = { TextButton(onClick = { onChoose(choice) }) { Text(stringResource(R.string.paste)) } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.lock_cancel)) } },
     )
 }
 
@@ -185,7 +187,7 @@ fun PropertiesDialog(entry: FileEntry, onDismiss: () -> Unit, onChanged: () -> U
         withContext(Dispatchers.IO) {
             try { vfs?.stat(entry.path)?.let { st -> e = st.copy(name = entry.name) } } catch (_: Exception) {}
             if (e.isDir) vfs?.space(e.path)?.let { s ->
-                space = "${Fmt.size(ctx, s.free)} free of ${Fmt.size(ctx, s.total)}"
+                space = App.str(R.string.free_of, Fmt.size(ctx, s.free), Fmt.size(ctx, s.total))
             }
             if (e.isLink && vfs is com.vknxworks.filesctrl.fs.RemoteVfs) linkTarget = try { vfs.readlink(e.path) } catch (_: Exception) { null }
             if (e.isLink && vfs is com.vknxworks.filesctrl.fs.LocalVfs) linkTarget = try { android.system.Os.readlink(e.path) } catch (_: Exception) { null }
@@ -197,34 +199,34 @@ fun PropertiesDialog(entry: FileEntry, onDismiss: () -> Unit, onChanged: () -> U
         title = { Text(e.name, maxLines = 2, overflow = TextOverflow.Ellipsis) },
         text = {
             Column(Modifier.verticalScroll(rememberScrollState())) {
-                PropRow("Location", if (e.path == "/") displayPath(e) else Paths.parent(displayPath(e)), mono = true)
-                PropRow("Type", if (e.isDir) "Folder" else "${Mime.kind(e).name} · ${e.mime}")
+                PropRow(stringResource(R.string.location), if (e.path == "/") displayPath(e) else Paths.parent(displayPath(e)), mono = true)
+                PropRow(stringResource(R.string.type), if (e.isDir) stringResource(R.string.folder) else "${Mime.kind(e).name} · ${e.mime}")
                 if (e.isDir) {
                     val s = folderSize
                     if (s == null) {
                         TextButton(onClick = {
-                            folderSize = "Calculating…"
+                            folderSize = App.str(R.string.calculating)
                             scope.launch {
                                 folderSize = try {
                                     val (b, n) = withContext(Dispatchers.IO) { Ops.folderSize(e) }
-                                    "${Fmt.size(ctx, b)} · ${n - 1} items"
-                                } catch (ex: Exception) { ex.message ?: "Couldn't calculate" }
+                                    App.plural(R.plurals.folder_size_items, n - 1, n - 1, Fmt.size(ctx, b))
+                                } catch (ex: Exception) { ex.message ?: App.str(R.string.couldn_t_calculate) }
                             }
-                        }) { Text("Calculate size") }
-                    } else PropRow("Size", s)
-                    space?.let { PropRow("Space", it) }
+                        }) { Text(stringResource(R.string.calculate_size)) }
+                    } else PropRow(stringResource(R.string.size), s)
+                    space?.let { PropRow(stringResource(R.string.space), it) }
                 } else {
-                    PropRow("Size", "${Fmt.size(ctx, e.size)} (${"%,d".format(e.size)} bytes)")
+                    PropRow(stringResource(R.string.size), stringResource(R.string.bytes, Fmt.size(ctx, e.size), "%,d".format(e.size)))
                 }
-                PropRow("Modified", Fmt.dateTime(ctx, e.modified))
-                linkTarget?.let { PropRow("Link to", it, mono = true) }
-                if (e.mode != 0) PropRow("Permissions", "${Fmt.perms(e.mode)}  (${Fmt.octal(e.mode)})", mono = true)
-                if (e.uid >= 0) PropRow("Owner", "uid ${e.uid} · gid ${e.gid}", mono = true)
+                PropRow(stringResource(R.string.modified), Fmt.dateTime(ctx, e.modified))
+                linkTarget?.let { PropRow(stringResource(R.string.link_to), it, mono = true) }
+                if (e.mode != 0) PropRow(stringResource(R.string.permissions), "${Fmt.perms(e.mode)}  (${Fmt.octal(e.mode)})", mono = true)
+                if (e.uid >= 0) PropRow(stringResource(R.string.owner), stringResource(R.string.uid_gid, e.uid, e.gid), mono = true)
             }
         },
-        confirmButton = { TextButton(onClick = onDismiss) { Text("Close") } },
+        confirmButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.close)) } },
         dismissButton = {
-            if (vfs?.canChmod == true && e.mode != 0 && !e.isLink) TextButton(onClick = { chmod = true }) { Text("Permissions") }
+            if (vfs?.canChmod == true && e.mode != 0 && !e.isLink) TextButton(onClick = { chmod = true }) { Text(stringResource(R.string.permissions)) }
         },
     )
 
@@ -247,16 +249,16 @@ fun ChmodDialog(e: FileEntry, onDismiss: () -> Unit, onConfirm: (Int) -> Unit) {
     var mode by remember { mutableIntStateOf(e.mode and 0xFFF) }
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Permissions") },
+        title = { Text(stringResource(R.string.permissions)) },
         text = {
             Column {
                 Row(Modifier.fillMaxWidth()) {
                     Spacer(Modifier.width(72.dp))
-                    listOf("Read", "Write", "Exec").forEach {
+                    listOf(App.str(R.string.read), App.str(R.string.write), App.str(R.string.exec)).forEach {
                         Text(it, Modifier.weight(1f), style = MaterialTheme.typography.labelMedium)
                     }
                 }
-                listOf("Owner" to 6, "Group" to 3, "Others" to 0).forEach { (who, shift) ->
+                listOf(App.str(R.string.owner) to 6, App.str(R.string.group) to 3, App.str(R.string.others) to 0).forEach { (who, shift) ->
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                         Text(who, Modifier.width(72.dp))
                         for (bit in 2 downTo 0) {
@@ -277,8 +279,8 @@ fun ChmodDialog(e: FileEntry, onDismiss: () -> Unit, onConfirm: (Int) -> Unit) {
                 )
             }
         },
-        confirmButton = { TextButton(onClick = { onConfirm(mode) }) { Text("Apply") } },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+        confirmButton = { TextButton(onClick = { onConfirm(mode) }) { Text(stringResource(R.string.apply)) } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.lock_cancel)) } },
     )
 }
 
@@ -288,7 +290,7 @@ fun InfoDialog(title: String, text: String, onDismiss: () -> Unit) {
         onDismissRequest = onDismiss,
         title = { Text(title) },
         text = { SelectionContainer { Text(text) } },
-        confirmButton = { TextButton(onClick = onDismiss) { Text("OK") } },
+        confirmButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.lock_ok)) } },
     )
 }
 
@@ -302,20 +304,18 @@ fun TrustDialog(e: com.vknxworks.filesctrl.fs.UntrustedIdentityException, host: 
     val ssh = e is com.vknxworks.filesctrl.fs.HostKeyUnknownException
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(if (ssh) "Trust this server?" else "Trust this certificate?") },
+        title = { Text(if (ssh) stringResource(R.string.trust_this_server) else stringResource(R.string.trust_this_certificate)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(
-                    if (ssh) "This is the first connection to $host. Check that its host key fingerprint matches the server's " +
-                        "(ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub) before trusting it."
-                    else "$host uses a certificate this phone doesn't trust. Only continue if this SHA-256 fingerprint " +
-                        "matches your server's certificate.",
+                    if (ssh) stringResource(R.string.trust_ssh_body, host)
+                    else stringResource(R.string.trust_cert_body, host),
                 )
                 SelectionContainer { Text(e.fingerprint, fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace, style = MaterialTheme.typography.bodySmall) }
-                Text("No password is sent until you trust it.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(stringResource(R.string.no_password_is_sent_until_you_trust), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         },
-        confirmButton = { TextButton(onClick = onTrust) { Text("Trust") } },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+        confirmButton = { TextButton(onClick = onTrust) { Text(stringResource(R.string.trust)) } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.lock_cancel)) } },
     )
 }

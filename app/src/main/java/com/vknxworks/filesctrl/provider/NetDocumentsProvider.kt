@@ -50,12 +50,12 @@ class NetDocumentsProvider : DocumentsProvider() {
     private fun locked(): Boolean = AppLockState.enabled && !AppLockState.unlocked
 
     private fun split(docId: String): Pair<RemoteVfs, String> {
-        if (locked()) throw FileNotFoundException("FilesCtrl is locked. Open it and unlock it first.")
+        if (locked()) throw FileNotFoundException(App.str(R.string.filesctrl_is_locked_open_it_and))
         val i = docId.indexOf(':')
-        if (i <= 0) throw FileNotFoundException("Bad document id")
+        if (i <= 0) throw FileNotFoundException(App.str(R.string.bad_document_id))
         // Normalise the path and refuse "." / ".." segments, so an id can never climb out of a granted folder.
-        val path = Paths.normalize(docId.substring(i + 1).ifEmpty { "/" }) ?: throw FileNotFoundException("Bad document id")
-        val vfs = App.vfs.remote(docId.substring(0, i)) ?: throw FileNotFoundException("Server was removed")
+        val path = Paths.normalize(docId.substring(i + 1).ifEmpty { "/" }) ?: throw FileNotFoundException(App.str(R.string.bad_document_id))
+        val vfs = App.vfs.remote(docId.substring(0, i)) ?: throw FileNotFoundException(App.str(R.string.server_was_removed))
         return vfs to path
     }
 
@@ -97,11 +97,11 @@ class NetDocumentsProvider : DocumentsProvider() {
      */
     private fun splitArchive(docId: String): Pair<ArchiveVfs, String>? {
         if (!docId.startsWith(ARC)) return null
-        if (locked()) throw FileNotFoundException("FilesCtrl is locked. Open it and unlock it first.")
+        if (locked()) throw FileNotFoundException(App.str(R.string.filesctrl_is_locked_open_it_and))
         val i = docId.indexOf(':')
-        if (i <= ARC.length) throw FileNotFoundException("Bad document id")
-        val path = Paths.normalize(docId.substring(i + 1).ifEmpty { "/" }) ?: throw FileNotFoundException("Bad document id")
-        val vfs = App.vfs.archive(ArchiveVfs.PREFIX + docId.substring(ARC.length, i)) ?: throw FileNotFoundException("The archive is gone")
+        if (i <= ARC.length) throw FileNotFoundException(App.str(R.string.bad_document_id))
+        val path = Paths.normalize(docId.substring(i + 1).ifEmpty { "/" }) ?: throw FileNotFoundException(App.str(R.string.bad_document_id))
+        val vfs = App.vfs.archive(ArchiveVfs.PREFIX + docId.substring(ARC.length, i)) ?: throw FileNotFoundException(App.str(R.string.the_archive_is_gone))
         return vfs to path
     }
 
@@ -168,7 +168,7 @@ class NetDocumentsProvider : DocumentsProvider() {
 
     override fun createDocument(parentDocumentId: String, mimeType: String, displayName: String): String {
         val (vfs, dir) = split(parentDocumentId)
-        if (vfs.server.readOnly) throw FileNotFoundException("The share is read-only")
+        if (vfs.server.readOnly) throw FileNotFoundException(App.str(R.string.the_share_is_read_only))
         val clean = displayName.replace('/', '_')
         Paths.validName(clean)?.let { throw IllegalArgumentException(it) }
         val name = Paths.unique(dir, clean) { vfs.exists(it) }
@@ -180,8 +180,8 @@ class NetDocumentsProvider : DocumentsProvider() {
 
     override fun deleteDocument(documentId: String) {
         val (vfs, path) = split(documentId)
-        if (vfs.server.readOnly) throw FileNotFoundException("The share is read-only")
-        if (path == "/") throw FileNotFoundException("The top folder can't be deleted")
+        if (vfs.server.readOnly) throw FileNotFoundException(App.str(R.string.the_share_is_read_only))
+        if (path == "/") throw FileNotFoundException(App.str(R.string.the_top_folder_can_t_be_deleted))
         io { deleteTree(vfs, vfs.stat(path)) }
         notifyChildren(vfs.server.id, Paths.parent(path))
     }
@@ -193,8 +193,8 @@ class NetDocumentsProvider : DocumentsProvider() {
 
     override fun renameDocument(documentId: String, displayName: String): String {
         val (vfs, path) = split(documentId)
-        if (vfs.server.readOnly) throw FileNotFoundException("The share is read-only")
-        if (path == "/") throw FileNotFoundException("The top folder can't be renamed")
+        if (vfs.server.readOnly) throw FileNotFoundException(App.str(R.string.the_share_is_read_only))
+        if (path == "/") throw FileNotFoundException(App.str(R.string.the_top_folder_can_t_be_renamed))
         Paths.validName(displayName)?.let { throw IllegalArgumentException(it) }
         val target = Paths.join(Paths.parent(path), displayName)
         io { vfs.rename(path, target) }
@@ -204,17 +204,17 @@ class NetDocumentsProvider : DocumentsProvider() {
 
     override fun openDocument(documentId: String, mode: String, signal: CancellationSignal?): ParcelFileDescriptor {
         splitArchive(documentId)?.let { (vfs, path) ->
-            if (mode.contains('w')) throw FileNotFoundException("Files inside archives are read-only")
+            if (mode.contains('w')) throw FileNotFoundException(App.str(R.string.files_inside_archives_are_read_only))
             val rf = io {
                 val e = vfs.stat(path)
-                if (e.isDir) throw FileNotFoundException("That's a folder")
+                if (e.isDir) throw FileNotFoundException(App.str(R.string.that_s_a_folder))
                 ArchiveEntryReader(vfs, path, archiveSize(vfs, path, e.size))
             }
             return proxy(rf, mode, null)
         }
         val (vfs, path) = split(documentId)
         val write = mode.contains('w')
-        if (write && vfs.server.readOnly) throw FileNotFoundException("The share is read-only")
+        if (write && vfs.server.readOnly) throw FileNotFoundException(App.str(R.string.the_share_is_read_only))
         val truncate = write && (mode.contains('t') || mode == "w")
 
         // Native random access where the protocol has it (NFS, SMB, SFTP); otherwise stream with re-seeking for
@@ -248,7 +248,7 @@ class NetDocumentsProvider : DocumentsProvider() {
         } catch (e: Exception) {
             try { rf.close() } catch (_: Exception) {}
             thread.quitSafely()
-            throw FileNotFoundException(e.message ?: "Couldn't open")
+            throw FileNotFoundException(e.message ?: App.str(R.string.couldn_t_open_2))
         }
     }
 

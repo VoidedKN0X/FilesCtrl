@@ -27,6 +27,8 @@ import java.io.OutputStream
 import java.util.EnumSet
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
+import com.vknxworks.filesctrl.App
+import com.vknxworks.filesctrl.R
 
 /**
  * SMB 2/3 (Windows shares, Samba, most NAS boxes). The first path segment is the share; with no share in the
@@ -62,7 +64,7 @@ class SmbVfs(override val server: NetServer) : RemoteVfs {
             val cn = c.connect(server.host.trim(), server.effectivePort)
             val auth = when {
                 server.guest -> AuthenticationContext.guest()
-                server.username.isBlank() -> throw IOException("Enter a username, or turn on \"Guest\" in the server's settings")
+                server.username.isBlank() -> throw IOException(App.str(R.string.enter_a_username_or_turn_on_guest_in))
                 else -> AuthenticationContext(server.username, server.password.toCharArray(), server.domain.ifBlank { null })
             }
             val s = cn.authenticate(auth)
@@ -70,7 +72,7 @@ class SmbVfs(override val server: NetServer) : RemoteVfs {
             return s
         } catch (e: Exception) {
             try { c.close() } catch (_: Exception) {}
-            throw friendly(e, "Connecting")
+            throw friendly(e, App.str(R.string.connecting))
         }
     }
 
@@ -86,7 +88,7 @@ class SmbVfs(override val server: NetServer) : RemoteVfs {
 
     private fun share(name: String): DiskShare {
         shares[name]?.takeIf { it.isConnected }?.let { return it }
-        val s = session().connectShare(name) as? DiskShare ?: throw IOException("$name isn't a file share")
+        val s = session().connectShare(name) as? DiskShare ?: throw IOException(App.str(R.string.isn_t_a_file_share, name))
         shares[name] = s
         return s
     }
@@ -126,14 +128,14 @@ class SmbVfs(override val server: NetServer) : RemoteVfs {
     override fun list(dir: String): List<FileEntry> {
         val (shareName, inner) = split(dir)
         if (shareName.isEmpty()) return listShares()
-        return call("Listing", dir) {
+        return call(App.str(R.string.listing), dir) {
             share(shareName).list(inner).filter { Paths.isSafeName(it.fileName) && !it.fileName.contains('\\') }.map {
                 entry(Paths.join(dir, it.fileName), it.fileName, it.fileAttributes, it.endOfFile, it.lastWriteTime.toEpochMillis())
             }
         }
     }
 
-    private fun listShares(): List<FileEntry> = call("Listing shares", "/") {
+    private fun listShares(): List<FileEntry> = call(App.str(R.string.listing_shares), "/") {
         val transport = SMBTransportFactories.SRVSVC.getTransport(session())
         ServerService(transport).shares1
             // Disk shares only (type 0), and not the hidden admin ones like C$ and IPC$.
@@ -144,10 +146,10 @@ class SmbVfs(override val server: NetServer) : RemoteVfs {
     override fun stat(path: String): FileEntry {
         val (shareName, inner) = split(path)
         if (shareName.isEmpty() || (inner.isEmpty() && RemoteVfs.join(server.path, path).trim('/') == shareName)) {
-            if (shareName.isNotEmpty()) call("Opening", path) { share(shareName) }
+            if (shareName.isNotEmpty()) call(App.str(R.string.opening), path) { share(shareName) }
             return FileEntry(id, path, Paths.name(path), true, 0, 0, 0x4000 or 0b111_101_101)
         }
-        return call("Reading", path) {
+        return call(App.str(R.string.reading), path) {
             val info = share(shareName).getFileInformation(inner)
             entry(path, Paths.name(path), info.basicInformation.fileAttributes, info.standardInformation.endOfFile,
                 info.basicInformation.lastWriteTime.toEpochMillis())
@@ -156,7 +158,7 @@ class SmbVfs(override val server: NetServer) : RemoteVfs {
 
     private fun open(path: String, write: Boolean, disposition: SMB2CreateDisposition): com.hierynomus.smbj.share.File {
         val (shareName, inner) = split(path)
-        if (inner.isEmpty()) throw IOException("That's a share, not a file")
+        if (inner.isEmpty()) throw IOException(App.str(R.string.that_s_a_share_not_a_file))
         val access = if (write) EnumSet.of(AccessMask.GENERIC_READ, AccessMask.GENERIC_WRITE) else EnumSet.of(AccessMask.GENERIC_READ)
         return share(shareName).openFile(
             inner, access, null, SMB2ShareAccess.ALL, disposition,
@@ -164,7 +166,7 @@ class SmbVfs(override val server: NetServer) : RemoteVfs {
         )
     }
 
-    override fun openRead(path: String): InputStream = call("Opening", path) {
+    override fun openRead(path: String): InputStream = call(App.str(R.string.opening), path) {
         val f = open(path, false, SMB2CreateDisposition.FILE_OPEN)
         object : FilterInputStream(f.inputStream) {
             override fun close() { try { super.close() } finally { f.close() } }
@@ -191,7 +193,7 @@ class SmbVfs(override val server: NetServer) : RemoteVfs {
         }
     }
 
-    override fun openWrite(path: String): OutputStream = call("Creating", path) {
+    override fun openWrite(path: String): OutputStream = call(App.str(R.string.creating), path) {
         val f = open(path, true, SMB2CreateDisposition.FILE_OVERWRITE_IF)
         object : FilterOutputStream(f.outputStream) {
             override fun write(b: ByteArray, off: Int, len: Int) = out.write(b, off, len)
@@ -199,7 +201,7 @@ class SmbVfs(override val server: NetServer) : RemoteVfs {
         }
     }
 
-    override fun openRandom(path: String, write: Boolean, truncate: Boolean): RandomFile = call("Opening", path) {
+    override fun openRandom(path: String, write: Boolean, truncate: Boolean): RandomFile = call(App.str(R.string.opening), path) {
         val disp = when {
             !write -> SMB2CreateDisposition.FILE_OPEN
             truncate -> SMB2CreateDisposition.FILE_OVERWRITE_IF
@@ -225,33 +227,33 @@ class SmbVfs(override val server: NetServer) : RemoteVfs {
 
     override fun mkdir(path: String) {
         val (shareName, inner) = split(path)
-        if (inner.isEmpty()) throw IOException("New shares can't be created from here")
-        call("Creating folder", path) {
+        if (inner.isEmpty()) throw IOException(App.str(R.string.new_shares_can_t_be_created_from))
+        call(App.str(R.string.creating_folder), path) {
             val s = share(shareName)
-            if (s.folderExists(inner) || s.fileExists(inner)) throw IOException("${Paths.name(path)} already exists")
+            if (s.folderExists(inner) || s.fileExists(inner)) throw IOException(App.str(R.string.already_exists, Paths.name(path)))
             s.mkdir(inner)
         }
     }
 
     override fun createFile(path: String) {
-        call("Creating file", path) { open(path, true, SMB2CreateDisposition.FILE_CREATE).close() }
+        call(App.str(R.string.creating_file), path) { open(path, true, SMB2CreateDisposition.FILE_CREATE).close() }
     }
 
     override fun delete(path: String, isDir: Boolean) {
         val (shareName, inner) = split(path)
-        if (inner.isEmpty()) throw IOException("Shares can't be deleted from here")
-        call("Deleting", path) { if (isDir) share(shareName).rmdir(inner, false) else share(shareName).rm(inner) }
+        if (inner.isEmpty()) throw IOException(App.str(R.string.shares_can_t_be_deleted_from_here))
+        call(App.str(R.string.deleting), path) { if (isDir) share(shareName).rmdir(inner, false) else share(shareName).rm(inner) }
     }
 
     override fun rename(from: String, to: String) {
         val (fs, fi) = split(from)
         val (ts, ti) = split(to)
-        if (fi.isEmpty() || ti.isEmpty()) throw IOException("Shares can't be renamed from here")
+        if (fi.isEmpty() || ti.isEmpty()) throw IOException(App.str(R.string.shares_can_t_be_renamed_from_here))
         if (fs != ts) throw CrossDeviceException()
-        call("Renaming", from) {
+        call(App.str(R.string.renaming), from) {
             val s = share(fs)
             if (!from.equals(to, ignoreCase = true) && (s.fileExists(ti) || s.folderExists(ti)))
-                throw IOException("${Paths.name(to)} already exists")
+                throw IOException(App.str(R.string.already_exists, Paths.name(to)))
             s.open(fi, EnumSet.of(AccessMask.DELETE, AccessMask.GENERIC_READ), null, SMB2ShareAccess.ALL,
                 SMB2CreateDisposition.FILE_OPEN, null).use { it.rename(ti) }
         }
@@ -280,25 +282,25 @@ class SmbVfs(override val server: NetServer) : RemoteVfs {
             val name = path?.let { " (${Paths.name(it)})" } ?: ""
             return when (e.status) {
                 NtStatus.STATUS_OBJECT_NAME_NOT_FOUND, NtStatus.STATUS_OBJECT_PATH_NOT_FOUND, NtStatus.STATUS_NO_SUCH_FILE ->
-                    FileNotFoundException("${path ?: "That"}: not found")
-                NtStatus.STATUS_BAD_NETWORK_NAME -> IOException("The share doesn't exist on this server")
-                NtStatus.STATUS_ACCESS_DENIED -> IOException("$what failed: permission denied$name")
-                NtStatus.STATUS_LOGON_FAILURE -> IOException("Wrong username or password")
-                NtStatus.STATUS_ACCOUNT_DISABLED -> IOException("This account is disabled or locked")
-                NtStatus.STATUS_OBJECT_NAME_COLLISION -> IOException("$what failed: already exists$name")
-                NtStatus.STATUS_DIRECTORY_NOT_EMPTY -> IOException("$what failed: folder isn't empty$name")
-                NtStatus.STATUS_DISK_FULL -> IOException("$what failed: the share is full")
-                NtStatus.STATUS_SHARING_VIOLATION -> IOException("$what failed: the file is open in another program$name")
-                else -> IOException("$what failed: ${e.status}$name")
+                    FileNotFoundException(App.str(R.string.not_found, path ?: "That"))
+                NtStatus.STATUS_BAD_NETWORK_NAME -> IOException(App.str(R.string.the_share_doesn_t_exist_on_this))
+                NtStatus.STATUS_ACCESS_DENIED -> IOException(App.str(R.string.failed_permission_denied, what, name))
+                NtStatus.STATUS_LOGON_FAILURE -> IOException(App.str(R.string.wrong_username_or_password))
+                NtStatus.STATUS_ACCOUNT_DISABLED -> IOException(App.str(R.string.this_account_is_disabled_or_locked))
+                NtStatus.STATUS_OBJECT_NAME_COLLISION -> IOException(App.str(R.string.failed_already_exists, what, name))
+                NtStatus.STATUS_DIRECTORY_NOT_EMPTY -> IOException(App.str(R.string.failed_folder_isn_t_empty, what, name))
+                NtStatus.STATUS_DISK_FULL -> IOException(App.str(R.string.failed_the_share_is_full, what))
+                NtStatus.STATUS_SHARING_VIOLATION -> IOException(App.str(R.string.failed_the_file_is_open_in_another, what, name))
+                else -> IOException(App.str(R.string.failed_4, what, e.status, name))
             }
         }
         if (e is IOException && e.message?.isNotBlank() == true && e !is java.net.SocketTimeoutException) return e
         val msg = when (e) {
-            is java.net.SocketTimeoutException -> "The server stopped responding"
-            is java.net.ConnectException -> "Couldn't reach ${server.host} on port ${server.effectivePort}. Is file sharing (SMB) on?"
-            is java.net.UnknownHostException -> "Unknown server address ${server.host}"
+            is java.net.SocketTimeoutException -> App.str(R.string.the_server_stopped_responding)
+            is java.net.ConnectException -> App.str(R.string.couldn_t_reach_on_port_is_file, server.host, server.effectivePort)
+            is java.net.UnknownHostException -> App.str(R.string.unknown_server_address, server.host)
             else -> e.message ?: e.javaClass.simpleName
         }
-        return IOException("$what failed: $msg")
+        return IOException(App.str(R.string.failed_3, what, msg))
     }
 }

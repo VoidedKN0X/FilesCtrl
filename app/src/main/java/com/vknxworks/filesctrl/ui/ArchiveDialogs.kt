@@ -48,6 +48,8 @@ import com.vknxworks.filesctrl.ops.ArchiveFormat
 import com.vknxworks.filesctrl.ops.Ops
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import androidx.compose.ui.res.stringResource
+import com.vknxworks.filesctrl.R
 
 @Composable
 private fun PasswordField(value: String, label: String, onChange: (String) -> Unit, onDone: (() -> Unit)? = null, modifier: Modifier = Modifier) {
@@ -60,7 +62,7 @@ private fun PasswordField(value: String, label: String, onChange: (String) -> Un
         keyboardActions = KeyboardActions(onDone = { onDone?.invoke() }),
         trailingIcon = {
             IconButton(onClick = { show = !show }) {
-                Icon(if (show) Icons.Outlined.VisibilityOff else Icons.Outlined.Visibility, if (show) "Hide password" else "Show password")
+                Icon(if (show) Icons.Outlined.VisibilityOff else Icons.Outlined.Visibility, if (show) stringResource(R.string.hide_password) else stringResource(R.string.show_password))
             }
         },
         modifier = modifier.fillMaxWidth(),
@@ -80,15 +82,15 @@ fun PasswordDialog(title: String, wrong: Boolean, onDismiss: () -> Unit, onConfi
         text = {
             Column {
                 Text(
-                    if (wrong) "That password didn't work. Try again." else "This archive is password-protected.",
+                    if (wrong) stringResource(R.string.that_password_didn_t_work_try_again) else stringResource(R.string.this_archive_is_password_protected_2),
                     color = if (wrong) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 Spacer(Modifier.height(12.dp))
-                PasswordField(pw, "Password", { pw = it }, onDone = { if (pw.isNotEmpty()) onConfirm(pw.toCharArray()) }, Modifier.focusRequester(focus))
+                PasswordField(pw, stringResource(R.string.password), { pw = it }, onDone = { if (pw.isNotEmpty()) onConfirm(pw.toCharArray()) }, Modifier.focusRequester(focus))
             }
         },
-        confirmButton = { TextButton(enabled = pw.isNotEmpty(), onClick = { onConfirm(pw.toCharArray()) }) { Text("Open") } },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+        confirmButton = { TextButton(enabled = pw.isNotEmpty(), onClick = { onConfirm(pw.toCharArray()) }) { Text(stringResource(R.string.open)) } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.lock_cancel)) } },
     )
 }
 
@@ -101,12 +103,12 @@ fun CompressDialog(baseName: String, onDismiss: () -> Unit, onConfirm: (name: St
     val err = Paths.validName(name + format.ext)
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Compress") },
+        title = { Text(stringResource(R.string.compress)) },
         text = {
             Column(Modifier.verticalScroll(rememberScrollState())) {
                 OutlinedTextField(
                     value = name, onValueChange = { name = it },
-                    label = { Text("Name") }, singleLine = true,
+                    label = { Text(stringResource(R.string.name)) }, singleLine = true,
                     suffix = { Text(format.ext) },
                     isError = err != null && name.isNotEmpty(),
                     modifier = Modifier.fillMaxWidth(),
@@ -126,10 +128,10 @@ fun CompressDialog(baseName: String, onDismiss: () -> Unit, onConfirm: (name: St
                 }
                 if (format.passwords) {
                     Spacer(Modifier.height(8.dp))
-                    PasswordField(pw, "Password (optional)", { pw = it })
+                    PasswordField(pw, stringResource(R.string.password_optional), { pw = it })
                     Text(
-                        if (pw.isEmpty()) "Leave empty for no password."
-                        else "AES-256. There's no way to open the archive without this password.",
+                        if (pw.isEmpty()) stringResource(R.string.leave_empty_for_no_password)
+                        else stringResource(R.string.aes_256_there_s_no_way_to_open_the),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(top = 4.dp),
@@ -141,9 +143,9 @@ fun CompressDialog(baseName: String, onDismiss: () -> Unit, onConfirm: (name: St
             TextButton(enabled = name.isNotBlank() && err == null, onClick = {
                 val n = name.trim().let { if (it.endsWith(format.ext, true)) it else it + format.ext }
                 onConfirm(n, format, pw.takeIf { format.passwords && it.isNotEmpty() }?.toCharArray())
-            }) { Text("Compress") }
+            }) { Text(stringResource(R.string.compress)) }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.lock_cancel)) } },
     )
 }
 
@@ -159,7 +161,7 @@ fun ExtractFlow(archive: FileEntry, dest: Location, onDone: () -> Unit, onError:
         val result = withContext(Dispatchers.IO) {
             try {
                 App.vfs.forgetArchive(id)
-                val arc = App.vfs.archive(id) ?: throw java.io.IOException("Couldn't open ${archive.name}")
+                val arc = App.vfs.archive(id) ?: throw java.io.IOException(App.str(R.string.couldn_t_open, archive.name))
                 arc.list("/")
                 null
             } catch (e: Exception) { e }
@@ -167,11 +169,11 @@ fun ExtractFlow(archive: FileEntry, dest: Location, onDone: () -> Unit, onError:
         when (result) {
             null -> { Ops.extract(archive, dest); onDone() }
             is ArchivePasswordException -> needs = result
-            else -> onError("Couldn't extract ${archive.name}", result.message ?: result.javaClass.simpleName)
+            else -> onError(App.str(R.string.couldn_t_extract, archive.name), result.message ?: result.javaClass.simpleName)
         }
     }
     needs?.let { ex ->
-        PasswordDialog("Password for ${archive.name}", ex.wrong, onDismiss = onDone) { pw ->
+        PasswordDialog(stringResource(R.string.password_for, archive.name), ex.wrong, onDismiss = onDone) { pw ->
             Ops.extract(archive, dest, pw)
             onDone()
         }

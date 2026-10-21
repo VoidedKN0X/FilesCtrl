@@ -14,6 +14,8 @@ import javax.crypto.Cipher
 import javax.crypto.KeyGenerator
 import javax.crypto.SecretKey
 import javax.crypto.spec.GCMParameterSpec
+import com.vknxworks.filesctrl.App
+import com.vknxworks.filesctrl.R
 
 /** Network file system protocols FilesCtrl can connect to. */
 enum class Proto(val label: String, val defaultPort: Int) {
@@ -272,7 +274,7 @@ class ServerStore(context: Context, private val vault: LockVault) {
     /** With the app lock on, a secret is encrypted with the vault key first. Empty stays empty. */
     private fun seal(plain: String): String {
         if (plain.isEmpty() || !vault.enabled) return plain
-        return vault.seal(plain) ?: throw java.io.IOException("FilesCtrl is locked. Unlock it to save passwords.")
+        return vault.seal(plain) ?: throw java.io.IOException(App.str(R.string.filesctrl_is_locked_unlock_it_to))
     }
 
     private fun write(json: String) { sp.edit().putString("list", json).apply() }
@@ -300,7 +302,7 @@ class ServerStore(context: Context, private val vault: LockVault) {
             c.init(Cipher.ENCRYPT_MODE, key())
             "v1:" + Base64.encodeToString(c.iv + c.doFinal(plain.toByteArray()), Base64.NO_WRAP)
         } catch (e: Exception) {
-            throw java.io.IOException("Couldn't encrypt the password with the phone's key store (${e.javaClass.simpleName}). Nothing was saved.", e)
+            throw java.io.IOException(App.str(R.string.couldn_t_encrypt_the_password_with, e.javaClass.simpleName), e)
         }
     }
 

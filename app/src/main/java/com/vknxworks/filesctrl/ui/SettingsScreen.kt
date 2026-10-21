@@ -121,7 +121,7 @@ fun SettingsScreen() {
                     THEMES.indexOf(s.theme).coerceAtLeast(0),
                 ) { s.theme = THEMES[it] }
                 ToggleItem(Icons.Outlined.Palette, stringResource(R.string.dynamic_colour), stringResource(R.string.dynamic_colour_subtitle), s.dynamicColor) { s.dynamicColor = it }
-                ToggleItem(Icons.Outlined.GridView, "Grid view", "Show files as tiles instead of a list", s.gridView) { s.gridView = it }
+                ToggleItem(Icons.Outlined.GridView, stringResource(R.string.grid_view), stringResource(R.string.show_files_as_tiles_instead_of_a), s.gridView) { s.gridView = it }
             }
         }
 
@@ -179,34 +179,34 @@ fun SettingsScreen() {
         }
 
         item {
-            SettingsSection("Files") {
-                ToggleItem(Icons.Outlined.Visibility, "Show hidden files", "Names starting with a dot", s.showHidden) { s.showHidden = it }
+            SettingsSection(stringResource(R.string.files)) {
+                ToggleItem(Icons.Outlined.Visibility, stringResource(R.string.show_hidden_files), stringResource(R.string.names_starting_with_a_dot), s.showHidden) { s.showHidden = it }
                 ItemDivider()
-                ToggleItem(Icons.AutoMirrored.Outlined.Sort, "Folders first", "Keep folders above files when sorting", s.foldersFirst) { s.foldersFirst = it }
+                ToggleItem(Icons.AutoMirrored.Outlined.Sort, stringResource(R.string.folders_first), stringResource(R.string.keep_folders_above_files_when), s.foldersFirst) { s.foldersFirst = it }
                 ItemDivider()
-                ToggleItem(Icons.Outlined.Delete, "Confirm before deleting", null, s.confirmDelete) { s.confirmDelete = it }
+                ToggleItem(Icons.Outlined.Delete, stringResource(R.string.confirm_before_deleting), null, s.confirmDelete) { s.confirmDelete = it }
                 ItemDivider()
                 ToggleItem(
-                    Icons.Outlined.Image, "Thumbnails on network locations",
-                    "Load image previews over the network (images up to 25 MB)", s.nfsThumbnails,
+                    Icons.Outlined.Image, stringResource(R.string.thumbnails_on_network_locations),
+                    stringResource(R.string.load_image_previews_over_the_network), s.nfsThumbnails,
                 ) { s.nfsThumbnails = it }
             }
         }
 
         item {
-            SettingsSection("Permissions") {
+            SettingsSection(stringResource(R.string.permissions)) {
                 NavItem(
-                    Icons.Outlined.FolderSpecial, "All files access",
-                    if (allFiles) "Allowed: this phone's storage can be browsed" else "Needed to browse this phone's storage; tap to allow",
+                    Icons.Outlined.FolderSpecial, stringResource(R.string.all_files_access),
+                    if (allFiles) stringResource(R.string.allowed_this_phone_s_storage_can_be) else stringResource(R.string.needed_to_browse_this_phone_s),
                 ) {
                     val i = Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION, Uri.parse("package:${ctx.packageName}"))
                     com.vknxworks.filesctrl.ui.lock.AppLockState.expectReturn(); try { ctx.startActivity(i) } catch (_: Exception) { ctx.startActivity(Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION)) }
                 }
                 ItemDivider()
                 NavItem(
-                    Icons.Outlined.BatteryChargingFull, "Background activity",
-                    if (unrestricted) "Unrestricted, so long copies keep going with the screen off"
-                    else "Restricted. ColorOS and other phones may pause long copies in the background; tap to allow",
+                    Icons.Outlined.BatteryChargingFull, stringResource(R.string.background_activity),
+                    if (unrestricted) stringResource(R.string.unrestricted_so_long_copies_keep)
+                    else stringResource(R.string.restricted_coloros_and_other_phones),
                 ) {
                     if (!unrestricted) {
                         run { com.vknxworks.filesctrl.ui.lock.AppLockState.expectReturn(); batteryLauncher.launch(Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS, Uri.parse("package:${ctx.packageName}"))) }
@@ -218,10 +218,10 @@ fun SettingsScreen() {
         }
 
         item {
-            SettingsSection("Other apps") {
+            SettingsSection(stringResource(R.string.other_apps)) {
                 NavItem(
-                    Icons.Outlined.Share, "Network locations in other apps",
-                    "Saved servers appear in Android's file picker (\"Browse\" in any app that opens files), and files opened from FilesCtrl stream straight from the server.",
+                    Icons.Outlined.Share, stringResource(R.string.network_locations_in_other_apps),
+                    stringResource(R.string.saved_servers_appear_in_android_s),
                 ) {}
             }
         }

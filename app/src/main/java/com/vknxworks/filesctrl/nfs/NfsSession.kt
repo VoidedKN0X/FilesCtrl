@@ -7,6 +7,8 @@ import java.io.FileNotFoundException
 import java.io.IOException
 import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.withLock
+import com.vknxworks.filesctrl.App
+import com.vknxworks.filesctrl.R
 
 /** An NFS failure with the errno behind it and a message fit to show. */
 class NfsException(val errno: Int, message: String) : IOException(message)
@@ -32,7 +34,7 @@ class NfsSession(val server: NetServer) {
 
     /** Runs [block] with a connected context, holding the lock. */
     fun <T> call(block: (Long) -> T): T = lock.withLock {
-        if (closed) throw IOException("Connection closed")
+        if (closed) throw IOException(App.str(R.string.connection_closed))
         if (ctx == 0L) connect()
         try {
             block(ctx)
@@ -85,7 +87,7 @@ class NfsSession(val server: NetServer) {
         // Don't keep using a connection that failed for a non-file reason; the next call reconnects.
         if (!isFileError(errno)) disconnectLocked()
         val detail = NfsNative.error(h)
-        if (errno == OsConstants.ENOENT) throw FileNotFoundException(path?.let { "$it: not found" } ?: "Not found")
+        if (errno == OsConstants.ENOENT) throw FileNotFoundException(path?.let { App.str(R.string.not_found, it) } ?: App.str(R.string.not_found_2))
         throw NfsException(errno, describe(errno, what, path, detail))
     }
 
@@ -93,7 +95,7 @@ class NfsSession(val server: NetServer) {
     fun fail(h: Long, what: String, path: String?): Nothing {
         val rc = NfsNative.lastError(h).let { if (it < 0) it else -OsConstants.EIO }
         ok(h, rc, what, path)
-        throw NfsException(OsConstants.EIO, "$what failed")
+        throw NfsException(OsConstants.EIO, App.str(R.string.failed_2, what))
     }
 
     // Set from inside call() when a result shows the connection is dead; acted on when the call ends.
@@ -111,7 +113,7 @@ class NfsSession(val server: NetServer) {
             // Try following nested exports first; minimal servers without the EXPORT call need it off.
             for (traverse in listOf(true, false)) {
                 val h = NfsNative.create()
-                if (h == 0L) throw IOException("Couldn't start the NFS client")
+                if (h == 0L) throw IOException(App.str(R.string.couldn_t_start_the_nfs_client))
                 val rc = NfsNative.mount(
                     h, s.host.trim(), normaliseExport(s.export), v, s.uid, s.gid,
                     s.nfsPort, s.mountPort, s.timeoutSec.coerceIn(2, 120) * 1000, s.readOnly, traverse,
@@ -129,7 +131,7 @@ class NfsSession(val server: NetServer) {
                 if (!(traverse && v == 3 && (err.message ?: "").contains("Procedure not available", true))) break
             }
         }
-        throw firstError ?: NfsException(OsConstants.EIO, "Couldn't connect")
+        throw firstError ?: NfsException(OsConstants.EIO, App.str(R.string.couldn_t_connect))
     }
 
     companion object {
@@ -149,39 +151,38 @@ class NfsSession(val server: NetServer) {
             errno == OsConstants.EPIPE || errno == OsConstants.ECONNRESET || errno == OsConstants.ECONNREFUSED ||
             errno == OsConstants.ESTALE || errno == OsConstants.EHOSTUNREACH || errno == OsConstants.ENETUNREACH
 
-        private fun errName(errno: Int) = try { Os.strerror(errno) } catch (_: Exception) { "error $errno" }
+        private fun errName(errno: Int) = try { Os.strerror(errno) } catch (_: Exception) { App.str(R.string.error, errno) }
 
         fun describe(errno: Int, what: String, path: String?, detail: String?): String {
             val friendly = when (errno) {
-                OsConstants.EACCES, OsConstants.EPERM -> "Permission denied"
-                OsConstants.EEXIST -> "Already exists"
-                OsConstants.ENOTEMPTY -> "Folder isn't empty"
-                OsConstants.EROFS -> "The share is read-only"
-                OsConstants.ENOSPC -> "No space left on the server"
-                OsConstants.EDQUOT -> "Quota exceeded"
-                OsConstants.ETIMEDOUT -> "The server stopped responding"
-                OsConstants.ENAMETOOLONG -> "Name is too long"
-                OsConstants.EISDIR -> "That's a folder"
-                OsConstants.ENOTDIR -> "Not a folder"
-                OsConstants.ESTALE -> "The file changed on the server; refresh and try again"
+                OsConstants.EACCES, OsConstants.EPERM -> App.str(R.string.permission_denied)
+                OsConstants.EEXIST -> App.str(R.string.already_exists_2)
+                OsConstants.ENOTEMPTY -> App.str(R.string.folder_isn_t_empty)
+                OsConstants.EROFS -> App.str(R.string.the_share_is_read_only)
+                OsConstants.ENOSPC -> App.str(R.string.no_space_left_on_the_server)
+                OsConstants.EDQUOT -> App.str(R.string.quota_exceeded)
+                OsConstants.ETIMEDOUT -> App.str(R.string.the_server_stopped_responding)
+                OsConstants.ENAMETOOLONG -> App.str(R.string.name_is_too_long)
+                OsConstants.EISDIR -> App.str(R.string.that_s_a_folder)
+                OsConstants.ENOTDIR -> App.str(R.string.not_a_folder)
+                OsConstants.ESTALE -> App.str(R.string.the_file_changed_on_the_server)
                 else -> errName(errno)
             }
             val where = path?.let { " ($it)" } ?: ""
-            return "$what failed: $friendly$where"
+            return App.str(R.string.failed_4, what, friendly, where)
         }
 
         fun describeMount(errno: Int, version: Int, detail: String?): String {
             val v = if (version == 42) "NFSv4.2" else "NFSv$version"
             val hint = when (errno) {
                 OsConstants.EACCES, OsConstants.EPERM ->
-                    "The server refused the mount. Check that the export allows this phone's IP address and has the " +
-                        "\"insecure\" option, since Android apps can't use the privileged ports some servers require."
-                OsConstants.ENOENT -> "The export path doesn't exist on the server."
-                OsConstants.ETIMEDOUT -> "No answer from the server. Check the address and that you're on the same network."
+                    App.str(R.string.nfs_mount_refused)
+                OsConstants.ENOENT -> App.str(R.string.the_export_path_doesn_t_exist_on_the)
+                OsConstants.ETIMEDOUT -> App.str(R.string.no_answer_from_the_server_check_the)
                 OsConstants.ECONNREFUSED -> if (version == 3)
-                    "Connection refused. Is NFS (and rpcbind/portmap on port 111) running? An NFSv4-only server needs version NFSv4."
-                else "Connection refused on the NFS port (usually 2049)."
-                OsConstants.EHOSTUNREACH, OsConstants.ENETUNREACH -> "The server can't be reached from this network."
+                    App.str(R.string.connection_refused_is_nfs_and)
+                else App.str(R.string.connection_refused_on_the_nfs_port)
+                OsConstants.EHOSTUNREACH, OsConstants.ENETUNREACH -> App.str(R.string.the_server_can_t_be_reached_from)
                 else -> null
             }
             val base = "$v: ${detail?.takeIf { it.isNotBlank() } ?: errName(errno)}"

@@ -14,6 +14,8 @@ import java.io.FileOutputStream
 import java.io.IOException
 import java.io.InputStream
 import java.io.OutputStream
+import com.vknxworks.filesctrl.App
+import com.vknxworks.filesctrl.R
 
 /** A storage volume on the phone (internal storage, SD card, USB drive). */
 data class Volume(val path: String, val label: String, val removable: Boolean, val primary: Boolean)
@@ -21,7 +23,7 @@ data class Volume(val path: String, val label: String, val removable: Boolean, v
 /** The phone's own storage. Needs "All files access" (MANAGE_EXTERNAL_STORAGE) outside the app's folders. */
 class LocalVfs(private val context: Context) : Vfs {
     override val id = ID
-    override val title = "This phone"
+    override val title = App.str(R.string.you_this_phone)
     override val isRemote = false
     override val canChmod = false
 
@@ -32,14 +34,14 @@ class LocalVfs(private val context: Context) : Vfs {
             if (v.state != Environment.MEDIA_MOUNTED && v.state != Environment.MEDIA_MOUNTED_READ_ONLY) return@mapNotNull null
             Volume(dir.absolutePath, v.getDescription(context) ?: dir.name, v.isRemovable, v.isPrimary)
         }
-        return out.ifEmpty { listOf(Volume(Environment.getExternalStorageDirectory().absolutePath, "Internal storage", false, true)) }
+        return out.ifEmpty { listOf(Volume(Environment.getExternalStorageDirectory().absolutePath, App.str(R.string.internal_storage), false, true)) }
     }
 
     val primaryRoot: String get() = volumes().firstOrNull { it.primary }?.path ?: Environment.getExternalStorageDirectory().absolutePath
 
     override fun rootOf(path: String): Pair<String, String> {
         val v = volumes().filter { Paths.isWithin(path, it.path) }.maxByOrNull { it.path.length }
-        return if (v != null) v.path to v.label else "/" to "Root"
+        return if (v != null) v.path to v.label else "/" to App.str(R.string.root)
     }
 
     private fun entry(f: File): FileEntry {
@@ -61,15 +63,15 @@ class LocalVfs(private val context: Context) : Vfs {
 
     override fun list(dir: String): List<FileEntry> {
         val d = File(dir)
-        if (!d.exists()) throw FileNotFoundException("$dir: not found")
-        if (!d.isDirectory) throw IOException("Not a folder")
-        val files = d.listFiles() ?: throw IOException("Can't read this folder (permission denied)")
+        if (!d.exists()) throw FileNotFoundException(App.str(R.string.not_found, dir))
+        if (!d.isDirectory) throw IOException(App.str(R.string.not_a_folder))
+        val files = d.listFiles() ?: throw IOException(App.str(R.string.can_t_read_this_folder_permission))
         return files.map { entry(it) }
     }
 
     override fun stat(path: String): FileEntry {
         val f = File(path)
-        if (!f.exists() && !isDanglingLink(path)) throw FileNotFoundException("$path: not found")
+        if (!f.exists() && !isDanglingLink(path)) throw FileNotFoundException(App.str(R.string.not_found, path))
         return entry(f)
     }
 
@@ -80,29 +82,29 @@ class LocalVfs(private val context: Context) : Vfs {
 
     override fun mkdir(path: String) {
         val f = File(path)
-        if (f.exists()) throw IOException("Already exists")
-        if (!f.mkdir()) throw IOException("Couldn't create folder ${f.name}")
+        if (f.exists()) throw IOException(App.str(R.string.already_exists_2))
+        if (!f.mkdir()) throw IOException(App.str(R.string.couldn_t_create_folder, f.name))
     }
 
     override fun createFile(path: String) {
-        if (!File(path).createNewFile()) throw IOException("Already exists")
+        if (!File(path).createNewFile()) throw IOException(App.str(R.string.already_exists_2))
     }
 
     override fun delete(path: String, isDir: Boolean) {
         try {
             Os.remove(path) // remove(3) handles both files and empty folders
         } catch (e: ErrnoException) {
-            throw IOException("Couldn't delete ${Paths.name(path)}: ${Os.strerror(e.errno)}")
+            throw IOException(App.str(R.string.couldn_t_delete, Paths.name(path), Os.strerror(e.errno)))
         }
     }
 
     override fun rename(from: String, to: String) {
-        if (File(to).exists() && !from.equals(to, ignoreCase = true)) throw IOException("${Paths.name(to)} already exists")
+        if (File(to).exists() && !from.equals(to, ignoreCase = true)) throw IOException(App.str(R.string.already_exists, Paths.name(to)))
         try {
             Os.rename(from, to)
         } catch (e: ErrnoException) {
             if (e.errno == OsConstants.EXDEV) throw CrossDeviceException()
-            throw IOException("Couldn't rename: ${Os.strerror(e.errno)}")
+            throw IOException(App.str(R.string.couldn_t_rename, Os.strerror(e.errno)))
         }
     }
 
@@ -117,4 +119,4 @@ class LocalVfs(private val context: Context) : Vfs {
 }
 
 /** A move between two volumes; the caller falls back to copy + delete. */
-class CrossDeviceException : IOException("Different volume")
+class CrossDeviceException : IOException(App.str(R.string.different_volume))

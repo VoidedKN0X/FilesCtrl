@@ -58,6 +58,7 @@ import com.vknxworks.filesctrl.fs.Mime
 import com.vknxworks.filesctrl.fs.RemoteVfs
 import com.vknxworks.filesctrl.provider.NetDocumentsProvider
 import java.io.File
+import com.vknxworks.filesctrl.R
 
 val LocalNav = staticCompositionLocalOf<NavHostController> { error("No nav controller") }
 
@@ -210,7 +211,7 @@ fun contentUri(ctx: Context, e: FileEntry): Uri =
 private fun contentUriOrToast(ctx: Context, e: FileEntry): Uri? = try {
     contentUri(ctx, e)
 } catch (_: IllegalArgumentException) {
-    Toast.makeText(ctx, "Only files in phone storage, SD cards and USB drives can be opened in other apps", Toast.LENGTH_LONG).show()
+    Toast.makeText(ctx, App.str(R.string.only_files_in_phone_storage_sd_cards), Toast.LENGTH_LONG).show()
     null
 }
 
@@ -224,7 +225,7 @@ fun isReadOnly(e: FileEntry): Boolean =
  */
 fun openFile(ctx: Context, e: FileEntry, chooser: Boolean = false, mimeOverride: String? = null, edit: Boolean = false) {
     val canWrite = edit && !isReadOnly(e)
-    if (edit && !canWrite) { Toast.makeText(ctx, "This server is read-only", Toast.LENGTH_SHORT).show(); return }
+    if (edit && !canWrite) { Toast.makeText(ctx, App.str(R.string.this_server_is_read_only), Toast.LENGTH_SHORT).show(); return }
     var flags = Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK
     if (canWrite) flags = flags or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
     val uri = contentUriOrToast(ctx, e) ?: return
@@ -234,18 +235,18 @@ fun openFile(ctx: Context, e: FileEntry, chooser: Boolean = false, mimeOverride:
     try {
         com.vknxworks.filesctrl.ui.lock.AppLockState.expectReturn()
         ctx.startActivity(
-            if (chooser) Intent.createChooser(intent, if (canWrite) "Edit with" else "Open with").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            if (chooser) Intent.createChooser(intent, if (canWrite) App.str(R.string.edit_with) else App.str(R.string.open_with)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             else intent,
         )
     } catch (_: ActivityNotFoundException) {
         if (!chooser) openFile(ctx, e, chooser = true, mimeOverride = "*/*", edit = edit)
-        else Toast.makeText(ctx, "No app can ${if (canWrite) "edit" else "open"} this file", Toast.LENGTH_SHORT).show()
+        else Toast.makeText(ctx, App.str(if (canWrite) R.string.no_app_can_edit else R.string.no_app_can_open), Toast.LENGTH_SHORT).show()
     }
 }
 
 fun shareFiles(ctx: Context, items: List<FileEntry>) {
     val files = items.filter { !it.isDir }
-    if (files.isEmpty()) { Toast.makeText(ctx, "Folders can't be shared", Toast.LENGTH_SHORT).show(); return }
+    if (files.isEmpty()) { Toast.makeText(ctx, App.str(R.string.folders_can_t_be_shared), Toast.LENGTH_SHORT).show(); return }
     val uris = ArrayList(files.map { contentUriOrToast(ctx, it) ?: return })
     val mimes = files.map { it.mime }.distinct()
     val type = if (mimes.size == 1) mimes[0] else mimes.map { it.substringBefore('/') }.distinct().singleOrNull()?.let { "$it/*" } ?: "*/*"
@@ -255,7 +256,7 @@ fun shareFiles(ctx: Context, items: List<FileEntry>) {
     intent.clipData = ClipData.newRawUri(null, uris[0]).apply { uris.drop(1).forEach { addItem(ClipData.Item(it)) } }
     intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
     com.vknxworks.filesctrl.ui.lock.AppLockState.expectReturn()
-    ctx.startActivity(Intent.createChooser(intent, "Share").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+    ctx.startActivity(Intent.createChooser(intent, App.str(R.string.share)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
 }
 
 /** Local path, or a URL like smb://nas/media/file for network locations. */

@@ -7,6 +7,8 @@ import java.io.File
 import java.io.IOException
 import java.io.InputStream
 import java.io.RandomAccessFile
+import com.vknxworks.filesctrl.App
+import com.vknxworks.filesctrl.R
 
 /** A file opened for reads/writes at any offset (used to stream files to other apps with seeking). */
 interface RandomFile : Closeable {
@@ -14,7 +16,7 @@ interface RandomFile : Closeable {
     fun size(): Long
     /** Reads up to [len] bytes at [offset] into [buf]; returns bytes read, 0 at end of file. */
     fun read(offset: Long, buf: ByteArray, len: Int): Int
-    fun write(offset: Long, buf: ByteArray, len: Int) { throw IOException("Read-only") }
+    fun write(offset: Long, buf: ByteArray, len: Int) { throw IOException(App.str(R.string.read_only)) }
     fun sync() {}
 }
 

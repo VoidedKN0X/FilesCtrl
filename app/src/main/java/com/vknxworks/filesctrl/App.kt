@@ -6,6 +6,8 @@ import android.os.Bundle
 import com.vknxworks.filesctrl.data.lock.LockVault
 import com.vknxworks.filesctrl.ui.lock.AppLockState
 import android.content.Context
+import androidx.annotation.PluralsRes
+import androidx.annotation.StringRes
 import android.provider.DocumentsContract
 import coil3.ImageLoader
 import coil3.PlatformContext
@@ -43,6 +45,12 @@ object App {
 
     /** For work that outlives a screen (file operations). */
     val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
+    /** Text from strings.xml for code that has no Context of its own (file systems, operations, errors). */
+    fun str(@StringRes id: Int, vararg args: Any): String = context.getString(id, *args)
+
+    /** A plural from strings.xml, for code that has no Context of its own. */
+    fun plural(@PluralsRes id: Int, count: Int, vararg args: Any): String = context.resources.getQuantityString(id, count, *args)
 
     @Synchronized
     fun init(ctx: Context) {

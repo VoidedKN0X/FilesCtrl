@@ -4,6 +4,8 @@ import android.webkit.MimeTypeMap
 import java.io.FileNotFoundException
 import java.io.InputStream
 import java.io.OutputStream
+import com.vknxworks.filesctrl.App
+import com.vknxworks.filesctrl.R
 
 /** A place in one of the file systems. */
 data class Location(val vfsId: String, val path: String) {
@@ -70,7 +72,7 @@ interface Vfs {
     /** Renames/moves within this file system. */
     fun rename(from: String, to: String)
     fun setModified(path: String, time: Long) {}
-    fun chmod(path: String, mode: Int) { throw UnsupportedOperationException("Not supported here") }
+    fun chmod(path: String, mode: Int) { throw UnsupportedOperationException(App.str(R.string.not_supported_here)) }
     fun space(path: String): Space?
 
     fun exists(path: String): Boolean = try { stat(path); true } catch (_: FileNotFoundException) { false }
@@ -115,11 +117,11 @@ object Paths {
         name.isNotEmpty() && name != "." && name != ".." && !name.contains('/') && !name.contains('\u0000')
 
     fun validName(name: String): String? = when {
-        name.isBlank() -> "Enter a name"
-        name == "." || name == ".." -> "That name isn't allowed"
-        name.contains('/') -> "Names can't contain /"
-        name.contains('\u0000') -> "Invalid character"
-        name.toByteArray().size > 255 -> "Name is too long"
+        name.isBlank() -> App.str(R.string.enter_a_name)
+        name == "." || name == ".." -> App.str(R.string.that_name_isn_t_allowed)
+        name.contains('/') -> App.str(R.string.names_can_t_contain)
+        name.contains('\u0000') -> App.str(R.string.invalid_character)
+        name.toByteArray().size > 255 -> App.str(R.string.name_is_too_long)
         else -> null
     }
 

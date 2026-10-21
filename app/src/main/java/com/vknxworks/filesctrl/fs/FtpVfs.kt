@@ -17,6 +17,8 @@ import java.time.Duration
 import java.util.Date
 import java.util.Locale
 import java.util.TimeZone
+import com.vknxworks.filesctrl.App
+import com.vknxworks.filesctrl.R
 
 /**
  * FTP and FTPS (explicit TLS). An FTP connection can only do one transfer at a time, so browsing uses one
@@ -60,11 +62,11 @@ class FtpVfs(override val server: NetServer) : RemoteVfs {
         c.setDataTimeout(Duration.ofSeconds(t.toLong()))
         try {
             c.connect(s.host.trim(), s.effectivePort)
-            if (!FTPReply.isPositiveCompletion(c.replyCode)) throw IOException("The server refused the connection: ${c.replyString.trim()}")
+            if (!FTPReply.isPositiveCompletion(c.replyCode)) throw IOException(App.str(R.string.the_server_refused_the_connection, c.replyString.trim()))
             c.soTimeout = t * 1000
             val user = s.username.ifBlank { "anonymous" }
             val pass = if (s.username.isBlank() && s.password.isBlank()) "filesctrl@" else s.password
-            if (!c.login(user, pass)) throw IOException("Wrong username or password")
+            if (!c.login(user, pass)) throw IOException(App.str(R.string.wrong_username_or_password))
             if (c is FTPSClient) { c.execPBSZ(0); c.execPROT("P") }
             c.setFileType(FTP.BINARY_FILE_TYPE)
             c.enterLocalPassiveMode()
@@ -74,7 +76,7 @@ class FtpVfs(override val server: NetServer) : RemoteVfs {
         } catch (e: Exception) {
             try { if (c.isConnected) c.disconnect() } catch (_: Exception) {}
             pinTm?.explain()?.let { throw it }
-            throw friendly(e, "Connecting")
+            throw friendly(e, App.str(R.string.connecting))
         }
     }
 
@@ -126,12 +128,12 @@ class FtpVfs(override val server: NetServer) : RemoteVfs {
         )
     }
 
-    override fun list(dir: String): List<FileEntry> = call("Listing", dir) { c ->
+    override fun list(dir: String): List<FileEntry> = call(App.str(R.string.listing), dir) { c ->
         val r = remote(dir)
         val files = if (mlsd == true) c.mlistDir(r) else c.listFiles(r)
         if (files == null || (files.isEmpty() && !FTPReply.isPositiveCompletion(c.replyCode))) {
-            if (c.replyCode == 550) throw FileNotFoundException("$dir: not found")
-            throw FtpReplyException("Listing failed: ${c.replyString.trim()}")
+            if (c.replyCode == 550) throw FileNotFoundException(App.str(R.string.not_found, dir))
+            throw FtpReplyException(App.str(R.string.listing_failed, c.replyString.trim()))
         }
         // Some servers send full paths as names; keep the last part. Then drop "." / ".." and anything with NUL,
         // so a hostile server can't make a copy escape the destination folder.
@@ -141,7 +143,7 @@ class FtpVfs(override val server: NetServer) : RemoteVfs {
     }
 
     override fun stat(path: String): FileEntry {
-        return call("Reading", path) { c ->
+        return call(App.str(R.string.reading), path) { c ->
             val r = remote(path)
             if (r == "/" || path == "/") return@call FileEntry(id, path, Paths.name(path), true, 0, 0)
             val f = if (mlsd == true) c.mlistFile(r) else null
@@ -151,7 +153,7 @@ class FtpVfs(override val server: NetServer) : RemoteVfs {
             val name = Paths.name(r)
             val list = c.listFiles(parent) ?: emptyArray()
             val found = list.firstOrNull { it != null && it.name.substringAfterLast('/') == name }
-                ?: throw FileNotFoundException("$path: not found")
+                ?: throw FileNotFoundException(App.str(R.string.not_found, path))
             entry(path, found)
         }
     }
@@ -167,8 +169,8 @@ class FtpVfs(override val server: NetServer) : RemoteVfs {
                 val code = c.replyCode
                 val msg = c.replyString.trim()
                 quit(c)
-                if (code == 550) throw FileNotFoundException("$path: not found")
-                throw IOException("Opening failed: $msg")
+                if (code == 550) throw FileNotFoundException(App.str(R.string.not_found, path))
+                throw IOException(App.str(R.string.opening_failed, msg))
             }
             return object : FilterInputStream(s) {
                 override fun close() {
@@ -181,12 +183,12 @@ class FtpVfs(override val server: NetServer) : RemoteVfs {
     }
 
     override fun openWrite(path: String): OutputStream {
-        if (server.readOnly) throw IOException("The share is read-only")
+        if (server.readOnly) throw IOException(App.str(R.string.the_share_is_read_only))
         val c = newClient()
         val s = c.storeFileStream(remote(path)) ?: run {
             val msg = c.replyString.trim()
             quit(c)
-            throw IOException("Creating ${Paths.name(path)} failed: $msg")
+            throw IOException(App.str(R.string.creating_failed, Paths.name(path), msg))
         }
         return object : FilterOutputStream(s) {
             override fun write(b: ByteArray, off: Int, len: Int) = out.write(b, off, len)
@@ -194,7 +196,7 @@ class FtpVfs(override val server: NetServer) : RemoteVfs {
                 try {
                     super.close()
                     // The server confirms the upload only after the data connection closes.
-                    if (!c.completePendingCommand()) throw IOException("Saving ${Paths.name(path)} failed: ${c.replyString.trim()}")
+                    if (!c.completePendingCommand()) throw IOException(App.str(R.string.saving_failed, Paths.name(path), c.replyString.trim()))
                 } finally { quit(c) }
             }
         }
@@ -203,32 +205,32 @@ class FtpVfs(override val server: NetServer) : RemoteVfs {
     private fun check(c: FTPClient, ok: Boolean, what: String, path: String) {
         if (ok) return
         val msg = c.replyString.trim()
-        if (c.replyCode == 550 && what != "Creating folder") throw FileNotFoundException("$path: not found")
-        throw FtpReplyException("$what ${Paths.name(path)} failed: $msg")
+        if (c.replyCode == 550 && what != App.str(R.string.creating_folder)) throw FileNotFoundException(App.str(R.string.not_found, path))
+        throw FtpReplyException(App.str(R.string.failed, what, Paths.name(path), msg))
     }
 
-    override fun mkdir(path: String) = call("Creating folder", path) { c ->
-        check(c, c.makeDirectory(remote(path)), "Creating folder", path)
+    override fun mkdir(path: String) = call(App.str(R.string.creating_folder), path) { c ->
+        check(c, c.makeDirectory(remote(path)), App.str(R.string.creating_folder), path)
     }
 
     override fun createFile(path: String) {
-        if (exists(path)) throw IOException("${Paths.name(path)} already exists")
+        if (exists(path)) throw IOException(App.str(R.string.already_exists, Paths.name(path)))
         openWrite(path).close()
     }
 
-    override fun delete(path: String, isDir: Boolean) = call("Deleting", path) { c ->
-        check(c, if (isDir) c.removeDirectory(remote(path)) else c.deleteFile(remote(path)), "Deleting", path)
+    override fun delete(path: String, isDir: Boolean) = call(App.str(R.string.deleting), path) { c ->
+        check(c, if (isDir) c.removeDirectory(remote(path)) else c.deleteFile(remote(path)), App.str(R.string.deleting), path)
     }
 
     override fun rename(from: String, to: String) {
-        if (from != to && exists(to)) throw IOException("${Paths.name(to)} already exists")
-        call("Renaming", from) { c -> check(c, c.rename(remote(from), remote(to)), "Renaming", from) }
+        if (from != to && exists(to)) throw IOException(App.str(R.string.already_exists, Paths.name(to)))
+        call(App.str(R.string.renaming), from) { c -> check(c, c.rename(remote(from), remote(to)), App.str(R.string.renaming), from) }
     }
 
     override fun setModified(path: String, time: Long) {
         try {
             val fmt = SimpleDateFormat("yyyyMMddHHmmss", Locale.US).apply { timeZone = TimeZone.getTimeZone("UTC") }
-            call("Setting time", path) { c -> c.setModificationTime(remote(path), fmt.format(Date(time))) }
+            call(App.str(R.string.setting_time), path) { c -> c.setModificationTime(remote(path), fmt.format(Date(time))) }
         } catch (_: Exception) {}
     }
 
@@ -237,14 +239,14 @@ class FtpVfs(override val server: NetServer) : RemoteVfs {
     private fun friendly(e: Exception, what: String, path: String? = null): IOException = TlsPin.identityError(e) ?: when (e) {
         is FileNotFoundException -> e
         is javax.net.ssl.SSLException -> IOException(
-            if (server.insecureTls) "$what failed: TLS error (${e.message})"
-            else "$what failed: the server's certificate isn't trusted or doesn't match ${server.host}. Turn on \"Accept self-signed certificates\" if it's your own server.",
+            if (server.insecureTls) App.str(R.string.failed_tls_error, what, e.message)
+            else App.str(R.string.failed_the_server_s_certificate_isn, what, server.host),
         )
-        is java.net.SocketTimeoutException -> IOException("$what failed: the server stopped responding")
-        is java.net.ConnectException -> IOException("Couldn't reach ${server.host} on port ${server.effectivePort}. Is the FTP server running?")
-        is java.net.UnknownHostException -> IOException("Unknown server address ${server.host}")
-        is IOException -> if (e.message.isNullOrBlank()) IOException("$what failed") else e
-        else -> IOException("$what failed: ${e.message ?: e.javaClass.simpleName}")
+        is java.net.SocketTimeoutException -> IOException(App.str(R.string.failed_the_server_stopped_responding, what))
+        is java.net.ConnectException -> IOException(App.str(R.string.couldn_t_reach_on_port_is_the_ftp, server.host, server.effectivePort))
+        is java.net.UnknownHostException -> IOException(App.str(R.string.unknown_server_address, server.host))
+        is IOException -> if (e.message.isNullOrBlank()) IOException(App.str(R.string.failed_2, what)) else e
+        else -> IOException(App.str(R.string.failed_3, what, e.message ?: e.javaClass.simpleName))
     }
 }
 

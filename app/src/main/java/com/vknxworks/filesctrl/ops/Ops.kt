@@ -29,6 +29,7 @@ import kotlinx.coroutines.job
 import org.apache.commons.compress.archivers.sevenz.SevenZMethod
 import org.apache.commons.compress.archivers.sevenz.SevenZOutputFile
 import kotlin.coroutines.coroutineContext
+import com.vknxworks.filesctrl.R
 
 /** What to do when a pasted item's name is already taken in the destination. */
 enum class Conflict { Replace, KeepBoth, Skip }
@@ -38,7 +39,7 @@ enum class TaskState { Running, Done, Failed, Cancelled }
 /** One running or finished operation, observable from Compose. */
 class OpTask(val id: Int, val title: String) {
     var state by mutableStateOf(TaskState.Running)
-    var detail by mutableStateOf("Preparing…")
+    var detail by mutableStateOf(App.str(R.string.preparing))
     var bytesTotal by mutableLongStateOf(0L)
     var bytesDone by mutableLongStateOf(0L)
     var filesTotal by mutableStateOf(0)
@@ -91,20 +92,20 @@ object Ops {
             try {
                 work(t)
                 t.state = TaskState.Done
-                t.detail = if (t.warnings.isEmpty()) "Done" else "Done with ${t.warnings.size} problem(s)"
+                t.detail = if (t.warnings.isEmpty()) App.str(R.string.lock_done) else App.plural(R.plurals.done_with_problems, t.warnings.size, t.warnings.size)
             } catch (e: CancellationException) {
                 t.state = TaskState.Cancelled
-                t.detail = "Cancelled"
+                t.detail = App.str(R.string.cancelled)
             } catch (e: Exception) {
                 t.state = TaskState.Failed
                 t.error = e.message ?: e.javaClass.simpleName
-                t.detail = "Failed"
+                t.detail = App.str(R.string.failed_5)
             } finally {
                 touched.distinct().forEach { _changed.tryEmit(it) }
                 // With the app open there's no notification for the result, so say when something went wrong.
                 if (t.state == TaskState.Failed || (t.state == TaskState.Done && t.warnings.isNotEmpty())) {
-                    val msg = if (t.state == TaskState.Failed) "${t.title} failed: ${t.error}"
-                    else "${t.title}: ${t.warnings.size} skipped (${t.warnings.first()})"
+                    val msg = if (t.state == TaskState.Failed) App.str(R.string.failed_3, t.title, t.error)
+                    else App.str(R.string.skipped, t.title, t.warnings.size, t.warnings.first())
                     android.os.Handler(android.os.Looper.getMainLooper()).post {
                         if (com.vknxworks.filesctrl.MainActivity.inForeground) {
                             android.widget.Toast.makeText(appContext, msg, android.widget.Toast.LENGTH_LONG).show()
@@ -119,17 +120,17 @@ object Ops {
     // ---------- Copy / move ----------
 
     fun paste(items: List<FileEntry>, dest: Location, move: Boolean, conflict: Conflict): OpTask {
-        val verb = if (move) "Moving" else "Copying"
+        val title = App.plural(if (move) R.plurals.moving_items else R.plurals.copying_items, items.size, items.size)
         val title = "$verb ${plural(items.size, "item")}"
         val touched = listOf(dest) + if (move) items.map { it.parentLocation } else emptyList()
         return launch(title, touched) { t ->
             val dst = App.vfs.get(dest.vfsId)
             for (src in items) {
                 if (src.isDir && src.vfsId == dest.vfsId && Paths.isWithin(dest.path, src.path))
-                    throw IOException("Can't ${if (move) "move" else "copy"} ${src.name} into itself")
+                    throw IOException(App.str(if (move) R.string.cant_move_into_itself else R.string.cant_copy_into_itself, src.name))
             }
             // Count what needs copying (moves within one file system are just renames).
-            t.detail = "Counting files…"
+            t.detail = App.str(R.string.counting_files)
             for (src in items) {
                 coroutineContext.ensureActive()
                 if (move && src.vfsId == dest.vfsId) { t.filesTotal++; continue }
@@ -141,20 +142,20 @@ object Ops {
                 coroutineContext.ensureActive()
                 val srcVfs = App.vfs.get(src.vfsId)
                 var name = src.name
-                if (!Paths.isSafeName(name)) { t.warnings += "Skipped unsafe name ${src.name}"; t.filesDone++; continue }
+                if (!Paths.isSafeName(name)) { t.warnings += App.str(R.string.skipped_unsafe_name, src.name); t.filesDone++; continue }
                 val sameFolder = src.vfsId == dest.vfsId && src.parentLocation.path == dest.path
                 if (sameFolder && move) { t.filesDone++; continue }
                 var target = Paths.join(dest.path, name)
                 // Replacing a folder that contains the item itself would delete the item; never do that.
                 if (src.vfsId == dest.vfsId && target != src.path && Paths.isWithin(src.path, target)) {
-                    t.warnings += "Skipped ${src.name}: it's inside the item it would replace"
+                    t.warnings += App.str(R.string.skipped_it_s_inside_the_item_it, src.name)
                     t.filesDone++
                     continue
                 }
                 if (dst.exists(target)) {
                     val policy = if (sameFolder) Conflict.KeepBoth else conflict
                     when (policy) {
-                        Conflict.Skip -> { t.warnings += "Skipped ${src.name}"; t.filesDone++; continue }
+                        Conflict.Skip -> { t.warnings += App.str(R.string.skipped_2, src.name); t.filesDone++; continue }
                         Conflict.KeepBoth -> { name = Paths.unique(dest.path, name) { dst.exists(it) }; target = Paths.join(dest.path, name) }
                         Conflict.Replace -> {
                             val existing = dst.stat(target)
@@ -198,7 +199,7 @@ object Ops {
         coroutineContext.ensureActive()
         if (e.isLink && e.isDir) {
             // Following folder links could loop or copy a whole other tree; leave them out.
-            t.warnings += "Skipped folder link ${e.name}"
+            t.warnings += App.str(R.string.skipped_folder_link, e.name)
             t.filesDone++
             return
         }
@@ -207,7 +208,7 @@ object Ops {
             t.filesDone++
             for (c in src.list(e.path)) {
                 // Names come from the source (maybe a remote server): never let one climb out of the target folder.
-                if (!Paths.isSafeName(c.name)) { t.warnings += "Skipped unsafe name ${c.name}"; continue }
+                if (!Paths.isSafeName(c.name)) { t.warnings += App.str(R.string.skipped_unsafe_name, c.name); continue }
                 val childTarget = Paths.join(target, c.name)
                 checkInside(dst, childTarget, target)
                 copyTree(src, c, dst, childTarget, t)
@@ -218,7 +219,7 @@ object Ops {
                 copyFile(src, e, dst, target, t)
             } catch (ex: java.io.FileNotFoundException) {
                 if (!e.isLink) throw ex
-                t.warnings += "Skipped broken link ${e.name}"
+                t.warnings += App.str(R.string.skipped_broken_link, e.name)
             }
             t.filesDone++
         }
@@ -261,7 +262,7 @@ object Ops {
     }
 
     private fun deleteTask(items: List<FileEntry>): OpTask =
-        launch("Deleting ${plural(items.size, "item")}", items.map { it.parentLocation }.distinct()) { t ->
+        launch(App.plural(R.plurals.deleting_items, items.size, items.size), items.map { it.parentLocation }.distinct()) { t ->
             t.filesTotal = items.size
             for (e in items) {
                 coroutineContext.ensureActive()
@@ -289,7 +290,7 @@ object Ops {
     private suspend fun walk(vfs: Vfs, e: FileEntry, name: String, t: OpTask, sink: ArchiveSink) {
         coroutineContext.ensureActive()
         t.detail = e.name
-        if (e.isLink && e.isDir) { t.warnings += "Skipped folder link ${e.name}"; t.filesDone++; return }
+        if (e.isLink && e.isDir) { t.warnings += App.str(R.string.skipped_folder_link, e.name); t.filesDone++; return }
         if (e.isDir && !e.isLink) {
             sink.dir("$name/", e.modified)
             t.filesDone++
@@ -298,14 +299,14 @@ object Ops {
         }
         val input = try { vfs.openRead(e.path) } catch (ex: java.io.FileNotFoundException) {
             if (!e.isLink) throw ex
-            t.warnings += "Skipped broken link ${e.name}"; t.filesDone++; return
+            t.warnings += App.str(R.string.skipped_broken_link, e.name); t.filesDone++; return
         }
         input.use { sink.file(name, e.size, e.modified, it) { n -> t.bytesDone += n } }
         t.filesDone++
     }
 
     private fun compressTask(items: List<FileEntry>, dest: Location, name: String, format: ArchiveFormat, password: CharArray?): OpTask =
-        launch("Compressing to $name", listOf(dest)) { t ->
+        launch(App.str(R.string.compressing_to, name), listOf(dest)) { t ->
             val dst = App.vfs.get(dest.vfsId)
             for (e in items) {
                 val (b, f) = measure(App.vfs.get(e.vfsId), e)
@@ -325,7 +326,7 @@ object Ops {
                         z.finish()
                     }
                     tmp?.let { f ->
-                        t.detail = "Uploading $name"
+                        t.detail = App.str(R.string.uploading, name)
                         f.inputStream().use { input -> dst.openWrite(target).use { input.copyTo(it, 1 shl 20) } }
                     }
                 } else {
@@ -353,12 +354,12 @@ object Ops {
     }
 
     private fun extractTask(archive: FileEntry, dest: Location, password: CharArray?): OpTask =
-        launch("Extracting ${archive.name}", listOf(dest)) { t ->
-            val arc = App.vfs.archive(ArchiveVfs.idFor(archive.location)) ?: throw IOException("Couldn't open ${archive.name}")
+        launch(App.str(R.string.extracting, archive.name), listOf(dest)) { t ->
+            val arc = App.vfs.archive(ArchiveVfs.idFor(archive.location)) ?: throw IOException(App.str(R.string.couldn_t_open, archive.name))
             if (password != null) arc.password = password
             val dst = App.vfs.get(dest.vfsId)
             val job = coroutineContext.job
-            t.detail = "Reading ${archive.name}"
+            t.detail = App.str(R.string.reading_2, archive.name)
             t.bytesTotal = arc.totalSize()
             val single = arc.isSingleFile
             val root = if (single) dest.path else Paths.join(dest.path, Paths.unique(dest.path, arc.baseName) { dst.exists(it) }).also { dst.mkdir(it) }
@@ -402,8 +403,8 @@ object Ops {
                 created?.let { try { dst.delete(it, false) } catch (_: Exception) {} }
                 throw e
             }
-            if (arc.skippedUnsafe > 0) t.warnings += "Left out ${plural(arc.skippedUnsafe, "entry")} with unsafe names"
-            if (arc.skippedLinks > 0) t.warnings += "Left out ${plural(arc.skippedLinks, "link")}"
+            if (arc.skippedUnsafe > 0) t.warnings += App.plural(R.plurals.left_out_unsafe, arc.skippedUnsafe, arc.skippedUnsafe)
+            if (arc.skippedLinks > 0) t.warnings += App.plural(R.plurals.left_out_links, arc.skippedLinks, arc.skippedLinks)
         }
 
     /**
@@ -412,16 +413,15 @@ object Ops {
      * (canonical) path too.
      */
     private fun checkInside(dst: Vfs, target: String, dir: String, allowRoot: Boolean = false) {
-        if (!Paths.isWithin(target, dir) || (!allowRoot && target.trimEnd('/') == dir.trimEnd('/'))) throw IOException("Refused to write outside the destination: ${Paths.name(target)}")
+        if (!Paths.isWithin(target, dir) || (!allowRoot && target.trimEnd('/') == dir.trimEnd('/'))) throw IOException(App.str(R.string.refused_to_write_outside_the, Paths.name(target)))
         if (dst.id != LocalVfs.ID) return
         val base = File(dir).canonicalPath
         val real = File(target).canonicalPath
-        if (!real.startsWith(base + File.separator)) throw IOException("Refused to write outside the destination: ${Paths.name(target)}")
+        if (!real.startsWith(base + File.separator)) throw IOException(App.str(R.string.refused_to_write_outside_the, Paths.name(target)))
     }
 
     // ---------- Recursive size (for Properties) ----------
 
     suspend fun folderSize(e: FileEntry): Pair<Long, Int> = measure(App.vfs.get(e.vfsId), e)
 
-    fun plural(n: Int, word: String) = if (n == 1) "1 $word" else "$n ${word}s"
 }

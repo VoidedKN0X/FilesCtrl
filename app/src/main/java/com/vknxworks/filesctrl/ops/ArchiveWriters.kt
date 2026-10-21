@@ -17,15 +17,17 @@ import java.io.OutputStream
 import java.util.Date
 import java.util.zip.ZipEntry
 import java.util.zip.ZipOutputStream
+import com.vknxworks.filesctrl.App
+import com.vknxworks.filesctrl.R
 
 /** Formats FilesCtrl can create. [passwords]: the archive can be password-protected (AES-256). */
 enum class ArchiveFormat(val label: String, val ext: String, val passwords: Boolean, val hint: String) {
-    ZIP("ZIP", ".zip", true, "Opens everywhere"),
-    SEVENZ("7z", ".7z", true, "Smallest; password also hides file names"),
-    TAR_GZ("TAR.GZ", ".tar.gz", false, "Usual on Linux; keeps permissions"),
-    TAR_XZ("TAR.XZ", ".tar.xz", false, "Smaller than .tar.gz, slower"),
-    TAR_ZST("TAR.ZST", ".tar.zst", false, "Fast and small"),
-    TAR("TAR", ".tar", false, "No compression"),
+    ZIP("ZIP", ".zip", true, App.str(R.string.opens_everywhere)),
+    SEVENZ("7z", ".7z", true, App.str(R.string.smallest_password_also_hides_file)),
+    TAR_GZ("TAR.GZ", ".tar.gz", false, App.str(R.string.usual_on_linux_keeps_permissions)),
+    TAR_XZ("TAR.XZ", ".tar.xz", false, App.str(R.string.smaller_than_tar_gz_slower)),
+    TAR_ZST("TAR.ZST", ".tar.zst", false, App.str(R.string.fast_and_small)),
+    TAR("TAR", ".tar", false, App.str(R.string.no_compression)),
 }
 
 /** Receives folders and files, in order, and writes them into an archive. */
@@ -140,7 +142,7 @@ class TarSink(raw: OutputStream, format: ArchiveFormat) : ArchiveSink {
         // tar needs the exact size up front; refuse to write a different amount rather than corrupt the archive.
         var written = 0L
         copy(input, tar) { n -> written += n; progress(n) }
-        if (written != size) throw java.io.IOException("${name.substringAfterLast('/')} changed size while it was being compressed")
+        if (written != size) throw java.io.IOException(App.str(R.string.changed_size_while_it_was_being, name.substringAfterLast('/')))
         tar.closeArchiveEntry()
     }
     override fun close() {
