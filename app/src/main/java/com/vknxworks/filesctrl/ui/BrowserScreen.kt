@@ -803,8 +803,8 @@ private fun SearchResults(vm: BrowserViewModel, onOpen: (FileEntry) -> Unit, onM
         Text(
             buildString {
                 append(
-                    if (vm.deepSearching) stringResource(R.string.searching_for, vm.deepQuery, vm.title)
-                    else pluralStringResource(R.plurals.results_for, vm.deepResults.size, vm.deepResults.size, vm.deepQuery, vm.title),
+                    if (vm.deepSearching) stringResource(R.string.searching_for, vm.deepQuery.orEmpty(), vm.title)
+                    else pluralStringResource(R.plurals.results_for, vm.deepResults.size, vm.deepResults.size, vm.deepQuery.orEmpty(), vm.title),
                 )
             },
             style = MaterialTheme.typography.labelLarge,
