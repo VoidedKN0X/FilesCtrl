@@ -28,7 +28,6 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Folder
-import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.Storage
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Badge
@@ -77,7 +76,8 @@ import com.vknxworks.filesctrl.ui.close
 import com.vknxworks.filesctrl.ui.go
 import com.vknxworks.filesctrl.ui.PlacesTab
 import com.vknxworks.filesctrl.ui.ServerEditScreen
-import com.vknxworks.filesctrl.ui.SettingsTab
+import com.vknxworks.filesctrl.ui.SettingsScreen
+import com.vknxworks.filesctrl.ui.YouScreen
 import com.vknxworks.filesctrl.ui.TabIsland
 import com.vknxworks.filesctrl.ui.VfsTextSource
 import com.vknxworks.filesctrl.ui.isAppInDarkTheme
@@ -136,7 +136,6 @@ class MainActivity : FragmentActivity() {
 object MainTab {
     const val FILES = 0
     const val PLACES = 1
-    const val SETTINGS = 2
     var selected by mutableIntStateOf(FILES)
 }
 
@@ -209,7 +208,7 @@ private fun Root(activity: FragmentActivity, lockVm: AppLockViewModel = viewMode
         } else if (AppLockState.mustChoosePin) {
             ChooseNewPinScreen()
         } else {
-            // Turning the lock on or off, or changing the PIN (from Settings), on top of the app.
+            // Turning the lock on or off, or changing the PIN (from Settings, behind the profile picture), on top of the app.
             PinRequests.request?.let { PinRequestScreen(it) }
         }
     }
@@ -239,6 +238,9 @@ private fun AppContent(nav: androidx.navigation.NavHostController, vm: BrowserVi
             popExitTransition = { slideOutHorizontally(tween(300)) { it / 8 } + fadeOut(tween(160)) },
         ) {
             composable("main") { MainShell(vm) }
+            // The profile picture opens the You page; Settings opens from there.
+            composable("you") { YouScreen() }
+            composable("settings") { SettingsScreen() }
             composable("server/{id}") { entry ->
                 val id = entry.arguments?.getString("id")?.takeIf { it != "new" }
                 ServerEditScreen(id) { openId ->
@@ -273,7 +275,6 @@ private fun MainShell(vm: BrowserViewModel) {
     val tabs = listOf(
         IslandTab(MainTab.FILES, Icons.Outlined.Folder, "Files"),
         IslandTab(MainTab.PLACES, Icons.Outlined.Storage, "Places"),
-        IslandTab(MainTab.SETTINGS, Icons.Outlined.Settings, "Settings"),
     )
 
     // Back from another tab returns to Files; the Files tab handles its own back (folder history).
@@ -292,7 +293,6 @@ private fun MainShell(vm: BrowserViewModel) {
                             onEditServer = { nav.go("server/$it") },
                         )
                     }
-                    MainTab.SETTINGS -> Box(Modifier.statusBarsPadding()) { SettingsTab() }
                     else -> BrowserScreen(vm, islandSpace = if (rail) 0.dp else 82.dp)
                 }
             }

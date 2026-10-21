@@ -517,6 +517,7 @@ private fun MainBar(vm: BrowserViewModel, onDialog: (Dlg) -> Unit) {
                     )
                 }
             }
+            ProfileButton()
         },
     )
 }
