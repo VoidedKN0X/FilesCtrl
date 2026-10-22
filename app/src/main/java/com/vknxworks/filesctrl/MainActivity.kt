@@ -1,7 +1,6 @@
 package com.vknxworks.filesctrl
 
 import android.Manifest
-import android.content.pm.PackageManager
 import android.graphics.Color
 import android.os.Bundle
 import android.view.WindowManager
@@ -51,7 +50,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import androidx.core.content.ContextCompat
 import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
@@ -92,6 +90,9 @@ import androidx.compose.ui.res.stringResource
 import com.vknxworks.filesctrl.ui.lock.PinRequestScreen
 import com.vknxworks.filesctrl.ui.lock.PinRequests
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalWindowInfo
+import com.vknxworks.filesctrl.ui.NotificationPermission
+import com.vknxworks.filesctrl.ui.lock.awaitOnScreen
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import dev.chrisbanes.haze.HazeState
@@ -176,16 +177,6 @@ private fun Root(activity: FragmentActivity, lockVm: AppLockViewModel = viewMode
         onDispose { owner.lifecycle.removeObserver(observer) }
     }
 
-    // Ask once for notifications, used for progress of copies and moves.
-    val permLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {}
-    LaunchedEffect(Unit) {
-        val granted = ContextCompat.checkSelfPermission(activity, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
-        if (!granted && !App.settings.askedNotifications) {
-            App.settings.askedNotifications = true
-            permLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
-        }
-    }
-
     // After unlocking, show the server folder again: it couldn't connect while the passwords were locked away.
     LaunchedEffect(AppLockState.unlocked) {
         if (AppLockState.unlocked && vm.location.vfsId.startsWith(RemoteVfs.PREFIX)) vm.load(quiet = vm.error == null)
@@ -194,6 +185,22 @@ private fun Root(activity: FragmentActivity, lockVm: AppLockViewModel = viewMode
     // The app stays underneath the lock screen (so a half-typed text or server form isn't lost), hidden from
     // touch, screen readers and the keyboard until it's unlocked.
     val locked = lockVm.locked
+
+    // Ask once for notifications (progress of copies and moves), when the file browser itself is first on screen:
+    // unlocked, no PIN screen on top and the window focused, so the dialog isn't hidden behind (or dropped by) the
+    // lock screen. Settings → Permissions → Notifications can ask again or open Android's settings afterwards.
+    val permLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {}
+    val windowInfo = LocalWindowInfo.current
+    val coveredByPin = AppLockState.mustChoosePin || PinRequests.request != null
+    LaunchedEffect(locked, coveredByPin) {
+        if (locked || coveredByPin) return@LaunchedEffect
+        if (App.settings.askedNotifications || NotificationPermission.hasPermission(activity)) return@LaunchedEffect
+        awaitOnScreen(owner.lifecycle, windowInfo)
+        if (App.settings.askedNotifications || NotificationPermission.hasPermission(activity)) return@LaunchedEffect
+        App.settings.askedNotifications = true
+        AppLockState.expectReturn()
+        permLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+    }
     val focus = LocalFocusManager.current
     val keyboard = LocalSoftwareKeyboardController.current
     LaunchedEffect(locked) { if (locked) { focus.clearFocus(force = true); keyboard?.hide() } }

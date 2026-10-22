@@ -494,6 +494,11 @@
     <string name="all_files_access">All files access</string>
     <string name="allowed_this_phone_s_storage_can_be">Allowed: this phone\'s storage can be browsed</string>
     <string name="needed_to_browse_this_phone_s">Needed to browse this phone\'s storage; tap to allow</string>
+    <string name="notifications">Notifications</string>
+    <string name="notifications_allowed_summary">Allowed: copies and moves show their progress, and a note when they finish in the background</string>
+    <string name="notifications_are_blocked">Notifications are blocked</string>
+    <string name="notifications_are_blocked_summary">Android isn\'t letting FilesCtrl show notifications, so you won\'t see the progress of copies and moves, or when they finish. Tap Allow to turn them on.</string>
+    <string name="allow">Allow</string>
     <string name="background_activity">Background activity</string>
     <string name="unrestricted_so_long_copies_keep">Unrestricted, so long copies keep going with the screen off</string>
     <string name="restricted_coloros_and_other_phones">Restricted. ColorOS and other phones may pause long copies in the background; tap to allow</string>

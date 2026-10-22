@@ -30,6 +30,8 @@ import androidx.compose.material.icons.outlined.Image
 import androidx.compose.material.icons.outlined.LightMode
 import androidx.compose.material.icons.outlined.Layers
 import androidx.compose.material.icons.outlined.Lock
+import androidx.compose.material.icons.outlined.Notifications
+import androidx.compose.material.icons.outlined.NotificationsOff
 import androidx.compose.material.icons.outlined.Palette
 import androidx.compose.material.icons.outlined.Password
 import androidx.compose.material.icons.outlined.Share
@@ -90,6 +92,8 @@ fun SettingsScreen() {
     val pm = remember { ctx.getSystemService(PowerManager::class.java) }
     var unrestricted by remember { mutableStateOf(pm.isIgnoringBatteryOptimizations(ctx.packageName)) }
     var allFiles by remember { mutableStateOf(Environment.isExternalStorageManager()) }
+    // Checked again whenever the app comes back, so allowing (or blocking) them in Android's settings shows here.
+    val notifications = rememberNotificationAccess()
 
     // Pick up permission changes made in Android's settings.
     val owner = LocalLifecycleOwner.current
@@ -195,6 +199,19 @@ fun SettingsScreen() {
 
         item {
             SettingsSection(stringResource(R.string.permissions)) {
+                if (notifications.granted) {
+                    NavItem(
+                        Icons.Outlined.Notifications, stringResource(R.string.notifications),
+                        stringResource(R.string.notifications_allowed_summary),
+                    ) { openNotificationSettings(ctx) }
+                } else {
+                    NavItem(
+                        Icons.Outlined.NotificationsOff, stringResource(R.string.notifications_are_blocked),
+                        stringResource(R.string.notifications_are_blocked_summary),
+                        trailing = { TextButton(onClick = { notifications.request() }) { Text(stringResource(R.string.allow)) } },
+                    ) { notifications.request() }
+                }
+                ItemDivider()
                 NavItem(
                     Icons.Outlined.FolderSpecial, stringResource(R.string.all_files_access),
                     if (allFiles) stringResource(R.string.allowed_this_phone_s_storage_can_be) else stringResource(R.string.needed_to_browse_this_phone_s),
