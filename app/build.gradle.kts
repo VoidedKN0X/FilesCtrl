@@ -14,8 +14,8 @@ android {
         targetSdk = 35
         // CI passes the run number so every build installs over the previous one.
         // Bump both to publish a new release (see CHANGELOG.md).
-        versionCode = 42
-        versionName = "1.3.4"
+        versionCode = 43
+        versionName = "1.3.5"
 
         // 64-bit ARM phones only (arm64-v8a), like every Ctrl app. The NFS client (libnfs) is native.
         ndk { abiFilters += listOf("arm64-v8a") }

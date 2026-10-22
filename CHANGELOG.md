@@ -4,6 +4,16 @@ What changed in each FilesCtrl version. Every release on the [Releases page](htt
 
 To publish a new version: bump `versionCode` and `versionName` in `app/build.gradle.kts`, add a section here, and push to `main`. Pushes without a version bump only build; they don't make a release.
 
+## 1.3.5 (2026-10-22)
+
+### Fixed
+
+- **FilesCtrl asks for notifications at the right moment.** On Android 13 and newer an app has to ask before it can show notifications. FilesCtrl asked the moment it started, even while the app lock screen was still up, and never again afterwards, so on some phones the question was lost and the progress of copies and moves (and the note when they finish in the background) silently never showed. It now asks once, the first time the file browser itself is on screen: after you've unlocked, with no PIN screen on top. If you've already answered, it doesn't ask again.
+
+### New
+
+- **Notifications under Settings > Permissions.** A new row shows whether FilesCtrl may show notifications. When they're blocked it says **Notifications are blocked** with an **Allow** button: it shows Android's question again if Android still allows that, or otherwise opens FilesCtrl's notification settings so you can turn them on there. The row updates as soon as you come back from Android's settings. When notifications are allowed, tapping the row opens those settings too, for example to change how the finished-copy notification behaves.
+
 ## 1.3.4 (2026-10-21)
 
 ### Fixed
