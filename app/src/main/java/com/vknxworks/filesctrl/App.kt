@@ -94,6 +94,8 @@ object App {
      */
     fun onLocked() {
         servers.lockSecrets()
+        // Pictures the viewer copied from servers don't stay on the phone while FilesCtrl is locked.
+        Thread { com.vknxworks.filesctrl.viewer.ImageCache.clear() }.start()
         vault.close()
         notifyRoots()
         Thread {
@@ -132,7 +134,14 @@ class FilesApplication : Application(), SingletonImageLoader.Factory {
 
     override fun newImageLoader(context: PlatformContext): ImageLoader =
         ImageLoader.Builder(context)
-            .components { add(VideoFrameDecoder.Factory()) }
+            .components {
+                add(VideoFrameDecoder.Factory())
+                // Animated GIF and WebP in the picture viewer.
+                add(coil3.gif.AnimatedImageDecoder.Factory())
+                // Pictures from any file system (servers, archives) for the viewer, cached by FilesCtrl itself.
+                add(com.vknxworks.filesctrl.viewer.VfsImageFetcher.Factory())
+                add(com.vknxworks.filesctrl.viewer.VfsImageFetcher.keyer)
+            }
             .crossfade(true)
             .build()
 }

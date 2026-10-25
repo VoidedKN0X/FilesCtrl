@@ -621,4 +621,33 @@
     <string name="shortcut_server_removed">This network location was removed from FilesCtrl</string>
     <string name="launcher_bookmarks">Bookmarks on the app icon</string>
     <string name="launcher_bookmarks_subtitle">Long-press FilesCtrl\'s icon on the home screen to open your first four bookmarks</string>
+
+    <!-- 1.7.0: Tabs and dual pane -->
+    <string name="new_tab">New tab</string>
+    <string name="close_this_tab">Close this tab</string>
+    <string name="close_tab">Close tab %1$s</string>
+    <string name="open_in_new_tab">Open in new tab</string>
+    <string name="open_in_other_pane">Open in other pane</string>
+    <string name="copy_to_other_pane">Copy to other pane</string>
+    <string name="move_to_other_pane">Move to other pane</string>
+    <string name="dual_pane">Dual pane</string>
+    <string name="single_pane">Single pane</string>
+    <string name="dual_pane_subtitle">Two folders side by side on tablets, unfolded foldables and in landscape</string>
+
+    <!-- 1.7.0: Picture viewer -->
+    <string name="viewer_position">%1$d / %2$d</string>
+    <string name="viewer_rotate">Rotate</string>
+    <string name="viewer_info">Info</string>
+    <string name="viewer_cant_show">Can\'t show this picture</string>
+    <string name="viewer_cant_show_body">This phone can\'t decode it. Another app may be able to open it.</string>
+    <string name="viewer_too_large">This picture is too large to show here</string>
+    <string name="viewer_cache_failed">Couldn\'t store a copy of the picture</string>
+    <string name="viewer_dimensions">Dimensions</string>
+    <string name="viewer_dimensions_value">%1$d × %2$d (%3$s MP)</string>
+    <string name="viewer_taken">Taken</string>
+    <string name="viewer_camera">Camera</string>
+    <string name="viewer_lens">Lens</string>
+    <string name="viewer_exposure">Exposure</string>
+    <string name="open_pictures_in_filesctrl">Open pictures in FilesCtrl</string>
+    <string name="open_pictures_in_filesctrl_subtitle">Show photos in the built-in viewer. Off: they open in the app you choose</string>
 </resources>

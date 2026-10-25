@@ -84,6 +84,17 @@ class Settings(context: Context) {
     /** Where "Save to…" (files shared with FilesCtrl) saved last time, as a [Location.key]; empty if never. */
     var lastSaveTo by str("last_save_to", "")
 
+    /** Pictures open in FilesCtrl's own viewer (otherwise in another app, as before 1.7.0). */
+    private val _viewer = bool("builtin_viewer", true)
+    var builtInViewer by _viewer
+
+    /** Open tabs of both panes, restored when FilesCtrl starts again ([com.vknxworks.filesctrl.ui.BrowserTabs]). */
+    var tabs by str("tabs", "")
+
+    /** Two browsers side by side on wide windows (tablets, unfolded foldables, landscape). */
+    private val _dualPane = bool("dual_pane", true)
+    var dualPane by _dualPane
+
     /** Show the first bookmarks when long-pressing FilesCtrl's icon on the home screen. */
     private val _launcherBookmarks = bool("launcher_bookmarks", true)
     var launcherBookmarks by _launcherBookmarks
