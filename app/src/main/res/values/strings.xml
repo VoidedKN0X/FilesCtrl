@@ -457,6 +457,15 @@
     <string name="encrypt_ftps">Encrypt (FTPS)</string>
     <string name="use_https">Use HTTPS</string>
     <string name="off_your_password_and_files_travel">Off: your password and files travel unencrypted</string>
+    <string name="webdav_http_warning">Not encrypted (HTTP). Your password and files are sent in the clear. Fine on your home network or VPN, risky anywhere else.</string>
+    <string name="http_title">Use an unencrypted connection?</string>
+    <string name="http_body">With HTTPS off, FilesCtrl connects to %1$s over plain HTTP. Your username, password and every file you open or save are then sent unencrypted, and anyone on the network can read or change them. That\'s fine on your home network or over a VPN, but risky anywhere else.</string>
+    <string name="http_nothing_sent_yet">Nothing is sent to this server until you choose Use HTTP. FilesCtrl asks again if you change the address.</string>
+    <string name="http_confirm">Use HTTP</string>
+    <string name="server_not_encrypted">Not encrypted (HTTP)</string>
+    <string name="server_meta_not_encrypted">%1$s · %2$s</string>
+    <string name="webdav_http_not_accepted">%1$s uses plain HTTP, which you haven\'t accepted for this address. Edit the server and tap Test connection or Save to confirm, or turn on Use HTTPS.</string>
+    <string name="err_cleartext_blocked">Blocked an unencrypted (HTTP) connection to %1$s.</string>
     <string name="explicit_tls_on_the_normal_ftp_port">Explicit TLS on the normal FTP port</string>
     <string name="accept_self_signed_certificates">Accept self-signed certificates</string>
     <string name="for_your_own_server_with_a">For your own server with a certificate it made itself. You\'ll be asked to check its fingerprint once.</string>

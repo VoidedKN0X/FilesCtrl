@@ -154,7 +154,8 @@ fun PlacesTab(current: Location, onOpen: (Location) -> Unit, onAddServer: () -> 
             PlaceRow(
                 lead = { CtrlChip(s.type.label.uppercase().take(6)) },
                 title = s.title,
-                meta = sp?.let { App.str(R.string.of_used, Fmt.size(ctx, it.total - it.free), Fmt.size(ctx, it.total)) } ?: s.host,
+                meta = (sp?.let { App.str(R.string.of_used, Fmt.size(ctx, it.total - it.free), Fmt.size(ctx, it.total)) } ?: s.host)
+                    .let { m -> if (s.isPlainHttp) App.str(R.string.server_meta_not_encrypted, m, App.str(R.string.server_not_encrypted)) else m },
                 usage = sp,
                 status = { CtrlDot(if (isOpen || connected) CtrlColors.AccentText else CtrlColors.Inactive) },
                 trailing = {
