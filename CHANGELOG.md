@@ -26,6 +26,10 @@ WebDAV servers without HTTPS work again, after a clear warning, and HTTPS stays 
 - Certificate checks are unchanged: HTTPS servers are checked against the phone's built-in certificates, and self-signed certificates you trusted are still checked by their fingerprint.
 - FTP without encryption is unchanged: it's a separate protocol and still shows its own warning under **Encrypt (FTPS)**.
 
+### Notes
+
+- FilesCtrl's automated WebDAV tests now accept plain HTTP for their test server the same way you do in the app, and also check that an HTTP server that wasn't accepted (or was accepted for another address) gets nothing sent to it. No change in the app itself.
+
 ## 1.7.1 (2026-10-25)
 
 Fixes for crashes when FilesCtrl closes, and tighter checks on names and paths that come from other apps and servers.

@@ -56,7 +56,22 @@ class NetVfsTest {
 
     @Test fun ftp() { enabled(); exercise(server(Proto.FTP, 21, "")) }
 
-    @Test fun webdav() { enabled(); exercise(server(Proto.WEBDAV, 8080, "/")) }
+    /** The test server speaks plain HTTP: accepted for its address, as after the "Use HTTP" warning. */
+    @Test fun webdav() { enabled(); exercise(server(Proto.WEBDAV, 8080, "/").copy(httpAcceptedHost = "127.0.0.1")) }
+
+    /** Plain HTTP that wasn't accepted (or was accepted for another address) sends nothing. */
+    @Test fun webdavRefusesUnacceptedHttp() {
+        enabled()
+        for (s in listOf(server(Proto.WEBDAV, 8080, "/"), server(Proto.WEBDAV, 8080, "/").copy(httpAcceptedHost = "nas.local"))) {
+            val v = RemoteVfs.create(s) {}
+            try {
+                v.list("/")
+                fail("[WEBDAV] listed over HTTP without acceptance")
+            } catch (e: java.io.IOException) {
+                // Expected: refused before connecting.
+            } finally { v.close() }
+        }
+    }
 
     private fun exercise(s: NetServer, learned: (NetServer) -> Unit = {}) {
         val v = RemoteVfs.create(s, learned)
