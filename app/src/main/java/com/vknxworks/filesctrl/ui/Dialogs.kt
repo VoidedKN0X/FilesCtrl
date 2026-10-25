@@ -18,7 +18,6 @@ import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Close
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -26,7 +25,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -62,6 +60,8 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import androidx.compose.ui.res.stringResource
 import com.vknxworks.filesctrl.R
+import com.vknxworks.filesctrl.ui.components.CtrlAlertDialog
+import com.vknxworks.filesctrl.ui.components.CtrlTextField
 
 /** Asks for a file or folder name. The part before the extension is pre-selected, like Material Files. */
 @Composable
@@ -81,11 +81,11 @@ fun NameDialog(
     val focus = remember { FocusRequester() }
     LaunchedEffect(Unit) { focus.requestFocus() }
     val canConfirm = value.text.isNotBlank() && err == null
-    AlertDialog(
+    CtrlAlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(title) },
         text = {
-            OutlinedTextField(
+            CtrlTextField(
                 value = value,
                 onValueChange = { value = it },
                 singleLine = true,
@@ -104,7 +104,7 @@ fun NameDialog(
 @Composable
 fun DeleteDialog(items: List<FileEntry>, remote: Boolean, onDismiss: () -> Unit, onConfirm: () -> Unit) {
     val what = if (items.size == 1) "\"${items[0].name}\"" else App.plural(R.plurals.items_count, items.size, items.size)
-    AlertDialog(
+    CtrlAlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.delete_2, what)) },
         text = {
@@ -123,7 +123,7 @@ fun DeleteDialog(items: List<FileEntry>, remote: Boolean, onDismiss: () -> Unit,
 @Composable
 fun ConflictDialog(names: List<String>, onDismiss: () -> Unit, onChoose: (Conflict) -> Unit) {
     var choice by remember { mutableStateOf(Conflict.KeepBoth) }
-    AlertDialog(
+    CtrlAlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(if (names.size == 1) stringResource(R.string.already_exists_3, names[0]) else stringResource(R.string.items_already_exist, names.size)) },
         text = {
@@ -194,7 +194,7 @@ fun PropertiesDialog(entry: FileEntry, onDismiss: () -> Unit, onChanged: () -> U
         }
     }
 
-    AlertDialog(
+    CtrlAlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(e.name, maxLines = 2, overflow = TextOverflow.Ellipsis) },
         text = {
@@ -247,7 +247,7 @@ fun PropertiesDialog(entry: FileEntry, onDismiss: () -> Unit, onChanged: () -> U
 @Composable
 fun ChmodDialog(e: FileEntry, onDismiss: () -> Unit, onConfirm: (Int) -> Unit) {
     var mode by remember { mutableIntStateOf(e.mode and 0xFFF) }
-    AlertDialog(
+    CtrlAlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.permissions)) },
         text = {
@@ -286,7 +286,7 @@ fun ChmodDialog(e: FileEntry, onDismiss: () -> Unit, onConfirm: (Int) -> Unit) {
 
 @Composable
 fun InfoDialog(title: String, text: String, onDismiss: () -> Unit) {
-    AlertDialog(
+    CtrlAlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(title) },
         text = { SelectionContainer { Text(text) } },
@@ -302,7 +302,7 @@ fun trusted(s: com.vknxworks.filesctrl.data.NetServer, e: com.vknxworks.filesctr
 @Composable
 fun TrustDialog(e: com.vknxworks.filesctrl.fs.UntrustedIdentityException, host: String, onDismiss: () -> Unit, onTrust: () -> Unit) {
     val ssh = e is com.vknxworks.filesctrl.fs.HostKeyUnknownException
-    AlertDialog(
+    CtrlAlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(if (ssh) stringResource(R.string.trust_this_server) else stringResource(R.string.trust_this_certificate)) },
         text = {

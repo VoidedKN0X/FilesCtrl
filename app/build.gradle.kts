@@ -14,8 +14,8 @@ android {
         targetSdk = 35
         // CI passes the run number so every build installs over the previous one.
         // Bump both to publish a new release (see CHANGELOG.md).
-        versionCode = 43
-        versionName = "1.3.5"
+        versionCode = 44
+        versionName = "1.4.0"
 
         // 64-bit ARM phones only (arm64-v8a), like every Ctrl app. The NFS client (libnfs) is native.
         ndk { abiFilters += listOf("arm64-v8a") }
@@ -113,8 +113,7 @@ dependencies {
     implementation("androidx.navigation:navigation-compose:2.8.9")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.2")
 
-    // Shared look with the other Ctrl apps: frosted tab island, app lock.
-    implementation("dev.chrisbanes.haze:haze:1.6.0")
+    // App lock (fingerprint) and window helpers.
     implementation("androidx.biometric:biometric:1.1.0")
     implementation("androidx.fragment:fragment-ktx:1.8.6")
     implementation("androidx.window:window:1.3.0")

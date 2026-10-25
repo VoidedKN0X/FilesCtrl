@@ -43,10 +43,25 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.res.stringResource
 import com.vknxworks.filesctrl.R
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.font.FontWeight
+import com.vknxworks.filesctrl.ui.components.CtrlDot
+import com.vknxworks.filesctrl.ui.components.CtrlSectionLabel
+import com.vknxworks.filesctrl.ui.components.CtrlSwitch
+import com.vknxworks.filesctrl.ui.components.topDivider
+import com.vknxworks.filesctrl.ui.theme.CtrlColors
+import com.vknxworks.filesctrl.ui.theme.CtrlShapes
+import com.vknxworks.filesctrl.ui.theme.CtrlType
 
 // The grouped settings rows every Ctrl app uses (as in MemoCtrl, ProxCtrl and TrueCtrl).
 
-/** A rounded block of related rows, with an optional heading above it and a note below. */
+/** A card of related rows with a mono label above it and an optional note below; rows get 1dp dividers. */
 @Composable
 fun Group(
     title: String? = null,
@@ -57,25 +72,22 @@ fun Group(
 ) {
     Column(modifier.fillMaxWidth().padding(horizontal = gutter, vertical = 8.dp)) {
         if (title != null) {
-            Text(
-                title,
-                style = MaterialTheme.typography.titleSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(start = 4.dp, bottom = 8.dp),
-            )
+            CtrlSectionLabel(title, Modifier.padding(start = 4.dp, bottom = 8.dp))
         }
-        Surface(
-            shape = MaterialTheme.shapes.large,
-            color = MaterialTheme.colorScheme.surfaceContainer,
-            modifier = Modifier.fillMaxWidth(),
+        Column(
+            Modifier
+                .fillMaxWidth()
+                .clip(CtrlShapes.Card)
+                .background(CtrlColors.Surface)
+                .border(1.dp, CtrlColors.CardBorder, CtrlShapes.Card),
         ) {
-            Column(Modifier.padding(vertical = 6.dp), content = content)
+            content()
         }
         if (footer != null) {
             Text(
                 footer,
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = CtrlColors.Muted,
                 modifier = Modifier.padding(start = 4.dp, end = 4.dp, top = 8.dp),
             )
         }
@@ -87,11 +99,12 @@ fun GroupRow(
     title: String,
     subtitle: String? = null,
     icon: ImageVector? = null,
-    iconTint: Color = MaterialTheme.colorScheme.primary,
-    titleColor: Color = MaterialTheme.colorScheme.onSurface,
+    iconTint: Color = CtrlColors.Text,
+    titleColor: Color = CtrlColors.Text,
     showChevron: Boolean = false,
     enabled: Boolean = true,
     onClick: (() -> Unit)? = null,
+    role: Role? = null,
     below: (@Composable () -> Unit)? = null,
     trailing: (@Composable () -> Unit)? = null,
 ) {
@@ -99,25 +112,24 @@ fun GroupRow(
     Row(
         Modifier
             .fillMaxWidth()
-            .heightIn(min = 56.dp)
-            .then(if (onClick != null && enabled) Modifier.clickable(onClick = onClick) else Modifier)
-            .padding(horizontal = 16.dp, vertical = 10.dp),
+            .heightIn(min = 62.dp)
+            // The first row's line sits under the card's own border, so only lines between rows show.
+            .topDivider(color = CtrlColors.CardBorder)
+            .then(if (onClick != null && enabled) Modifier.clickable(role = role, onClick = onClick) else Modifier)
+            .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         if (icon != null) {
-            Box(
-                Modifier.size(36.dp).clip(CircleShape).background(iconTint.copy(alpha = 0.14f * alpha)),
-                contentAlignment = Alignment.Center,
-            ) { Icon(icon, null, Modifier.size(20.dp), tint = iconTint.copy(alpha = alpha)) }
+            Icon(icon, null, Modifier.size(22.dp), tint = iconTint.copy(alpha = alpha * if (iconTint == CtrlColors.Text) 0.85f else 1f))
             Spacer(Modifier.width(14.dp))
         }
-        Column(Modifier.weight(1f)) {
-            Text(title, style = MaterialTheme.typography.bodyLarge, color = titleColor.copy(alpha = alpha), maxLines = 2, overflow = TextOverflow.Ellipsis)
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(title, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium, color = titleColor.copy(alpha = alpha), maxLines = 2, overflow = TextOverflow.Ellipsis)
             if (!subtitle.isNullOrBlank()) {
                 Text(
                     subtitle,
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = alpha),
+                    color = CtrlColors.Muted.copy(alpha = alpha),
                 )
             }
             below?.invoke()
@@ -126,11 +138,13 @@ fun GroupRow(
             Spacer(Modifier.width(12.dp))
             trailing()
         } else if (showChevron) {
-            Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+            Spacer(Modifier.width(8.dp))
+            Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null, Modifier.size(20.dp), tint = CtrlColors.Muted)
         }
     }
 }
 
+/** A row with the Ctrl switch. The whole row toggles, and reads as one switch to screen readers. */
 @Composable
 fun GroupSwitch(
     title: String,
@@ -140,8 +154,8 @@ fun GroupSwitch(
     enabled: Boolean = true,
     onChange: (Boolean) -> Unit,
 ) {
-    GroupRow(title, subtitle, icon, enabled = enabled, onClick = { onChange(!checked) }) {
-        Switch(checked, onCheckedChange = onChange, enabled = enabled)
+    GroupRow(title, subtitle, icon, enabled = enabled, onClick = { onChange(!checked) }, role = Role.Switch) {
+        CtrlSwitch(checked, onCheckedChange = null, enabled = enabled, modifier = Modifier.clearAndSetSemantics { })
     }
 }
 
@@ -157,7 +171,12 @@ fun <T> GroupChoice(
 ) {
     var open by remember { mutableStateOf(false) }
     val current = options.firstOrNull { it.first == selected }?.second.orEmpty()
-    GroupRow(title, current, icon, showChevron = true, onClick = { open = true })
+    GroupRow(title, null, icon, onClick = { open = true }, trailing = {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(current, style = CtrlType.Meta, color = CtrlColors.Muted, maxLines = 1)
+            Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null, Modifier.size(20.dp), tint = CtrlColors.Muted)
+        }
+    })
     if (open) {
         ChoiceSheet(title, options, selected, footer, onDismiss = { open = false }) { onPick(it); open = false }
     }
@@ -172,22 +191,33 @@ fun <T> ChoiceSheet(
     onDismiss: () -> Unit,
     onPick: (T) -> Unit,
 ) {
-    ModalBottomSheet(onDismissRequest = onDismiss, containerColor = MaterialTheme.colorScheme.surfaceContainer) {
-        Text(title, style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp))
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        containerColor = CtrlColors.Surface,
+        shape = RoundedCornerShape(topStart = 26.dp, topEnd = 26.dp),
+        tonalElevation = 0.dp,
+        dragHandle = { Box(Modifier.padding(top = 10.dp, bottom = 6.dp).size(width = 36.dp, height = 4.dp).clip(RoundedCornerShape(2.dp)).background(CtrlColors.ControlBorder)) },
+        modifier = Modifier.border(1.dp, CtrlColors.CardBorder, RoundedCornerShape(topStart = 26.dp, topEnd = 26.dp)),
+    ) {
+        CtrlSectionLabel(title, Modifier.padding(horizontal = 24.dp, vertical = 8.dp))
         LazyColumn(Modifier.navigationBarsPadding(), contentPadding = PaddingValues(bottom = 16.dp)) {
             items(options, key = { it.second }) { (value, label) ->
                 val isSel = value == selected
                 Row(
-                    Modifier.fillMaxWidth().clickable { onPick(value) }.padding(horizontal = 24.dp, vertical = 14.dp),
+                    Modifier.fillMaxWidth().heightIn(min = 52.dp).topDivider(inset = 24.dp).clickable { onPick(value) }.padding(horizontal = 24.dp, vertical = 14.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text(
                         label,
                         style = MaterialTheme.typography.bodyLarge,
-                        color = if (isSel) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                        color = if (isSel) CtrlColors.Accent else CtrlColors.Text,
+                        fontWeight = if (isSel) FontWeight.SemiBold else FontWeight.Normal,
                         modifier = Modifier.weight(1f),
                     )
-                    if (isSel) Icon(Icons.Filled.Check, stringResource(R.string.selected_2), tint = MaterialTheme.colorScheme.primary)
+                    if (isSel) {
+                        val selectedLabel = stringResource(R.string.selected_2)
+                        CtrlDot(CtrlColors.Accent, Modifier.semantics { contentDescription = selectedLabel })
+                    }
                 }
             }
             if (footer != null) {
@@ -195,7 +225,7 @@ fun <T> ChoiceSheet(
                     Text(
                         footer,
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        color = CtrlColors.Muted,
                         modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
                     )
                 }

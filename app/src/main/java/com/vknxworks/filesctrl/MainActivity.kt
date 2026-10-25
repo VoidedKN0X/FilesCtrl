@@ -35,6 +35,10 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationRail
 import androidx.compose.material3.NavigationRailItem
+import androidx.compose.material3.NavigationRailItemDefaults
+import com.vknxworks.filesctrl.ui.components.CtrlBottomBar
+import com.vknxworks.filesctrl.ui.components.CtrlTab
+import com.vknxworks.filesctrl.ui.theme.CtrlColors
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -67,7 +71,6 @@ import com.vknxworks.filesctrl.ui.BrowserScreen
 import com.vknxworks.filesctrl.ui.BrowserViewModel
 import com.vknxworks.filesctrl.ui.EditorScreen
 import com.vknxworks.filesctrl.ui.FilesTheme
-import com.vknxworks.filesctrl.ui.IslandTab
 import com.vknxworks.filesctrl.ui.LocalNav
 import com.vknxworks.filesctrl.ui.back
 import com.vknxworks.filesctrl.ui.close
@@ -76,9 +79,7 @@ import com.vknxworks.filesctrl.ui.PlacesTab
 import com.vknxworks.filesctrl.ui.ServerEditScreen
 import com.vknxworks.filesctrl.ui.SettingsScreen
 import com.vknxworks.filesctrl.ui.YouScreen
-import com.vknxworks.filesctrl.ui.TabIsland
 import com.vknxworks.filesctrl.ui.VfsTextSource
-import com.vknxworks.filesctrl.ui.isAppInDarkTheme
 import com.vknxworks.filesctrl.ui.lock.AppLockViewModel
 import com.vknxworks.filesctrl.ui.lock.LockScreen
 import com.vknxworks.filesctrl.ui.lock.AppLockState
@@ -95,21 +96,21 @@ import com.vknxworks.filesctrl.ui.NotificationPermission
 import com.vknxworks.filesctrl.ui.lock.awaitOnScreen
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.semantics.clearAndSetSemantics
-import dev.chrisbanes.haze.HazeState
-import dev.chrisbanes.haze.hazeSource
 
 // FragmentActivity (a ComponentActivity) is required by the fingerprint prompt.
+/** The system bars take the Ctrl / Signal background colour (#08080A). */
+internal val SIGNAL_BAR_COLOR: Int = Color.rgb(0x08, 0x08, 0x0A)
+
 class MainActivity : FragmentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         App.init(this)
-        enableEdgeToEdge()
+        enableEdgeToEdge(SystemBarStyle.dark(SIGNAL_BAR_COLOR), SystemBarStyle.dark(SIGNAL_BAR_COLOR))
         setContent {
             FilesTheme {
-                val dark = isAppInDarkTheme()
-                LaunchedEffect(dark) {
-                    val style = if (dark) SystemBarStyle.dark(Color.TRANSPARENT)
-                    else SystemBarStyle.light(Color.TRANSPARENT, Color.TRANSPARENT)
+                // Dark only: light status and navigation bar icons over the app's background colour, edge to edge.
+                LaunchedEffect(Unit) {
+                    val style = SystemBarStyle.dark(SIGNAL_BAR_COLOR)
                     enableEdgeToEdge(statusBarStyle = style, navigationBarStyle = style)
                 }
                 val secure = App.lock.hideScreenshots || com.vknxworks.filesctrl.ui.lock.SecureScreens.active > 0
@@ -273,15 +274,15 @@ private fun AppContent(nav: androidx.navigation.NavHostController, vm: BrowserVi
 }
 
 /**
- * Same shell as the other Ctrl apps: on phones the tabs float in a frosted island over the content; on wide
+ * Same shell as the other Ctrl apps: on phones the tabs float in the Signal bottom bar over the content; on wide
  * windows (tablets, unfolded foldables, landscape) they sit in a side rail.
  */
 @Composable
 private fun MainShell(vm: BrowserViewModel) {
     val nav = LocalNav.current
     val tabs = listOf(
-        IslandTab(MainTab.FILES, Icons.Outlined.Folder, App.str(R.string.files)),
-        IslandTab(MainTab.PLACES, Icons.Outlined.Storage, App.str(R.string.places)),
+        CtrlTab(MainTab.FILES, Icons.Outlined.Folder, App.str(R.string.files)),
+        CtrlTab(MainTab.PLACES, Icons.Outlined.Storage, App.str(R.string.places)),
     )
 
     // Back from another tab returns to Files; the Files tab handles its own back (folder history).
@@ -300,14 +301,14 @@ private fun MainShell(vm: BrowserViewModel) {
                             onEditServer = { nav.go("server/$it") },
                         )
                     }
-                    else -> BrowserScreen(vm, islandSpace = if (rail) 0.dp else 82.dp)
+                    else -> BrowserScreen(vm, islandSpace = if (rail) 0.dp else 96.dp)
                 }
             }
         }
 
         if (rail) {
             Row(Modifier.fillMaxSize()) {
-                NavigationRail(Modifier.statusBarsPadding()) {
+                NavigationRail(Modifier.statusBarsPadding(), containerColor = CtrlColors.Background, contentColor = CtrlColors.Muted) {
                     Spacer(Modifier.height(8.dp))
                     tabs.forEach { t ->
                         NavigationRailItem(
@@ -317,20 +318,25 @@ private fun MainShell(vm: BrowserViewModel) {
                                 BadgedBox(badge = { if (t.badge > 0) Badge { Text("${t.badge}") } }) { Icon(t.icon, null) }
                             },
                             label = { Text(t.label, maxLines = 1) },
+                            colors = NavigationRailItemDefaults.colors(
+                                selectedIconColor = CtrlColors.Ink,
+                                selectedTextColor = CtrlColors.Text,
+                                indicatorColor = CtrlColors.Accent,
+                                unselectedIconColor = CtrlColors.Muted,
+                                unselectedTextColor = CtrlColors.Muted,
+                            ),
                         )
                     }
                 }
                 Box(Modifier.weight(1f).fillMaxSize().navigationBarsPadding()) { content() }
             }
         } else {
-            // Content runs edge to edge under the floating island, which blurs it.
-            val haze = remember { HazeState() }
+            // Content runs edge to edge under the floating bottom bar.
             Box(Modifier.fillMaxSize()) {
-                Box(Modifier.fillMaxSize().hazeSource(haze)) { content() }
-                TabIsland(
+                Box(Modifier.fillMaxSize()) { content() }
+                CtrlBottomBar(
                     tabs = tabs,
                     selected = MainTab.selected,
-                    hazeState = haze,
                     onSelect = { MainTab.selected = it },
                     modifier = Modifier.align(Alignment.BottomCenter),
                 )

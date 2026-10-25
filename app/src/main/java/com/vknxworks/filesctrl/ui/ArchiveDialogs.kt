@@ -15,11 +15,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.Visibility
 import androidx.compose.material.icons.outlined.VisibilityOff
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -50,11 +48,13 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import androidx.compose.ui.res.stringResource
 import com.vknxworks.filesctrl.R
+import com.vknxworks.filesctrl.ui.components.CtrlAlertDialog
+import com.vknxworks.filesctrl.ui.components.CtrlTextField
 
 @Composable
 private fun PasswordField(value: String, label: String, onChange: (String) -> Unit, onDone: (() -> Unit)? = null, modifier: Modifier = Modifier) {
     var show by remember { mutableStateOf(false) }
-    OutlinedTextField(
+    CtrlTextField(
         value = value, onValueChange = onChange,
         label = { Text(label) }, singleLine = true,
         visualTransformation = if (show) VisualTransformation.None else PasswordVisualTransformation(),
@@ -75,7 +75,7 @@ fun PasswordDialog(title: String, wrong: Boolean, onDismiss: () -> Unit, onConfi
     var pw by remember { mutableStateOf("") }
     val focus = remember { FocusRequester() }
     LaunchedEffect(Unit) { focus.requestFocus() }
-    AlertDialog(
+    CtrlAlertDialog(
         onDismissRequest = onDismiss,
         icon = { Icon(Icons.Outlined.Lock, null) },
         title = { Text(title) },
@@ -101,12 +101,12 @@ fun CompressDialog(baseName: String, onDismiss: () -> Unit, onConfirm: (name: St
     var name by remember { mutableStateOf(baseName) }
     var pw by remember { mutableStateOf("") }
     val err = Paths.validName(name + format.ext)
-    AlertDialog(
+    CtrlAlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.compress)) },
         text = {
             Column(Modifier.verticalScroll(rememberScrollState())) {
-                OutlinedTextField(
+                CtrlTextField(
                     value = name, onValueChange = { name = it },
                     label = { Text(stringResource(R.string.name)) }, singleLine = true,
                     suffix = { Text(format.ext) },

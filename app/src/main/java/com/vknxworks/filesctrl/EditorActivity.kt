@@ -23,7 +23,6 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.vknxworks.filesctrl.ui.EditorScreen
 import com.vknxworks.filesctrl.ui.FilesTheme
 import com.vknxworks.filesctrl.ui.UriTextSource
-import com.vknxworks.filesctrl.ui.isAppInDarkTheme
 import com.vknxworks.filesctrl.ui.lock.AppLockViewModel
 import com.vknxworks.filesctrl.ui.lock.LockScreen
 import com.vknxworks.filesctrl.ui.lock.AppLockState
@@ -62,13 +61,11 @@ class EditorActivity : FragmentActivity() {
             try { packageManager.getApplicationLabel(packageManager.getApplicationInfo(pkg, 0)).toString() } catch (_: Exception) { null }
         }?.takeIf { it != getString(R.string.app_name) }
 
-        enableEdgeToEdge()
+        enableEdgeToEdge(SystemBarStyle.dark(SIGNAL_BAR_COLOR), SystemBarStyle.dark(SIGNAL_BAR_COLOR))
         setContent {
             FilesTheme {
-                val dark = isAppInDarkTheme()
-                LaunchedEffect(dark) {
-                    val style = if (dark) SystemBarStyle.dark(Color.TRANSPARENT)
-                    else SystemBarStyle.light(Color.TRANSPARENT, Color.TRANSPARENT)
+                LaunchedEffect(Unit) {
+                    val style = SystemBarStyle.dark(SIGNAL_BAR_COLOR)
                     enableEdgeToEdge(statusBarStyle = style, navigationBarStyle = style)
                 }
                 val secure = App.lock.hideScreenshots || com.vknxworks.filesctrl.ui.lock.SecureScreens.active > 0
