@@ -23,7 +23,6 @@ import androidx.compose.material.icons.automirrored.outlined.WrapText
 import androidx.compose.material.icons.outlined.MoreVert
 import androidx.compose.material.icons.outlined.Save
 import androidx.compose.material.icons.outlined.SaveAs
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -68,6 +67,11 @@ import java.nio.charset.Charset
 import java.nio.charset.CodingErrorAction
 import androidx.compose.ui.res.stringResource
 import com.vknxworks.filesctrl.R
+import androidx.compose.foundation.layout.size
+import com.vknxworks.filesctrl.ui.components.CtrlBackBar
+import com.vknxworks.filesctrl.ui.theme.CtrlColors
+import com.vknxworks.filesctrl.ui.theme.CtrlFonts
+import com.vknxworks.filesctrl.ui.components.CtrlAlertDialog
 
 const val MAX_EDIT_BYTES = 4L * 1024 * 1024
 
@@ -236,28 +240,16 @@ fun EditorScreen(source: TextSource, onBack: () -> Unit) {
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                navigationIcon = {
-                    IconButton(onClick = { if (dirty) askDiscard = true else onBack() }) {
-                        Icon(Icons.AutoMirrored.Outlined.ArrowBack, stringResource(R.string.back))
-                    }
-                },
-                title = {
-                    Column {
-                        Text((if (dirty) "• " else "") + source.name, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                        Text(
-                            listOf(source.subtitle, if (text != null) encoding.label else "").filter { it.isNotBlank() }.joinToString(App.str(R.string.list_separator)),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            maxLines = 1,
-                        )
-                    }
-                },
+            CtrlBackBar(
+                title = (if (dirty) "• " else "") + source.name,
+                subtitle = listOf(source.subtitle, if (text != null) encoding.label else "").filter { it.isNotBlank() }.joinToString(App.str(R.string.list_separator)),
+                onBack = { if (dirty) askDiscard = true else onBack() },
+                backDescription = stringResource(R.string.back),
                 actions = {
                     IconToggleButton(checked = wrap, onCheckedChange = { wrap = it }) {
                         Icon(Icons.AutoMirrored.Outlined.WrapText, stringResource(R.string.wrap_lines))
                     }
-                    if (saving) CircularProgressIndicator(Modifier.padding(12.dp).padding(end = 4.dp), strokeWidth = 2.dp)
+                    if (saving) CircularProgressIndicator(Modifier.padding(12.dp).padding(end = 4.dp).size(20.dp), strokeWidth = 2.dp, color = CtrlColors.Accent)
                     else if (!source.readOnly) IconButton(onClick = { save() }, enabled = dirty) { Icon(Icons.Outlined.Save, stringResource(R.string.save)) }
                     else IconButton(onClick = { run { com.vknxworks.filesctrl.ui.lock.AppLockState.expectReturn(); saveCopy.launch(source.name) } }, enabled = text != null) { Icon(Icons.Outlined.SaveAs, stringResource(R.string.save_a_copy)) }
                     Box {
@@ -282,7 +274,7 @@ fun EditorScreen(source: TextSource, onBack: () -> Unit) {
                     error!!, Modifier.align(Alignment.Center).padding(32.dp),
                     color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center,
                 )
-                t == null -> CircularProgressIndicator(Modifier.align(Alignment.Center))
+                t == null -> CircularProgressIndicator(Modifier.align(Alignment.Center), color = CtrlColors.Accent)
                 else -> {
                     val vScroll = rememberScrollState()
                     val hScroll = rememberScrollState()
@@ -292,12 +284,12 @@ fun EditorScreen(source: TextSource, onBack: () -> Unit) {
                         value = t,
                         onValueChange = { text = it },
                         textStyle = TextStyle(
-                            fontFamily = FontFamily.Monospace,
+                            fontFamily = CtrlFonts.Mono,
                             fontSize = 14.sp,
                             lineHeight = 20.sp,
                             color = MaterialTheme.colorScheme.onSurface,
                         ),
-                        cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+                        cursorBrush = SolidColor(CtrlColors.Accent),
                         modifier = mod.padding(horizontal = 12.dp, vertical = 8.dp).let { if (wrap) it.fillMaxWidth() else it },
                     )
                 }
@@ -306,7 +298,7 @@ fun EditorScreen(source: TextSource, onBack: () -> Unit) {
     }
 
     if (askDiscard) {
-        AlertDialog(
+        CtrlAlertDialog(
             onDismissRequest = { askDiscard = false },
             title = { Text(stringResource(R.string.unsaved_changes)) },
             text = {

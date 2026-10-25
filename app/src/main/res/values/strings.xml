@@ -13,6 +13,19 @@
     <string name="licence_subtitle">GNU General Public License v3.0</string>
     <string name="about_footer">FilesCtrl %1$s · VKNXWorks</string>
 
+    <!-- Ctrl / Signal look -->
+    <string name="wordmark_name" translatable="false">FILES</string>
+    <string name="lock_brand" translatable="false">VKNXWORKS · CTRL</string>
+    <string name="lock_short_title">Locked</string>
+    <string name="signal_footer" translatable="false">GOOGLE-FREE · TELEMETRY-FREE · ARM64</string>
+    <string name="profile_label">Profile</string>
+    <string name="label_storage">Storage</string>
+    <string name="label_used_percent">%1$d%% used</string>
+    <string name="label_open">Open</string>
+    <string name="app_group">App</string>
+    <string name="fonts_title">Fonts</string>
+    <string name="fonts_subtitle">Space Grotesk and JetBrains Mono, SIL Open Font License 1.1</string>
+
     <!-- You page (tap the profile picture) -->
     <string name="you_title">You</string>
     <string name="you_and_settings">You and settings</string>

@@ -4,6 +4,46 @@ What changed in each FilesCtrl version. Every release on the [Releases page](htt
 
 To publish a new version: bump `versionCode` and `versionName` in `app/build.gradle.kts`, add a section here, and push to `main`. Pushes without a version bump only build; they don't make a release.
 
+## 1.4.0 (2026-10-25)
+
+FilesCtrl gets the new **Ctrl / Signal** look that the whole Ctrl series is moving to: dark, high contrast, one violet accent and two new typefaces. Only the look changes. Every screen, button, setting and feature works as before, and nothing you saved (servers, bookmarks, PIN, settings) is touched.
+
+### New
+
+- **Two bundled typefaces.** All text is now set in **Space Grotesk**, and paths, sizes, dates, addresses and section labels are set in **JetBrains Mono**. Both are built into the app (SIL Open Font License 1.1, licence texts included under `assets/licenses/`), so nothing is downloaded and no font service is used.
+- **FILES/CTRL wordmark** at the top left of the Files and Places tabs, with the "/" in the accent colour.
+- **Places has a storage card.** Your phone's main storage is now a large accent card at the top of Places, showing the free space as a big number, "x free of y", a usage bar and how full it is (or **Open** when you're browsing it). Tap it to open your phone's storage as before.
+- **Fonts row on the You page** under About, linking to the SIL Open Font License.
+
+### Changed
+
+- **Dark only.** FilesCtrl now always uses its dark Signal theme: a near-black background (#08080A), dark grey cards with a thin border, light text and a single violet accent (#B48CFF). The status bar and navigation bar take the same background colour with light icons, edge to edge.
+- **Top bar of the Files tab**: the wordmark, then search, sort and ⋮, then your profile button. Below it, the folder you're in is shown in large bold type, with where it is (this phone, a server's address, or a share's storage use, plus "read-only" when it applies) as a small mono label above it.
+- **Path bar** under the folder name: the path is now in mono with an accent "/" between folders; the current folder is bright and the folders above it muted. Tap any part to go back up to it, as before.
+- **File list**: plain rows separated by thin lines, a slightly smaller file icon, the name in medium weight, and **size · date** in mono below it (size now comes first). Hidden files stay dimmed.
+- **Grid view**: tiles are dark cards with a thin border and rounder corners, and files show their size under the name.
+- **Selection mode**: the top bar turns into an accent-coloured bar with the number selected in mono and the close, copy, cut, delete and ⋮ buttons in dark. Selected rows get an accent edge on the left and a light accent tint; selected tiles get an accent border.
+- **New folder / new file button**: a violet rounded-square button with flat, bordered labels when it opens. The paste card above the bottom bar is a bordered dark card with an accent icon and an accent **Paste** button.
+- **Bottom bar**: the frosted floating tab bar is replaced by a solid floating bar (rounded rectangle with a thin border) 28dp above the navigation bar. The open tab is an accent block with its icon and name; the other tab shows only its icon. Lists leave room below so nothing hides behind it. On tablets and unfolded foldables the side rail stays, in the same colours.
+- **Profile button**: a rounded square with your phone's initials (instead of the round placeholder picture). A small accent square appears on its corner while you're browsing a network location. Tapping it opens the You page, as before.
+- **Places**: SD cards and USB drives, network locations and bookmarks are now plain rows under mono labels. Network locations show their protocol (NFS, SMB, SFTP, FTP, WebDAV) as a mono tag, the address or storage use in mono, and a small square that is violet while that location is open or connected. **Add network** is a full-width bordered button under the list.
+- **You page**: a close button at the top, a large violet square with your phone's initials, the phone's name and its Android version and number of saved locations in mono. **Settings** is under **App**; **Report a bug**, **Source code**, **Licence** and **Fonts** are under **About**. **Support FilesCtrl** is now a large violet button at the bottom, followed by "GOOGLE-FREE · TELEMETRY-FREE · ARM64" and the version.
+- **Settings**: every group is a dark card with a mono, upper-case title (APPEARANCE, PRIVACY AND SECURITY, FILES, PERMISSIONS, OTHER APPS) and thin lines between rows. Icons are outlined and no longer sit on coloured circles. Choices such as **Lock again** show the current value in mono on the right, and open a dark bottom sheet where the current choice is violet with a small square.
+- **Switches** are new rounded-rectangle switches: violet with a dark knob when on, grey when off. They still read as switches to screen readers, and the whole row toggles as before. This applies to every switch in Settings and in the server editor, including **Hide in screenshots** and **Hide in recent apps** (both still off by default).
+- **Lock screen and PIN screens**: a violet rounded-square lock icon, "VKNXWORKS · CTRL" in mono, **Locked** in large type and your hint text below. The PIN is shown as small squares that fill in violet. The keypad is a full-width 3 × 4 grid of rounded dark keys with mono digits. **Use fingerprint** is now the violet-outlined key at the bottom left of the keypad (it turns into the confirm key while a PIN long enough to confirm is typed, where one is needed), and delete is an icon-only key at the bottom right. **Forgot PIN?** and **Cancel** sit under the keypad. The lock itself (PIN, fingerprint, lock timing, wrong-PIN waits) works exactly as before.
+- **Server editor**: square back button and an accent **Save** button at the top, mono section labels, protocol choices as mono chips that turn violet when chosen, NFS version as a squared segmented control, dark bordered text fields that get a violet border and cursor while you type, an accent **Test connection** button, and the result in a bordered card (violet when it worked, red when it didn't).
+- **Dialogs and menus** (new folder, rename, delete, paste conflicts, properties, permissions, passwords, compress, extract, trust a server, forgot PIN, unsaved changes) are dark cards with rounder 26dp corners and a thin border, with violet buttons and red for destructive actions. Text fields in dialogs use the same dark, bordered style.
+- **Search** opens as a dark bordered search field next to a square back button.
+- **Text editor**: square back button, file name in the new type with the location and encoding in mono, and the text itself in JetBrains Mono with a violet cursor.
+- **Empty, error and permission screens**: the icon sits on a small bordered dark tile, with **Retry**, **Enter password** and **Grant access** as violet buttons and **Edit server** as a bordered button.
+- **Progress**: the loading line under the path bar and the storage bars are flat bars in the new colours.
+
+### Removed
+
+- **Theme setting** (Follow system, Light, Dark, Pure black) in Settings > Appearance, because FilesCtrl is dark only now. If you had picked a light theme, the app switches to the dark look.
+- **Colours from your wallpaper** (Material You dynamic colour) switch in Settings > Appearance. The violet accent is always used. **Grid view** stays in Appearance.
+- The frosted-glass blur behind the tab bar, and the library that drew it (Haze), which makes the app a little smaller.
+
 ## 1.3.5 (2026-10-22)
 
 ### Fixed

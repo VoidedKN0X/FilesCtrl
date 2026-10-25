@@ -65,7 +65,6 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.vknxworks.filesctrl.App
 import com.vknxworks.filesctrl.R
-import com.vknxworks.filesctrl.data.ThemeMode
 import com.vknxworks.filesctrl.ui.lock.PIN_MAX
 import com.vknxworks.filesctrl.ui.lock.PIN_MIN
 import com.vknxworks.filesctrl.ui.lock.biometricAvailable
@@ -114,17 +113,11 @@ fun SettingsScreen() {
     Scaffold(topBar = { BackBar(stringResource(R.string.settings), onBack = { nav.back() }) }) { pad ->
     LazyColumn(
         Modifier.fillMaxSize().padding(pad),
-        contentPadding = PaddingValues(bottom = 24.dp),
+        contentPadding = PaddingValues(top = 4.dp, bottom = 24.dp),
     ) {
 
         item {
             SettingsSection(stringResource(R.string.group_appearance)) {
-                ChoiceItem(
-                    Icons.Outlined.DarkMode, stringResource(R.string.theme),
-                    THEMES.map { stringResource(it.label) },
-                    THEMES.indexOf(s.theme).coerceAtLeast(0),
-                ) { s.theme = THEMES[it] }
-                ToggleItem(Icons.Outlined.Palette, stringResource(R.string.dynamic_colour), stringResource(R.string.dynamic_colour_subtitle), s.dynamicColor) { s.dynamicColor = it }
                 ToggleItem(Icons.Outlined.GridView, stringResource(R.string.grid_view), stringResource(R.string.show_files_as_tiles_instead_of_a), s.gridView) { s.gridView = it }
             }
         }
@@ -208,7 +201,11 @@ fun SettingsScreen() {
                     NavItem(
                         Icons.Outlined.NotificationsOff, stringResource(R.string.notifications_are_blocked),
                         stringResource(R.string.notifications_are_blocked_summary),
-                        trailing = { TextButton(onClick = { notifications.request() }) { Text(stringResource(R.string.allow)) } },
+                        trailing = {
+                            com.vknxworks.filesctrl.ui.components.CtrlButton(onClick = { notifications.request() }, height = 40.dp) {
+                                Text(stringResource(R.string.allow), fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold)
+                            }
+                        },
                     ) { notifications.request() }
                 }
                 ItemDivider()
@@ -246,5 +243,3 @@ fun SettingsScreen() {
     }
 }
 
-/** In the same order as every Ctrl app. */
-private val THEMES = listOf(ThemeMode.System, ThemeMode.Dark, ThemeMode.Light, ThemeMode.Black)

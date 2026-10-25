@@ -150,6 +150,24 @@ import kotlinx.coroutines.withContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.res.pluralStringResource
 import com.vknxworks.filesctrl.R
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.FloatingActionButtonDefaults
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.unit.sp
+import com.vknxworks.filesctrl.ui.components.CtrlButton
+import com.vknxworks.filesctrl.ui.components.CtrlIconButton
+import com.vknxworks.filesctrl.ui.components.CtrlSecondaryButton
+import com.vknxworks.filesctrl.ui.components.CtrlSquareButton
+import com.vknxworks.filesctrl.ui.components.CtrlTextField
+import com.vknxworks.filesctrl.ui.components.CtrlTopBar
+import com.vknxworks.filesctrl.ui.components.topDivider
+import com.vknxworks.filesctrl.ui.theme.CtrlColors
+import com.vknxworks.filesctrl.ui.theme.CtrlShapes
+import com.vknxworks.filesctrl.ui.theme.CtrlType
 
 /** Bottom padding for this screen's lists, so they scroll clear of the island and paste card. */
 private val LocalListPadding = androidx.compose.runtime.compositionLocalOf { PaddingValues(bottom = 96.dp) }
@@ -273,8 +291,11 @@ fun BrowserScreen(vm: BrowserViewModel, islandSpace: Dp) {
     ) { pad ->
         Column(Modifier.padding(pad).fillMaxSize()) {
             Breadcrumbs(vm) { vm.navigate(it, currentIndex()) }
-            Box(Modifier.fillMaxWidth().height(3.dp)) {
-                if ((vm.loading && !vm.refreshing) || vm.deepSearching) LinearProgressIndicator(Modifier.fillMaxWidth())
+            Box(Modifier.fillMaxWidth().height(3.dp).padding(horizontal = 20.dp)) {
+                if ((vm.loading && !vm.refreshing) || vm.deepSearching) LinearProgressIndicator(
+                    Modifier.fillMaxWidth().clip(RoundedCornerShape(2.dp)),
+                    color = CtrlColors.Accent, trackColor = CtrlColors.ProgressTrack,
+                )
             }
             when {
                 vm.isLocal && !hasAllFiles -> PermissionGate()
@@ -389,52 +410,38 @@ private fun MainBar(vm: BrowserViewModel, onDialog: (Dlg) -> Unit) {
     var sortMenu by remember { mutableStateOf(false) }
     val focus = remember { FocusRequester() }
 
-    TopAppBar(
-        navigationIcon = {
-            if (vm.searchOpen) {
-                IconButton(onClick = { vm.searchOpen = false; vm.filter = ""; vm.closeDeepSearch() }) {
-                    Icon(Icons.AutoMirrored.Outlined.ArrowBack, stringResource(R.string.close_search))
-                }
-            }
-        },
-        title = {
-            if (vm.searchOpen) {
-                LaunchedEffect(Unit) { focus.requestFocus() }
-                TextField(
-                    value = vm.filter,
-                    onValueChange = { vm.filter = it },
-                    placeholder = { Text(stringResource(R.string.filter_or_search_subfolders)) },
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-                    keyboardActions = KeyboardActions(onSearch = { vm.deepSearch(vm.filter) }),
-                    colors = TextFieldDefaults.colors(
-                        focusedContainerColor = Color.Transparent, unfocusedContainerColor = Color.Transparent,
-                        focusedIndicatorColor = Color.Transparent, unfocusedIndicatorColor = Color.Transparent,
-                    ),
-                    modifier = Modifier.fillMaxWidth().focusRequester(focus),
-                )
-            } else {
-                Column {
-                    Text(vm.title, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                    Text(
-                        if (vm.readOnly && !vm.isArchive) stringResource(R.string.subtitle_read_only, subtitle(vm)) else subtitle(vm),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
-                    )
-                }
-            }
-        },
-        actions = {
-            if (vm.searchOpen) {
-                if (vm.filter.isNotBlank()) {
+    if (vm.searchOpen) {
+        Row(
+            Modifier.fillMaxWidth().background(CtrlColors.Background).statusBarsPadding()
+                .padding(start = 16.dp, end = 12.dp, top = 12.dp, bottom = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            CtrlSquareButton(Icons.AutoMirrored.Outlined.ArrowBack, stringResource(R.string.close_search), onClick = { vm.searchOpen = false; vm.filter = ""; vm.closeDeepSearch() })
+            Spacer(Modifier.width(10.dp))
+            LaunchedEffect(Unit) { focus.requestFocus() }
+            CtrlTextField(
+                value = vm.filter,
+                onValueChange = { vm.filter = it },
+                placeholder = { Text(stringResource(R.string.filter_or_search_subfolders), maxLines = 1) },
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                keyboardActions = KeyboardActions(onSearch = { vm.deepSearch(vm.filter) }),
+                trailingIcon = if (vm.filter.isNotBlank()) { {
                     IconButton(onClick = { vm.deepSearch(vm.filter) }) { Icon(Icons.Outlined.Search, stringResource(R.string.search_subfolders)) }
-                }
-                return@TopAppBar
-            }
-            IconButton(onClick = { vm.searchOpen = true }) { Icon(Icons.Outlined.Search, stringResource(R.string.search)) }
+                } } else null,
+                modifier = Modifier.weight(1f).focusRequester(focus),
+            )
+        }
+        return
+    }
+    Column(Modifier.fillMaxWidth().background(CtrlColors.Background)) {
+    CtrlTopBar(
+        stringResource(R.string.wordmark_name),
+        profile = { ProfileButton(connected = vm.location.vfsId.startsWith(RemoteVfs.PREFIX) && vm.error == null) },
+        actions = {
+            CtrlIconButton(Icons.Outlined.Search, stringResource(R.string.search), onClick = { vm.searchOpen = true })
             Box {
-                IconButton(onClick = { sortMenu = true }) { Icon(Icons.AutoMirrored.Outlined.Sort, stringResource(R.string.sort)) }
+                CtrlIconButton(Icons.AutoMirrored.Outlined.Sort, stringResource(R.string.sort), onClick = { sortMenu = true })
                 DropdownMenu(expanded = sortMenu, onDismissRequest = { sortMenu = false }) {
                     SortBy.entries.forEach { by ->
                         DropdownMenuItem(
@@ -457,7 +464,7 @@ private fun MainBar(vm: BrowserViewModel, onDialog: (Dlg) -> Unit) {
                 }
             }
             Box {
-                IconButton(onClick = { menu = true }) { Icon(Icons.Outlined.MoreVert, stringResource(R.string.more)) }
+                CtrlIconButton(Icons.Outlined.MoreVert, stringResource(R.string.more), onClick = { menu = true })
                 DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
                     DropdownMenuItem(
                         text = { Text(if (s.gridView) stringResource(R.string.list_view) else stringResource(R.string.grid_view)) },
@@ -520,9 +527,18 @@ private fun MainBar(vm: BrowserViewModel, onDialog: (Dlg) -> Unit) {
                     )
                 }
             }
-            ProfileButton()
         },
     )
+    // The folder's name, big, with where it is (this phone, a share's storage use or the address) in mono above.
+    Column(Modifier.fillMaxWidth().padding(start = 20.dp, end = 20.dp, top = 14.dp)) {
+        Text(
+            (if (vm.readOnly && !vm.isArchive) stringResource(R.string.subtitle_read_only, subtitle(vm)) else subtitle(vm)).uppercase(),
+            style = CtrlType.Label, color = CtrlColors.Muted, maxLines = 1, overflow = TextOverflow.Ellipsis,
+        )
+        Spacer(Modifier.height(4.dp))
+        Text(vm.title, style = CtrlType.PageTitle, color = CtrlColors.Text, maxLines = 1, overflow = TextOverflow.Ellipsis)
+    }
+    }
 }
 
 /** Under the folder name: this phone, or a share's storage use (just its address if the server won't say). */
@@ -545,18 +561,26 @@ private fun SelectionBar(vm: BrowserViewModel, readOnly: Boolean, onDialog: (Dlg
     var menu by remember { mutableStateOf(false) }
     val sel = vm.selected()
     val single = sel.singleOrNull()
-    TopAppBar(
-        colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.secondaryContainer),
-        navigationIcon = { IconButton(onClick = { vm.selection.clear() }) { Icon(Icons.Outlined.Close, stringResource(R.string.clear_selection)) } },
-        title = { Text(stringResource(R.string.selected, vm.selection.size)) },
-        actions = {
-            IconButton(onClick = { vm.copySelection(cut = false) }) { Icon(Icons.Outlined.ContentCopy, stringResource(R.string.copy)) }
-            if (!readOnly) IconButton(onClick = { vm.copySelection(cut = true) }) { Icon(Icons.Outlined.ContentCut, stringResource(R.string.cut)) }
-            if (!readOnly) IconButton(onClick = {
+    // Selection mode: an accent bar in place of the top bar, with the count in mono.
+    Box(Modifier.fillMaxWidth().background(CtrlColors.Background).statusBarsPadding().padding(start = 12.dp, end = 12.dp, top = 12.dp, bottom = 8.dp)) {
+    Row(
+        Modifier.fillMaxWidth().height(60.dp).clip(CtrlShapes.Card).background(CtrlColors.Accent).padding(horizontal = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+            CtrlIconButton(Icons.Outlined.Close, stringResource(R.string.clear_selection), onClick = { vm.selection.clear() }, tint = CtrlColors.Ink)
+            Text(
+                stringResource(R.string.selected, vm.selection.size).uppercase(),
+                style = CtrlType.LabelStrong.copy(fontSize = 13.sp), color = CtrlColors.Ink,
+                maxLines = 1, overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f).padding(start = 4.dp),
+            )
+            CtrlIconButton(Icons.Outlined.ContentCopy, stringResource(R.string.copy), onClick = { vm.copySelection(cut = false) }, tint = CtrlColors.Ink)
+            if (!readOnly) CtrlIconButton(Icons.Outlined.ContentCut, stringResource(R.string.cut), onClick = { vm.copySelection(cut = true) }, tint = CtrlColors.Ink)
+            if (!readOnly) CtrlIconButton(Icons.Outlined.Delete, stringResource(R.string.lock_delete), tint = CtrlColors.Ink, onClick = {
                 if (App.settings.confirmDelete) onDialog(Dlg.Delete(sel)) else { vm.selection.clear(); Ops.delete(sel) }
-            }) { Icon(Icons.Outlined.Delete, stringResource(R.string.lock_delete)) }
+            })
             Box {
-                IconButton(onClick = { menu = true }) { Icon(Icons.Outlined.MoreVert, stringResource(R.string.more)) }
+                CtrlIconButton(Icons.Outlined.MoreVert, stringResource(R.string.more), onClick = { menu = true }, tint = CtrlColors.Ink)
                 DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
                     DropdownMenuItem(text = { Text(stringResource(R.string.select_all)) }, leadingIcon = { Icon(Icons.Outlined.SelectAll, null) },
                         onClick = { vm.selectAll(); menu = false })
@@ -580,8 +604,8 @@ private fun SelectionBar(vm: BrowserViewModel, readOnly: Boolean, onDialog: (Dlg
                         onClick = { menu = false; onDialog(Dlg.Props(single)) })
                 }
             }
-        },
-    )
+    }
+    }
 }
 
 // ---------- Item actions ----------
@@ -663,29 +687,26 @@ private fun Breadcrumbs(vm: BrowserViewModel, onClick: (Location) -> Unit) {
     val crumbs = vm.crumbs()
     val state = rememberLazyListState()
     LaunchedEffect(crumbs.size, vm.location) { if (crumbs.isNotEmpty()) state.animateScrollToItem(crumbs.size - 1) }
+    // The path in mono, "/" between the parts in the accent; the current folder is bright, the rest muted.
     LazyRow(
         state = state,
-        contentPadding = PaddingValues(horizontal = 8.dp),
+        contentPadding = PaddingValues(horizontal = 14.dp),
         verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier.fillMaxWidth().height(44.dp),
+        modifier = Modifier.fillMaxWidth().height(40.dp),
     ) {
         itemsIndexed(crumbs) { i, (label, loc) ->
             val last = i == crumbs.size - 1
             Row(verticalAlignment = Alignment.CenterVertically) {
-                if (i > 0) Icon(
-                    Icons.Outlined.ChevronRight, null, Modifier.size(18.dp),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+                if (i > 0) Text("/", style = CtrlType.Meta.copy(fontWeight = FontWeight.SemiBold), color = CtrlColors.Accent)
                 Text(
                     label,
-                    style = MaterialTheme.typography.labelLarge,
-                    fontWeight = if (last) FontWeight.SemiBold else FontWeight.Normal,
-                    color = if (last) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = CtrlType.Meta.copy(fontWeight = if (last) FontWeight.SemiBold else FontWeight.Normal),
+                    color = if (last) CtrlColors.Text else CtrlColors.Muted,
                     maxLines = 1,
                     modifier = Modifier
                         .clip(RoundedCornerShape(8.dp))
                         .combinedClickable(onClick = { if (!last) onClick(loc) })
-                        .padding(horizontal = 8.dp, vertical = 8.dp),
+                        .padding(horizontal = 6.dp, vertical = 8.dp),
                 )
             }
         }
@@ -696,7 +717,7 @@ private fun Breadcrumbs(vm: BrowserViewModel, onClick: (Location) -> Unit) {
 private fun subtitleFor(e: FileEntry): String {
     val ctx = LocalContext.current
     val date = Fmt.date(ctx, e.modified)
-    return if (e.isDir) date else listOf(date, Fmt.size(ctx, e.size)).filter { it.isNotEmpty() }.joinToString(App.str(R.string.list_separator))
+    return if (e.isDir) date else listOf(Fmt.size(ctx, e.size), date).filter { it.isNotEmpty() }.joinToString(App.str(R.string.list_separator))
 }
 
 @Composable
@@ -711,31 +732,35 @@ private fun FileRow(
     onAction: (ItemAction) -> Unit,
 ) {
     var menu by remember { mutableStateOf(false) }
+    // Plain row with a 1dp top divider; size and date in mono. Selected rows get an accent edge and tint.
     Row(
         Modifier
             .fillMaxWidth()
-            .background(if (selected) MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.6f) else Color.Transparent)
+            .heightIn(min = 60.dp)
+            .background(if (selected) CtrlColors.Accent.copy(alpha = 0.12f) else Color.Transparent)
+            .topDivider()
+            .drawBehind { if (selected) drawRect(CtrlColors.Accent, size = androidx.compose.ui.geometry.Size(3.dp.toPx(), size.height)) }
             .combinedClickable(onClick = onClick, onLongClick = onLongClick)
-            .padding(start = 16.dp, end = 4.dp, top = 8.dp, bottom = 8.dp),
+            .padding(start = 20.dp, end = 8.dp, top = 8.dp, bottom = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        FileIcon(e, 44.dp, Modifier.combinedClickable(onClick = onLongClick), selected = selected)
-        Spacer(Modifier.width(16.dp))
-        Column(Modifier.weight(1f)) {
+        FileIcon(e, 40.dp, Modifier.combinedClickable(onClick = onLongClick), selected = selected)
+        Spacer(Modifier.width(14.dp))
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Text(
                 e.name, maxLines = 1, overflow = TextOverflow.Ellipsis,
-                style = MaterialTheme.typography.bodyLarge,
-                color = if (e.hidden) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface,
+                style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium,
+                color = if (e.hidden) CtrlColors.Muted else CtrlColors.Text,
             )
             Text(
                 subtitle, maxLines = 1, overflow = TextOverflow.Ellipsis,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = CtrlType.Meta.copy(fontSize = 11.sp),
+                color = CtrlColors.Muted,
             )
         }
         Box {
             IconButton(onClick = { menu = true }) {
-                Icon(Icons.Outlined.MoreVert, stringResource(R.string.options), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                Icon(Icons.Outlined.MoreVert, stringResource(R.string.options), Modifier.size(20.dp), tint = CtrlColors.Muted)
             }
             ItemMenu(e, readOnly, inSearch, menu, onDismiss = { menu = false }, onAction = onAction)
         }
@@ -769,29 +794,32 @@ private fun FileGrid(items: List<FileEntry>, vm: BrowserViewModel, state: LazyGr
         columns = GridCells.Adaptive(112.dp),
         state = state,
         modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(start = 8.dp, end = 8.dp, top = 4.dp, bottom = LocalListPadding.current.calculateBottomPadding()),
+        contentPadding = PaddingValues(start = 12.dp, end = 12.dp, top = 6.dp, bottom = LocalListPadding.current.calculateBottomPadding()),
     ) {
         items(items, key = { it.path }) { e ->
             val selected = e.path in vm.selection
-            Card(
-                colors = CardDefaults.cardColors(
-                    containerColor = if (selected) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceContainerLow,
-                ),
-                modifier = Modifier.padding(4.dp).fillMaxWidth().clip(CardDefaults.shape)
+            Column(
+                Modifier.padding(5.dp).fillMaxWidth()
+                    .clip(CtrlShapes.Card)
+                    .background(if (selected) CtrlColors.Accent.copy(alpha = 0.14f) else CtrlColors.Surface)
+                    .border(1.dp, if (selected) CtrlColors.Accent else CtrlColors.CardBorder, CtrlShapes.Card)
                     .combinedClickable(
                         onClick = { if (vm.selecting) vm.toggle(e) else onOpen(e) },
                         onLongClick = { vm.toggle(e) },
-                    ),
-            ) {
-                Column(Modifier.padding(8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                    FileIcon(e, 84.dp, selected = selected)
-                    Spacer(Modifier.height(6.dp))
-                    Text(
-                        e.name, maxLines = 2, overflow = TextOverflow.Ellipsis, textAlign = TextAlign.Center,
-                        style = MaterialTheme.typography.bodySmall,
-                        modifier = Modifier.fillMaxWidth(),
                     )
-                }
+                    .padding(10.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                FileIcon(e, 80.dp, selected = selected)
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    e.name, maxLines = 2, overflow = TextOverflow.Ellipsis, textAlign = TextAlign.Center,
+                    style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Medium, color = CtrlColors.Text,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                if (!e.isDir) Text(
+                    Fmt.size(LocalContext.current, e.size), maxLines = 1, style = CtrlType.Meta.copy(fontSize = 10.sp), color = CtrlColors.Muted,
+                )
             }
         }
     }
@@ -807,9 +835,9 @@ private fun SearchResults(vm: BrowserViewModel, onOpen: (FileEntry) -> Unit, onM
                     else pluralStringResource(R.plurals.results_for, vm.deepResults.size, vm.deepResults.size, vm.deepQuery.orEmpty(), vm.title),
                 )
             },
-            style = MaterialTheme.typography.labelLarge,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+            style = CtrlType.Meta,
+            color = CtrlColors.Muted,
+            modifier = Modifier.padding(horizontal = 20.dp, vertical = 10.dp),
         )
         LazyColumn(Modifier.fillMaxSize(), contentPadding = LocalListPadding.current) {
             items(vm.deepResults, key = { it.path }) { e ->
@@ -836,7 +864,13 @@ private fun SpeedDial(pasteVisible: Boolean, onNewFolder: () -> Unit, onNewFile:
                 DialItem(stringResource(R.string.new_folder), Icons.Outlined.CreateNewFolder) { open = false; onNewFolder() }
             }
         }
-        FloatingActionButton(onClick = { open = !open }) {
+        FloatingActionButton(
+            onClick = { open = !open },
+            shape = RoundedCornerShape(18.dp),
+            containerColor = CtrlColors.Accent,
+            contentColor = CtrlColors.Ink,
+            elevation = FloatingActionButtonDefaults.elevation(0.dp, 0.dp, 0.dp, 0.dp),
+        ) {
             Icon(if (open) Icons.Outlined.Close else Icons.Outlined.Add, if (open) stringResource(R.string.close) else stringResource(R.string.create))
         }
     }
@@ -846,14 +880,21 @@ private fun SpeedDial(pasteVisible: Boolean, onNewFolder: () -> Unit, onNewFile:
 private fun DialItem(label: String, icon: ImageVector, onClick: () -> Unit) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         Surface(
-            shape = RoundedCornerShape(8.dp),
-            color = MaterialTheme.colorScheme.surfaceContainerHigh,
-            shadowElevation = 2.dp,
+            shape = CtrlShapes.Badge,
+            color = CtrlColors.Surface,
+            border = BorderStroke(1.dp, CtrlColors.ControlBorder),
         ) {
-            Text(label, Modifier.padding(horizontal = 12.dp, vertical = 6.dp), style = MaterialTheme.typography.labelLarge)
+            Text(label, Modifier.padding(horizontal = 12.dp, vertical = 6.dp), style = MaterialTheme.typography.labelLarge, color = CtrlColors.Text)
         }
         Spacer(Modifier.width(12.dp))
-        SmallFloatingActionButton(onClick = onClick, modifier = Modifier.padding(end = 4.dp)) { Icon(icon, label) }
+        SmallFloatingActionButton(
+            onClick = onClick,
+            modifier = Modifier.padding(end = 4.dp).border(1.dp, CtrlColors.ControlBorder, CtrlShapes.Control),
+            shape = CtrlShapes.Control,
+            containerColor = CtrlColors.Surface,
+            contentColor = CtrlColors.Text,
+            elevation = FloatingActionButtonDefaults.elevation(0.dp, 0.dp, 0.dp, 0.dp),
+        ) { Icon(icon, label) }
     }
 }
 
@@ -861,31 +902,31 @@ private fun DialItem(label: String, icon: ImageVector, onClick: () -> Unit) {
 private fun PasteBar(readOnly: Boolean, modifier: Modifier = Modifier, onPaste: () -> Unit) {
     val n = FileClipboard.items.size
     Surface(
-        color = MaterialTheme.colorScheme.surfaceContainerHigh,
-        shape = RoundedCornerShape(24.dp),
-        shadowElevation = 6.dp,
-        modifier = modifier.padding(horizontal = 16.dp).widthIn(max = 480.dp).fillMaxWidth(),
+        color = CtrlColors.Surface,
+        shape = CtrlShapes.Card,
+        border = BorderStroke(1.dp, CtrlColors.ControlBorder),
+        modifier = modifier.padding(horizontal = 20.dp).widthIn(max = 480.dp).fillMaxWidth(),
     ) {
         Row(
             Modifier.fillMaxWidth().padding(start = 16.dp, end = 8.dp, top = 6.dp, bottom = 6.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Icon(if (FileClipboard.cut) Icons.AutoMirrored.Outlined.DriveFileMove else Icons.Outlined.ContentCopy, null)
+            Icon(if (FileClipboard.cut) Icons.AutoMirrored.Outlined.DriveFileMove else Icons.Outlined.ContentCopy, null, tint = CtrlColors.Accent)
             Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f)) {
                 Text(
                     pluralStringResource(if (FileClipboard.cut) R.plurals.items_to_move else R.plurals.items_to_copy, n, n),
-                    style = MaterialTheme.typography.bodyMedium,
+                    style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium, color = CtrlColors.Text,
                 )
                 Text(
                     FileClipboard.items.joinToString(", ") { it.name },
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = CtrlType.Meta.copy(fontSize = 11.sp),
+                    color = CtrlColors.Muted,
                     maxLines = 1, overflow = TextOverflow.Ellipsis,
                 )
             }
-            TextButton(onClick = { FileClipboard.clear() }) { Text(stringResource(R.string.lock_cancel)) }
-            Button(onClick = onPaste, enabled = !readOnly) {
+            TextButton(onClick = { FileClipboard.clear() }, colors = ButtonDefaults.textButtonColors(contentColor = CtrlColors.Muted)) { Text(stringResource(R.string.lock_cancel)) }
+            CtrlButton(onClick = onPaste, enabled = !readOnly, height = 44.dp) {
                 Icon(Icons.Outlined.ContentPaste, null, Modifier.size(18.dp))
                 Spacer(Modifier.width(6.dp))
                 Text(stringResource(R.string.paste))
@@ -902,14 +943,17 @@ private fun CenteredMessage(icon: ImageVector, title: String, body: String?, con
         verticalArrangement = Arrangement.Center,
     ) {
         Spacer(Modifier.height(48.dp))
-        Icon(icon, null, Modifier.size(56.dp), tint = MaterialTheme.colorScheme.outline)
-        Spacer(Modifier.height(16.dp))
-        Text(title, style = MaterialTheme.typography.titleMedium, textAlign = TextAlign.Center)
+        Box(
+            Modifier.size(64.dp).clip(RoundedCornerShape(20.dp)).background(CtrlColors.Surface).border(1.dp, CtrlColors.CardBorder, RoundedCornerShape(20.dp)),
+            contentAlignment = Alignment.Center,
+        ) { Icon(icon, null, Modifier.size(28.dp), tint = CtrlColors.Inactive) }
+        Spacer(Modifier.height(18.dp))
+        Text(title, style = CtrlType.Title, color = CtrlColors.Text, textAlign = TextAlign.Center)
         if (body != null) {
             Spacer(Modifier.height(8.dp))
             Text(
                 body, style = MaterialTheme.typography.bodyMedium, textAlign = TextAlign.Center,
-                color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.widthIn(max = 420.dp),
+                color = CtrlColors.Muted, modifier = Modifier.widthIn(max = 420.dp),
             )
         }
         Spacer(Modifier.height(16.dp))
@@ -927,10 +971,10 @@ private fun EmptyState(filtered: Boolean) {
 private fun ErrorState(message: String, vm: BrowserViewModel, nav: androidx.navigation.NavHostController) {
     CenteredMessage(Icons.Outlined.CloudOff, stringResource(R.string.couldn_t_open_this_folder), message) {
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            if (vm.lockedArchive != null) FilledTonalButton(onClick = { vm.passwordPromptHidden = false }) { Text(stringResource(R.string.enter_password)) }
-            else FilledTonalButton(onClick = { vm.load() }) { Text(stringResource(R.string.retry)) }
+            if (vm.lockedArchive != null) CtrlButton(onClick = { vm.passwordPromptHidden = false }) { Text(stringResource(R.string.enter_password)) }
+            else CtrlButton(onClick = { vm.load() }) { Text(stringResource(R.string.retry)) }
             if (vm.location.vfsId.startsWith(RemoteVfs.PREFIX)) {
-                OutlinedButton(onClick = { nav.go("server/" + vm.location.vfsId.removePrefix(RemoteVfs.PREFIX)) }) { Text(stringResource(R.string.edit_server)) }
+                CtrlSecondaryButton(onClick = { nav.go("server/" + vm.location.vfsId.removePrefix(RemoteVfs.PREFIX)) }) { Text(stringResource(R.string.edit_server)) }
             }
         }
     }
@@ -944,7 +988,7 @@ private fun PermissionGate() {
         stringResource(R.string.allow_access_to_your_files),
         stringResource(R.string.filesctrl_needs_all_files_access_to),
     ) {
-        Button(onClick = {
+        CtrlButton(height = 56.dp, onClick = {
             val i = Intent(AndroidSettings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION, Uri.parse("package:${ctx.packageName}"))
             com.vknxworks.filesctrl.ui.lock.AppLockState.expectReturn(); try { ctx.startActivity(i) } catch (_: Exception) {
                 ctx.startActivity(Intent(AndroidSettings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION))

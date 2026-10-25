@@ -32,7 +32,6 @@ import androidx.compose.material.icons.outlined.Key
 import androidx.compose.material.icons.outlined.Radar
 import androidx.compose.material.icons.outlined.Visibility
 import androidx.compose.material.icons.outlined.VisibilityOff
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -43,7 +42,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
@@ -76,6 +74,24 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import androidx.compose.ui.res.stringResource
 import com.vknxworks.filesctrl.R
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.selection.toggleable
+import androidx.compose.material3.FilterChipDefaults
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import com.vknxworks.filesctrl.ui.components.CtrlBackBar
+import com.vknxworks.filesctrl.ui.components.CtrlButton
+import com.vknxworks.filesctrl.ui.components.CtrlCard
+import com.vknxworks.filesctrl.ui.components.CtrlIconButton
+import com.vknxworks.filesctrl.ui.components.CtrlSecondaryButton
+import com.vknxworks.filesctrl.ui.components.CtrlSectionLabel
+import com.vknxworks.filesctrl.ui.components.CtrlSwitch
+import com.vknxworks.filesctrl.ui.theme.CtrlColors
+import com.vknxworks.filesctrl.ui.theme.CtrlFonts
+import com.vknxworks.filesctrl.ui.theme.CtrlShapes
+import com.vknxworks.filesctrl.ui.components.CtrlAlertDialog
+import com.vknxworks.filesctrl.ui.components.CtrlTextField
 
 private sealed interface TestResult {
     data object Running : TestResult
@@ -203,7 +219,7 @@ fun ServerEditScreen(serverId: String?, onDone: (openId: String?) -> Unit) {
     val valid = host.isNotBlank() && (type != Proto.NFS || (uid.toIntOrNull() != null && gid.toIntOrNull() != null)) &&
         (type != Proto.SMB || guest || username.isNotBlank())
     val hint = MaterialTheme.typography.bodySmall
-    val hintColor = MaterialTheme.colorScheme.onSurfaceVariant
+    val hintColor = CtrlColors.Muted
 
     val hostTrailing: (@Composable () -> Unit)? = if (type != Proto.NFS) null else { {
                             if (scanBusy) CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
@@ -235,12 +251,14 @@ fun ServerEditScreen(serverId: String?, onDone: (openId: String?) -> Unit) {
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                navigationIcon = { IconButton(onClick = { onDone(null) }) { Icon(Icons.AutoMirrored.Outlined.ArrowBack, stringResource(R.string.back)) } },
-                title = { Text(if (existing == null) stringResource(R.string.add_network) else stringResource(R.string.edit, existing.type.label)) },
+            CtrlBackBar(
+                title = if (existing == null) stringResource(R.string.add_network) else stringResource(R.string.edit, existing.type.label),
+                onBack = { onDone(null) },
+                backDescription = stringResource(R.string.back),
                 actions = {
-                    if (existing != null) IconButton(onClick = { confirmDelete = true }) { Icon(Icons.Outlined.Delete, stringResource(R.string.remove)) }
-                    TextButton(enabled = valid, onClick = {
+                    if (existing != null) CtrlIconButton(Icons.Outlined.Delete, stringResource(R.string.remove), onClick = { confirmDelete = true }, tint = CtrlColors.Error)
+                    Spacer(Modifier.width(6.dp))
+                    CtrlButton(enabled = valid, height = 44.dp, onClick = {
                         val s = build()
                         try {
                             App.servers.save(s)
@@ -248,23 +266,36 @@ fun ServerEditScreen(serverId: String?, onDone: (openId: String?) -> Unit) {
                         } catch (e: Exception) {
                             message = e.message ?: App.str(R.string.couldn_t_save_the_server)
                         }
-                    }) { Text(stringResource(R.string.save)) }
+                    }) { Text(stringResource(R.string.save), fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold) }
                 },
             )
         },
     ) { pad ->
         Column(
-            Modifier.padding(pad).fillMaxSize().imePadding().verticalScroll(rememberScrollState()).padding(16.dp),
+            Modifier.padding(pad).fillMaxSize().imePadding().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp, vertical = 12.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Text(stringResource(R.string.type), style = MaterialTheme.typography.labelLarge)
+            CtrlSectionLabel(stringResource(R.string.type))
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Proto.entries.forEach { p ->
                     FilterChip(
                         selected = type == p,
                         onClick = { type = p; test = null },
-                        label = { Text(p.label) },
+                        label = { Text(p.label.uppercase(), fontFamily = CtrlFonts.Mono, fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold) },
                         leadingIcon = { Icon(protoIcon(p), null, Modifier.size(18.dp)) },
+                        shape = CtrlShapes.Badge,
+                        colors = FilterChipDefaults.filterChipColors(
+                            containerColor = CtrlColors.Surface,
+                            labelColor = CtrlColors.Text,
+                            iconColor = CtrlColors.Muted,
+                            selectedContainerColor = CtrlColors.Accent,
+                            selectedLabelColor = CtrlColors.Ink,
+                            selectedLeadingIconColor = CtrlColors.Ink,
+                        ),
+                        border = FilterChipDefaults.filterChipBorder(
+                            enabled = true, selected = type == p,
+                            borderColor = CtrlColors.ControlBorder, selectedBorderColor = CtrlColors.Accent,
+                        ),
                     )
                 }
             }
@@ -282,7 +313,7 @@ fun ServerEditScreen(serverId: String?, onDone: (openId: String?) -> Unit) {
             // ----- Address -----
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 Box(Modifier.weight(1f)) {
-                    OutlinedTextField(
+                    CtrlTextField(
                         value = host, onValueChange = { host = it; exports = null },
                         label = { Text(stringResource(R.string.server_address)) },
                         placeholder = { Text(stringResource(R.string.n_192_168_1_10_or_nas_local)) },
@@ -295,7 +326,7 @@ fun ServerEditScreen(serverId: String?, onDone: (openId: String?) -> Unit) {
                         found.orEmpty().forEach { a -> DropdownMenuItem(text = { Text(a) }, onClick = { host = a; scanMenu = false }) }
                     }
                 }
-                OutlinedTextField(
+                CtrlTextField(
                     value = port, onValueChange = { port = it.filter(Char::isDigit).take(5) },
                     label = { Text(stringResource(R.string.port)) },
                     placeholder = { Text(if (type == Proto.NFS) "auto" else type.port(secure).toString()) },
@@ -307,7 +338,7 @@ fun ServerEditScreen(serverId: String?, onDone: (openId: String?) -> Unit) {
 
             // ----- Path -----
             Box(Modifier.fillMaxWidth()) {
-                OutlinedTextField(
+                CtrlTextField(
                     value = path, onValueChange = { path = it },
                     label = {
                         Text(when (type) {
@@ -385,26 +416,31 @@ fun ServerEditScreen(serverId: String?, onDone: (openId: String?) -> Unit) {
 
             // ----- Sign-in -----
             if (type == Proto.NFS) {
-                Text(stringResource(R.string.nfs_version), style = MaterialTheme.typography.labelLarge)
+                CtrlSectionLabel(stringResource(R.string.nfs_version))
                 val versions = listOf(0 to App.str(R.string.auto), 3 to "v3", 4 to "v4.0", 42 to "v4.2")
                 SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
                     versions.forEachIndexed { i, (v, label) ->
                         SegmentedButton(
                             selected = version == v,
                             onClick = { version = v },
-                            shape = SegmentedButtonDefaults.itemShape(i, versions.size),
-                        ) { Text(label) }
+                            shape = SegmentedButtonDefaults.itemShape(i, versions.size, baseShape = CtrlShapes.Control),
+                            colors = SegmentedButtonDefaults.colors(
+                                activeContainerColor = CtrlColors.Accent, activeContentColor = CtrlColors.Ink, activeBorderColor = CtrlColors.Accent,
+                                inactiveContainerColor = CtrlColors.Surface, inactiveContentColor = CtrlColors.Text, inactiveBorderColor = CtrlColors.ControlBorder,
+                            ),
+                            icon = {},
+                        ) { Text(label, fontFamily = CtrlFonts.Mono) }
                     }
                 }
                 Text(stringResource(R.string.auto_tries_nfsv3_first_then_nfsv4), style = hint, color = hintColor)
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    OutlinedTextField(
+                    CtrlTextField(
                         value = uid, onValueChange = { uid = it.filter(Char::isDigit) },
                         label = { Text(stringResource(R.string.user_id_uid)) }, singleLine = true,
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                         modifier = Modifier.weight(1f),
                     )
-                    OutlinedTextField(
+                    CtrlTextField(
                         value = gid, onValueChange = { gid = it.filter(Char::isDigit) },
                         label = { Text(stringResource(R.string.group_id_gid)) }, singleLine = true,
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
@@ -423,14 +459,14 @@ fun ServerEditScreen(serverId: String?, onDone: (openId: String?) -> Unit) {
                         guest,
                     ) { guest = it }
                 }
-                if (type != Proto.SMB || !guest) OutlinedTextField(
+                if (type != Proto.SMB || !guest) CtrlTextField(
                     value = username, onValueChange = { username = it },
                     label = { Text(stringResource(R.string.username)) },
                     placeholder = { Text(if (type == Proto.FTP) stringResource(R.string.empty_for_anonymous) else "") },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                 )
-                if (type != Proto.SMB || !guest) OutlinedTextField(
+                if (type != Proto.SMB || !guest) CtrlTextField(
                     value = password, onValueChange = { password = it },
                     label = { Text(if (type == Proto.SFTP && privateKey.isNotBlank()) stringResource(R.string.key_passphrase) else stringResource(R.string.password)) },
                     singleLine = true,
@@ -450,7 +486,7 @@ fun ServerEditScreen(serverId: String?, onDone: (openId: String?) -> Unit) {
                         Spacer(Modifier.width(12.dp))
                         Text(if (privateKey.isBlank()) stringResource(R.string.no_private_key) else stringResource(R.string.private_key_loaded), Modifier.weight(1f))
                         if (privateKey.isNotBlank()) TextButton(onClick = { privateKey = "" }) { Text(stringResource(R.string.remove)) }
-                        OutlinedButton(onClick = { com.vknxworks.filesctrl.ui.lock.AppLockState.expectReturn(); keyPicker.launch(arrayOf("*/*")) }) { Text(if (privateKey.isBlank()) stringResource(R.string.choose_key) else stringResource(R.string.replace)) }
+                        CtrlSecondaryButton(onClick = { com.vknxworks.filesctrl.ui.lock.AppLockState.expectReturn(); keyPicker.launch(arrayOf("*/*")) }) { Text(if (privateKey.isBlank()) stringResource(R.string.choose_key) else stringResource(R.string.replace)) }
                     }
                     if (hostKey.isNotBlank()) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -466,7 +502,7 @@ fun ServerEditScreen(serverId: String?, onDone: (openId: String?) -> Unit) {
 
             SwitchRow(stringResource(R.string.read_only), stringResource(R.string.never_change_anything_on_this_server), readOnly) { readOnly = it }
 
-            OutlinedTextField(
+            CtrlTextField(
                 value = name, onValueChange = { name = it },
                 label = { Text(stringResource(R.string.name_optional)) },
                 placeholder = { Text(host.ifBlank { App.str(R.string.my_nas) }) },
@@ -481,14 +517,14 @@ fun ServerEditScreen(serverId: String?, onDone: (openId: String?) -> Unit) {
             }
             if (advanced) {
                 if (type == Proto.SMB) {
-                    OutlinedTextField(
+                    CtrlTextField(
                         value = domain, onValueChange = { domain = it },
                         label = { Text(stringResource(R.string.domain_workgroup)) }, placeholder = { Text(stringResource(R.string.usually_empty)) }, singleLine = true,
                         modifier = Modifier.fillMaxWidth(),
                     )
                 }
                 if (type == Proto.NFS) {
-                    OutlinedTextField(
+                    CtrlTextField(
                         value = mountPort, onValueChange = { mountPort = it.filter(Char::isDigit).take(5) },
                         label = { Text(stringResource(R.string.mount_port_v3)) }, placeholder = { Text(stringResource(R.string.auto_lower)) }, singleLine = true,
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
@@ -496,7 +532,7 @@ fun ServerEditScreen(serverId: String?, onDone: (openId: String?) -> Unit) {
                     )
                     Text(stringResource(R.string.set_the_port_above_and_this_one_for), style = hint, color = hintColor)
                 }
-                OutlinedTextField(
+                CtrlTextField(
                     value = timeout, onValueChange = { timeout = it.filter(Char::isDigit).take(3) },
                     label = { Text(stringResource(R.string.timeout_seconds)) }, singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
@@ -505,7 +541,8 @@ fun ServerEditScreen(serverId: String?, onDone: (openId: String?) -> Unit) {
             }
 
             Spacer(Modifier.height(4.dp))
-            OutlinedButton(
+            CtrlButton(
+                height = 56.dp,
                 enabled = valid && test != TestResult.Running,
                 onClick = {
                     test = TestResult.Running
@@ -515,7 +552,7 @@ fun ServerEditScreen(serverId: String?, onDone: (openId: String?) -> Unit) {
                 modifier = Modifier.fillMaxWidth(),
             ) {
                 if (test == TestResult.Running) {
-                    CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
+                    CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp, color = CtrlColors.Ink)
                     Spacer(Modifier.width(8.dp))
                     Text(stringResource(R.string.connecting_2))
                 } else Text(stringResource(R.string.test_connection))
@@ -531,7 +568,7 @@ fun ServerEditScreen(serverId: String?, onDone: (openId: String?) -> Unit) {
     }
 
     if (confirmDelete && existing != null) {
-        AlertDialog(
+        CtrlAlertDialog(
             onDismissRequest = { confirmDelete = false },
             title = { Text(stringResource(R.string.remove_2, existing.title)) },
             text = { Text(stringResource(R.string.this_only_forgets_the_server_in)) },
@@ -557,30 +594,30 @@ fun ServerEditScreen(serverId: String?, onDone: (openId: String?) -> Unit) {
 
 @Composable
 private fun SwitchRow(title: String, sub: String?, checked: Boolean, onChange: (Boolean) -> Unit) {
-    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+    Row(
+        Modifier.fillMaxWidth().heightIn(min = 56.dp).clip(CtrlShapes.Control)
+            .toggleable(value = checked, role = Role.Switch, onValueChange = onChange),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
         Column(Modifier.weight(1f)) {
-            Text(title)
+            Text(title, fontWeight = androidx.compose.ui.text.font.FontWeight.Medium)
             if (sub != null) Text(sub, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
-        Switch(checked = checked, onCheckedChange = onChange)
+        Spacer(Modifier.width(12.dp))
+        CtrlSwitch(checked, onCheckedChange = null, modifier = Modifier.clearAndSetSemantics { })
     }
 }
 
 @Composable
 private fun ResultCard(ok: Boolean, text: String) {
-    Card(
-        colors = CardDefaults.cardColors(
-            containerColor = if (ok) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.errorContainer,
-        ),
-        modifier = Modifier.fillMaxWidth(),
-    ) {
-        Row(Modifier.padding(16.dp)) {
+    CtrlCard(Modifier.fillMaxWidth(), borderColor = if (ok) CtrlColors.Accent else CtrlColors.Error) {
+        Row {
             Icon(
                 if (ok) Icons.Outlined.CheckCircle else Icons.Outlined.ErrorOutline, null,
-                tint = if (ok) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
+                tint = if (ok) CtrlColors.Accent else CtrlColors.Error,
             )
             Spacer(Modifier.width(12.dp))
-            Text(text, style = MaterialTheme.typography.bodyMedium)
+            Text(text, style = MaterialTheme.typography.bodyMedium, color = CtrlColors.Text)
         }
     }
 }
