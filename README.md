@@ -4,7 +4,7 @@
 
 [![Latest release](https://img.shields.io/github/v/release/VoidedKN0X/FilesCtrl?label=download)](https://github.com/VoidedKN0X/FilesCtrl/releases/latest) ![Android 13+](https://img.shields.io/badge/Android-13%2B-3DDC84?logo=android&logoColor=white) [![License: GPL-3.0](https://img.shields.io/badge/license-GPL--3.0-blue)](LICENSE) ![Telemetry-free](https://img.shields.io/badge/telemetry-none-brightgreen) [![Sponsor](https://img.shields.io/badge/sponsor-GitHub-ea4aaa?logo=githubsponsors&logoColor=white)](https://github.com/sponsors/VoidedKN0X)
 
-FilesCtrl is a dark, high-contrast file manager for Android, in the spirit of [Material Files](https://github.com/zhanghai/MaterialFiles), with network storage built in: **NFS, SMB, SFTP, FTP and WebDAV**. No root needed.
+FilesCtrl is a high-contrast file manager for Android, in the spirit of [Material Files](https://github.com/zhanghai/MaterialFiles), with network storage built in: **NFS, SMB, SFTP, FTP and WebDAV**. No root needed.
 
 Part of the [Ctrl series](#the-ctrl-series) by VKNXWorks.
 
@@ -24,7 +24,7 @@ Part of the [Ctrl series](#the-ctrl-series) by VKNXWorks.
 - **Read-only servers**: switch it on and FilesCtrl hides every option that would change something there, and refuses writes from other apps
 - **Checked connections**: SFTP host keys and self-signed WebDAV/FTPS certificates are only trusted after you confirm their fingerprint; SMB signing is on by default, with optional encryption
 - Passwords and keys are stored encrypted; **app lock** with its own PIN and optional fingerprint unlock, which keeps saved passwords and keys encrypted while the app is locked
-- The Ctrl / Signal look shared by every Ctrl app: dark only, one violet accent, Space Grotesk and JetBrains Mono, and a tablet layout
+- The Ctrl / Signal look shared by every Ctrl app: dark and light modes that follow your phone's dark theme, one violet accent, Space Grotesk and JetBrains Mono, and a tablet layout
 
 ## Screenshots
 

@@ -131,7 +131,7 @@ fun ForgotPinDialog(body: String, confirm: String, onDismiss: () -> Unit, onConf
         title = { Text(stringResource(R.string.lock_forgot_title)) },
         text = { Text(body) },
         confirmButton = {
-            TextButton(onClick = onConfirm) { Text(confirm, color = MaterialTheme.colorScheme.error) }
+            TextButton(onClick = onConfirm) { Text(confirm, color = CtrlColors.Error) }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.lock_cancel)) } },
     )
@@ -317,7 +317,7 @@ fun PinPadScreen(
                     )
                     Spacer(Modifier.height(28.dp))
                     Box(Modifier.height(20.dp).offset { IntOffset(shake.roundToInt(), 0) }, contentAlignment = Alignment.Center) {
-                        if (checking) CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp, color = CtrlColors.Accent)
+                        if (checking) CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp, color = CtrlColors.AccentText)
                         else Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
                             repeat(maxOf(pin.length, minDots)) { i ->
                                 val shape = RoundedCornerShape(5.dp)
@@ -353,8 +353,8 @@ fun PinPadScreen(
                                 ) { Text(confirmLabel, style = MaterialTheme.typography.titleSmall, color = CtrlColors.Ink, maxLines = 1) }
                                 onFingerprint != null -> PadKey(
                                     corner, enabled = true, onClick = onFingerprint,
-                                    fill = Color.Transparent, border = CtrlColors.Accent,
-                                ) { Icon(Icons.Outlined.Fingerprint, stringResource(R.string.lock_use_fingerprint), Modifier.size(26.dp), tint = CtrlColors.Accent) }
+                                    fill = Color.Transparent, border = CtrlColors.AccentText,
+                                ) { Icon(Icons.Outlined.Fingerprint, stringResource(R.string.lock_use_fingerprint), Modifier.size(26.dp), tint = CtrlColors.AccentText) }
                                 else -> Spacer(corner)
                             }
                             DigitKey("0", enabled, Modifier.weight(1f)) {

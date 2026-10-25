@@ -524,7 +524,7 @@ fun PinRequestScreen(request: PinRequest) {
 @Composable
 fun LockWindow(content: @Composable () -> Unit) {
     // Opaque cover in the app's own window (also behind the system bars).
-    Surface(Modifier.fillMaxSize().clearAndSetSemantics { }, color = MaterialTheme.colorScheme.background) {}
+    Surface(Modifier.fillMaxSize().clearAndSetSemantics { }, color = com.vknxworks.filesctrl.ui.theme.CtrlColors.Background) {}
     Dialog(
         onDismissRequest = {},
         properties = DialogProperties(

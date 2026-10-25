@@ -210,13 +210,13 @@ fun <T> ChoiceSheet(
                     Text(
                         label,
                         style = MaterialTheme.typography.bodyLarge,
-                        color = if (isSel) CtrlColors.Accent else CtrlColors.Text,
+                        color = if (isSel) CtrlColors.AccentText else CtrlColors.Text,
                         fontWeight = if (isSel) FontWeight.SemiBold else FontWeight.Normal,
                         modifier = Modifier.weight(1f),
                     )
                     if (isSel) {
                         val selectedLabel = stringResource(R.string.selected_2)
-                        CtrlDot(CtrlColors.Accent, Modifier.semantics { contentDescription = selectedLabel })
+                        CtrlDot(CtrlColors.AccentText, Modifier.semantics { contentDescription = selectedLabel })
                     }
                 }
             }

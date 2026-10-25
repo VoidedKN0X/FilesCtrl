@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Signal dark (the phone's dark theme is on): window and system bars use the dark background, light bar icons. -->
+    <style name="Theme.FilesCtrl" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">#08080A</item>
+        <item name="android:colorBackground">#08080A</item>
+        <item name="android:statusBarColor">#08080A</item>
+        <item name="android:navigationBarColor">#08080A</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:windowLightNavigationBar">false</item>
+    </style>
+</resources>

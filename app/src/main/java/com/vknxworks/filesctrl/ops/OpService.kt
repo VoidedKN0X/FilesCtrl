@@ -102,6 +102,7 @@ class OpService : Service() {
         )
         return NotificationCompat.Builder(this, CHANNEL)
             .setSmallIcon(R.drawable.ic_stat_files)
+            .setColor(signalAccent())
             .setContentTitle(lines.first())
             .setContentText(lines.getOrNull(1).orEmpty())
             .setOngoing(true)
@@ -123,6 +124,7 @@ class OpService : Service() {
             val text = done.error ?: done.detail
             val n = NotificationCompat.Builder(this, CHANNEL_DONE)
                 .setSmallIcon(R.drawable.ic_stat_files)
+                .setColor(signalAccent())
                 .setContentTitle(done.title)
                 .setContentText(text)
                 .setAutoCancel(true)
@@ -139,11 +141,19 @@ class OpService : Service() {
      * File and folder names stay off the lock screen: a secure lock screen shows only [generic]. With the app
      * lock on, the notification isn't shown on the lock screen at all.
      */
+    /** The Signal accent for notifications: the fill accent in dark mode, the darker text accent in light mode. */
+    private fun signalAccent(): Int {
+        val night = (resources.configuration.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK) ==
+            android.content.res.Configuration.UI_MODE_NIGHT_YES
+        return if (night) android.graphics.Color.rgb(0xB4, 0x8C, 0xFF) else android.graphics.Color.rgb(0x6A, 0x3B, 0xDB)
+    }
+
     private fun NotificationCompat.Builder.lockScreenSafe(channel: String, generic: String): NotificationCompat.Builder =
         setVisibility(if (com.vknxworks.filesctrl.ui.lock.AppLockState.enabled) NotificationCompat.VISIBILITY_SECRET else NotificationCompat.VISIBILITY_PRIVATE)
             .setPublicVersion(
                 NotificationCompat.Builder(this@OpService, channel)
                     .setSmallIcon(R.drawable.ic_stat_files)
+                    .setColor(signalAccent())
                     .setContentTitle(getString(R.string.app_name))
                     .setContentText(generic)
                     .build(),

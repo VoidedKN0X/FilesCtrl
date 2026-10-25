@@ -577,7 +577,7 @@ fun ServerEditScreen(serverId: String?, onDone: (openId: String?) -> Unit) {
                     confirmDelete = false
                     App.servers.remove(existing.id)
                     onDone(null)
-                }) { Text(stringResource(R.string.remove), color = MaterialTheme.colorScheme.error) }
+                }) { Text(stringResource(R.string.remove), color = CtrlColors.Error) }
             },
             dismissButton = { TextButton(onClick = { confirmDelete = false }) { Text(stringResource(R.string.lock_cancel)) } },
         )
@@ -610,11 +610,11 @@ private fun SwitchRow(title: String, sub: String?, checked: Boolean, onChange: (
 
 @Composable
 private fun ResultCard(ok: Boolean, text: String) {
-    CtrlCard(Modifier.fillMaxWidth(), borderColor = if (ok) CtrlColors.Accent else CtrlColors.Error) {
+    CtrlCard(Modifier.fillMaxWidth(), borderColor = if (ok) CtrlColors.AccentText else CtrlColors.Error) {
         Row {
             Icon(
                 if (ok) Icons.Outlined.CheckCircle else Icons.Outlined.ErrorOutline, null,
-                tint = if (ok) CtrlColors.Accent else CtrlColors.Error,
+                tint = if (ok) CtrlColors.AccentText else CtrlColors.Error,
             )
             Spacer(Modifier.width(12.dp))
             Text(text, style = MaterialTheme.typography.bodyMedium, color = CtrlColors.Text)

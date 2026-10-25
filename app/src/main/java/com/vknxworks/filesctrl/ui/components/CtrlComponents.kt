@@ -94,7 +94,7 @@ fun CtrlWordmark(name: String, modifier: Modifier = Modifier) {
     Text(
         buildAnnotatedString {
             append(name.uppercase())
-            withStyle(SpanStyle(color = CtrlColors.Accent)) { append("/") }
+            withStyle(SpanStyle(color = CtrlColors.AccentText)) { append("/") }
             append("CTRL")
         },
         style = CtrlType.Wordmark,
@@ -319,7 +319,7 @@ fun CtrlDot(color: Color, modifier: Modifier = Modifier, size: Dp = 8.dp) {
 /** Mono status text with its dot: accent while active, grey otherwise. */
 @Composable
 fun CtrlStatus(text: String, active: Boolean, modifier: Modifier = Modifier) {
-    val color = if (active) CtrlColors.Accent else CtrlColors.Inactive
+    val color = if (active) CtrlColors.AccentText else CtrlColors.Inactive
     Row(modifier, verticalAlignment = Alignment.CenterVertically) {
         Text(text.uppercase(), style = CtrlType.Label.copy(letterSpacing = 0.1.em), color = color, maxLines = 1)
         Spacer(Modifier.width(8.dp))
@@ -374,7 +374,7 @@ fun CtrlSwitch(
     enabled: Boolean = true,
 ) {
     val track by animateColorAsState(if (checked) CtrlColors.Accent else CtrlColors.SwitchTrackOff, label = "track")
-    val knob by animateColorAsState(if (checked) CtrlColors.Ink else CtrlColors.Inactive, label = "knob")
+    val knob by animateColorAsState(if (checked) CtrlColors.Ink else CtrlColors.SwitchKnobOff, label = "knob")
     val x by animateDpAsState(if (checked) 20.dp else 0.dp, label = "knobX")
     Box(
         modifier
@@ -448,11 +448,11 @@ fun ctrlFieldColors(): TextFieldColors = OutlinedTextFieldDefaults.colors(
     unfocusedContainerColor = CtrlColors.Surface,
     disabledContainerColor = CtrlColors.Surface,
     errorContainerColor = CtrlColors.Surface,
-    focusedBorderColor = CtrlColors.Accent,
+    focusedBorderColor = CtrlColors.AccentText,
     unfocusedBorderColor = CtrlColors.ControlBorder,
     disabledBorderColor = CtrlColors.CardBorder,
-    cursorColor = CtrlColors.Accent,
-    focusedLabelColor = CtrlColors.Accent,
+    cursorColor = CtrlColors.AccentText,
+    focusedLabelColor = CtrlColors.AccentText,
     unfocusedLabelColor = CtrlColors.Muted,
     focusedTextColor = CtrlColors.Text,
     unfocusedTextColor = CtrlColors.Text,
@@ -536,7 +536,7 @@ fun CtrlAlertDialog(
         text = text,
         shape = CtrlShapes.Dialog,
         containerColor = CtrlColors.Surface,
-        iconContentColor = CtrlColors.Accent,
+        iconContentColor = CtrlColors.AccentText,
         titleContentColor = CtrlColors.Text,
         textContentColor = CtrlColors.Muted,
         tonalElevation = 0.dp,
@@ -544,6 +544,7 @@ fun CtrlAlertDialog(
 }
 
 /** Draws the list-row divider along the top of a row, inset by [inset] on both sides. */
+@Composable
 fun Modifier.topDivider(inset: Dp = 0.dp, color: Color = CtrlColors.Divider): Modifier = drawBehind {
     val i = inset.toPx()
     drawRect(color, topLeft = Offset(i, 0f), size = Size(size.width - 2 * i, 1.dp.toPx()))
