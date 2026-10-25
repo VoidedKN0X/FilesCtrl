@@ -55,7 +55,8 @@ class NetDocumentsProvider : DocumentsProvider() {
         if (i <= 0) throw FileNotFoundException(App.str(R.string.bad_document_id))
         // Normalise the path and refuse "." / ".." segments, so an id can never climb out of a granted folder.
         val path = Paths.normalize(docId.substring(i + 1).ifEmpty { "/" }) ?: throw FileNotFoundException(App.str(R.string.bad_document_id))
-        val vfs = App.vfs.remote(docId.substring(0, i)) ?: throw FileNotFoundException(App.str(R.string.server_was_removed))
+        val vfs = try { App.vfs.remote(docId.substring(0, i)) } catch (e: IOException) { throw FileNotFoundException(e.message) }
+            ?: throw FileNotFoundException(App.str(R.string.server_was_removed))
         return vfs to path
     }
 
@@ -151,8 +152,8 @@ class NetDocumentsProvider : DocumentsProvider() {
     }
 
     override fun isChildDocument(parentDocumentId: String, documentId: String): Boolean {
-        val (pv, pp) = try { split(parentDocumentId) } catch (_: FileNotFoundException) { return false }
-        val (cv, cp) = try { split(documentId) } catch (_: FileNotFoundException) { return false }
+        val (pv, pp) = try { split(parentDocumentId) } catch (_: Exception) { return false }
+        val (cv, cp) = try { split(documentId) } catch (_: Exception) { return false }
         return pv.server.id == cv.server.id && Paths.isWithin(cp, pp)
     }
 
@@ -264,6 +265,13 @@ class NetDocumentsProvider : DocumentsProvider() {
         throw e
     } catch (e: IOException) {
         throw FileNotFoundException(e.message)
+    } catch (e: IllegalArgumentException) {
+        throw e
+    } catch (e: SecurityException) {
+        throw e
+    } catch (e: RuntimeException) {
+        // Protocol libraries (SMB) report some failures as runtime exceptions: answer "can't open" instead.
+        throw FileNotFoundException(e.message ?: e.javaClass.simpleName)
     }
 
     /** Proxy FD callbacks report failures as ErrnoException. */

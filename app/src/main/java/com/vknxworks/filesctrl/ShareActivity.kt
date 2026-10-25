@@ -68,7 +68,9 @@ class ShareActivity : FragmentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         App.init(this)
-        val shared = readShared(intent)
+        // Any app can send to this screen: a malformed intent (bad parcel, wrong extra types) is treated as
+        // "nothing shared" instead of crashing.
+        val shared = try { readShared(intent) } catch (_: Exception) { emptyList() }
         if (shared.isEmpty()) {
             Toast.makeText(this, App.str(R.string.share_nothing), Toast.LENGTH_SHORT).show()
             finish()
@@ -179,8 +181,8 @@ class ShareActivity : FragmentActivity() {
         if (intent == null) return emptyList()
         val uris = LinkedHashSet<Uri>()
         when (intent.action) {
-            Intent.ACTION_SEND -> intent.getParcelableExtra(Intent.EXTRA_STREAM, Uri::class.java)?.let { uris += it }
-            Intent.ACTION_SEND_MULTIPLE -> intent.getParcelableArrayListExtra(Intent.EXTRA_STREAM, Uri::class.java)?.let { uris += it }
+            Intent.ACTION_SEND -> runCatching { intent.getParcelableExtra(Intent.EXTRA_STREAM, Uri::class.java) }.getOrNull()?.let { uris += it }
+            Intent.ACTION_SEND_MULTIPLE -> runCatching { intent.getParcelableArrayListExtra(Intent.EXTRA_STREAM, Uri::class.java) }.getOrNull()?.let { uris += it.filterNotNull() }
             else -> return emptyList()
         }
         if (uris.isEmpty()) intent.clipData?.let { c -> for (i in 0 until c.itemCount) c.getItemAt(i).uri?.let { uris += it } }
@@ -214,7 +216,7 @@ class ShareActivity : FragmentActivity() {
         var n = cleanName(name ?: fallback).ifBlank { getString(R.string.share_file_name) }
         // No extension: add one from the type the sender gave, so the file opens in the right app later.
         if (!n.contains('.')) {
-            val ext = contentResolver.getType(uri)?.let { android.webkit.MimeTypeMap.getSingleton().getExtensionFromMimeType(it) }
+            val ext = runCatching { contentResolver.getType(uri) }.getOrNull()?.let { android.webkit.MimeTypeMap.getSingleton().getExtensionFromMimeType(it) }
             if (!ext.isNullOrBlank()) n = "$n.$ext"
         }
         return Shared.Stream(uri, n, size)

@@ -79,6 +79,9 @@ object App {
             context.contentResolver.notifyChange(DocumentsContract.buildRootsUri(NetDocumentsProvider.AUTHORITY), null)
         }
         Ops.init(context)
+        // A fresh process with the app lock on starts locked: pictures the viewer copied from servers before the
+        // process was killed (without locking first) don't stay on the phone either.
+        if (vault.enabled || lock.pinSet) Thread { com.vknxworks.filesctrl.viewer.ImageCache.clear() }.start()
         // Launcher shortcuts follow the bookmarks (kept off the main thread: it's a call into the launcher).
         Thread { com.vknxworks.filesctrl.shortcuts.Shortcuts.updateDynamic(context) }.start()
     }
@@ -96,6 +99,8 @@ object App {
         servers.lockSecrets()
         // Pictures the viewer copied from servers don't stay on the phone while FilesCtrl is locked.
         Thread { com.vknxworks.filesctrl.viewer.ImageCache.clear() }.start()
+        // Decoded pictures and server thumbnails held in memory go too.
+        runCatching { SingletonImageLoader.get(context).memoryCache?.clear() }
         vault.close()
         notifyRoots()
         Thread {

@@ -4,6 +4,29 @@ What changed in each FilesCtrl version. Every release on the [Releases page](htt
 
 To publish a new version: bump `versionCode` and `versionName` in `app/build.gradle.kts`, add a section here, and push to `main`. Pushes without a version bump only build; they don't make a release.
 
+## 1.7.1 (2026-10-25)
+
+Fixes for crashes when FilesCtrl closes, and tighter checks on names and paths that come from other apps and servers.
+
+### Fixed
+
+- **No more crash when closing FilesCtrl with the app lock set to lock immediately.** Pressing Back on the first screen, or swiping FilesCtrl away from recent apps, locked the app while its window was already closing, and the lock screen then tried to open on a window that was gone. The app still locks as it should, and opens on the lock screen next time. The same fix covers the text editor and the **Save to FilesCtrl** screen.
+- **The fingerprint prompt no longer crashes the app** when Android refuses to show it (for example while you're leaving the app). The lock screen says fingerprint unlock didn't work and you can use your PIN; turning fingerprint unlock on in Settings shows "Couldn't set up fingerprint unlock" instead.
+- **Places, Properties and the text editor no longer crash while FilesCtrl is locked** when they show a server bookmark or a file on a server (for example a tab or bookmark restored on a server at start-up).
+- **Save to FilesCtrl** no longer crashes when another app sends it a broken share (an unreadable list of files, or an extra of the wrong type): it says nothing was shared and closes. The same goes for home screen shortcuts with a broken folder.
+- **Apps opening files on your servers through FilesCtrl** (the system file picker, players, "Open with") get a normal "can't open" error instead of FilesCtrl's file provider failing when the app is locked or the server reports an unexpected error.
+
+### Security
+
+- **SMB:** a file or folder name with a backslash (`\`) is refused. SMB uses backslashes between folders, so such a name could point into another folder on the share, or climb out of the folder you chose with `..\`.
+- **FTP/FTPS:** a path with a line break is refused, so a name from another server, an archive or an app sharing a file can't add a second FTP command on your server.
+- **Picture viewer:** a picture from a server that doesn't report its size is still capped at 256 MB while it's copied into the cache, so it can't fill your phone's storage.
+- **Picture viewer:** pictures it copied from your servers are also deleted when FilesCtrl starts with the app lock on (in case Android closed it without locking first), and decoded pictures and thumbnails held in memory are dropped as soon as FilesCtrl locks.
+
+### Changed
+
+- The unused **Wi-Fi state** permission is no longer requested. FilesCtrl never reads your Wi-Fi network; transfers still keep Wi-Fi awake while they run.
+
 ## 1.7.0 (2026-10-25)
 
 Tabs, two folders side by side on wide screens, and a built-in picture viewer that works on your servers too.

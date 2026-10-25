@@ -104,7 +104,11 @@ class FtpVfs(override val server: NetServer) : RemoteVfs {
         }
     }
 
-    private fun remote(path: String) = RemoteVfs.join(server.path.ifBlank { home ?: "/" }, path)
+    private fun remote(path: String): String {
+        // A line break would end the FTP command and start another one on the server.
+        if (path.any { it == '\r' || it == '\n' }) throw IOException(App.str(R.string.invalid_character))
+        return RemoteVfs.join(server.path.ifBlank { home ?: "/" }, path)
+    }
 
     private fun entry(path: String, f: FTPFile): FileEntry {
         var mode = 0

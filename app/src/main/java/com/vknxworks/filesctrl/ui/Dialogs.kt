@@ -183,7 +183,7 @@ fun PropertiesDialog(entry: FileEntry, onDismiss: () -> Unit, onChanged: () -> U
     var linkTarget by remember { mutableStateOf<String?>(null) }
     var chmod by remember { mutableStateOf(false) }
     var checksums by remember { mutableStateOf(false) }
-    val vfs = App.vfs.find(e.vfsId)
+    val vfs = remember(e.vfsId) { runCatching { App.vfs.find(e.vfsId) }.getOrNull() }
 
     LaunchedEffect(entry.path) {
         withContext(Dispatchers.IO) {

@@ -185,7 +185,7 @@ fun PlacesTab(current: Location, onOpen: (Location) -> Unit, onAddServer: () -> 
                 PlaceRow(
                     lead = { Icon(Icons.Outlined.BookmarkBorder, null, Modifier.size(20.dp), tint = CtrlColors.Muted) },
                     title = b.name,
-                    meta = App.vfs.find(b.location.vfsId)?.title,
+                    meta = runCatching { App.vfs.find(b.location.vfsId)?.title }.getOrNull(),
                     trailing = {
                         if (com.vknxworks.filesctrl.shortcuts.Shortcuts.canPin(b.location)) {
                             IconButton(onClick = { pinShortcut(ctx, b.name, b.location) }) {

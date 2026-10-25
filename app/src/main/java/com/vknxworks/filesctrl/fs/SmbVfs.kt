@@ -96,6 +96,9 @@ class SmbVfs(override val server: NetServer) : RemoteVfs {
     /** (share, path inside the share with backslashes) for a path in this file system; share empty at the top. */
     private fun split(path: String): Pair<String, String> {
         val parts = RemoteVfs.join(server.path, path).trim('/').split('/').filter { it.isNotEmpty() }
+        // SMB separates folders with backslashes: a name with one (possible on phones and other servers) could
+        // point into another folder, or climb out with "..\", so it's refused.
+        if (path.contains('\\')) throw IOException(App.str(R.string.invalid_character))
         if (parts.isEmpty()) return "" to ""
         return parts[0] to parts.drop(1).joinToString("\\")
     }
