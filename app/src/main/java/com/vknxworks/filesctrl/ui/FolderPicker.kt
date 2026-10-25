@@ -77,7 +77,7 @@ fun canWriteTo(loc: Location): Boolean = when {
 
 /** A short name for a place: "Internal storage / Download", "NAS / media". */
 fun placeLabel(loc: Location): String {
-    val vfs = App.vfs.find(loc.vfsId) ?: return loc.path
+    val vfs = runCatching { App.vfs.find(loc.vfsId) }.getOrNull() ?: return loc.path
     val (root, label) = try { vfs.rootOf(loc.path) } catch (_: Exception) { "/" to vfs.title }
     val server = if (loc.vfsId.startsWith(RemoteVfs.PREFIX)) App.servers.get(loc.vfsId.removePrefix(RemoteVfs.PREFIX))?.title else null
     val rest = loc.path.removePrefix(root).trim('/')
@@ -128,7 +128,7 @@ fun FolderPicker(
 
     fun up() {
         val loc = current ?: return
-        val vfs = App.vfs.find(loc.vfsId)
+        val vfs = runCatching { App.vfs.find(loc.vfsId) }.getOrNull()
         val root = try { vfs?.rootOf(loc.path)?.first } catch (_: Exception) { null }
         current = if (vfs == null || loc.path == root || loc.path == "/") null else Location(loc.vfsId, Paths.parent(loc.path))
     }

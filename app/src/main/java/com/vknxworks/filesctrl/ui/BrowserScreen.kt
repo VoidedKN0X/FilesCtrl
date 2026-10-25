@@ -50,7 +50,9 @@ import androidx.compose.material.icons.automirrored.outlined.OpenInNew
 import androidx.compose.material.icons.automirrored.outlined.Sort
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.Home
+import androidx.compose.material.icons.outlined.Tab
 import androidx.compose.material.icons.outlined.Tag
+import androidx.compose.material.icons.outlined.VerticalSplit
 import androidx.compose.material.icons.outlined.BookmarkAdd
 import androidx.compose.material.icons.outlined.BookmarkRemove
 import androidx.compose.material.icons.outlined.Check
@@ -182,7 +184,7 @@ private sealed interface Dlg {
     data class Checksum(val e: FileEntry) : Dlg
     data class Compress(val items: List<FileEntry>) : Dlg
     data class Extract(val archive: FileEntry, val dest: Location) : Dlg
-    data class Conflicts(val names: List<String>, val items: List<FileEntry>, val dest: Location, val move: Boolean) : Dlg
+    data class Conflicts(val names: List<String>, val items: List<FileEntry>, val dest: Location, val move: Boolean, val fromClipboard: Boolean = true) : Dlg
     data class Error(val title: String, val message: String) : Dlg
 }
 
@@ -191,8 +193,9 @@ fun editorRoute(e: FileEntry) = "edit?loc=" + Uri.encode(e.location.key)
 
 @Composable
 /** [islandSpace]: room the floating tab island takes at the bottom (0 when tabs are in a side rail). */
-fun BrowserScreen(vm: BrowserViewModel, islandSpace: Dp) {
+fun BrowserScreen(vm: BrowserViewModel, islandSpace: Dp, pane: Pane? = null, dual: Boolean = false, focused: Boolean = true) {
     val ctx = LocalContext.current
+    LaunchedEffect(vm) { vm.ensureLoaded() }
     val nav = LocalNav.current
     val scope = rememberCoroutineScope()
     val s = App.settings
@@ -223,6 +226,9 @@ fun BrowserScreen(vm: BrowserViewModel, islandSpace: Dp) {
         }
     }
     val currentIndex = { if (s.gridView) gridState.firstVisibleItemIndex else listState.firstVisibleItemIndex }
+    // Switching tabs and coming back keeps the scroll position.
+    val latestIndex = androidx.compose.runtime.rememberUpdatedState(currentIndex)
+    DisposableEffect(vm) { onDispose { vm.keepScroll(latestIndex.value()) } }
 
     // Hide the pull indicator explicitly when a refresh ends, so it can't get stuck half-way.
     val pullState = rememberPullToRefreshState()
@@ -231,7 +237,8 @@ fun BrowserScreen(vm: BrowserViewModel, islandSpace: Dp) {
     val items = vm.visible()
     val readOnly = vm.readOnly
 
-    BackHandler {
+    // In dual pane, back acts on the pane last touched.
+    BackHandler(enabled = focused) {
         when {
             vm.selecting -> vm.selection.clear()
             vm.deepQuery != null -> vm.closeDeepSearch()
@@ -243,15 +250,16 @@ fun BrowserScreen(vm: BrowserViewModel, islandSpace: Dp) {
     fun openEntry(e: FileEntry) {
         if (e.isDir) vm.navigate(e.location, currentIndex())
         else if (Mime.isArchive(e)) vm.openArchive(e, currentIndex())
+        else if (s.builtInViewer && com.vknxworks.filesctrl.viewer.Viewable.isImage(e)) {
+            com.vknxworks.filesctrl.viewer.ViewerSession.set(items)
+            nav.go(com.vknxworks.filesctrl.viewer.viewerRoute(e))
+        }
         else if (Mime.opensInEditor(e) && e.size < MAX_EDIT_BYTES) nav.go(editorRoute(e))
         else openFile(ctx, e)
     }
 
-    fun startPaste() {
-        val clip = FileClipboard.items
+    fun pasteInto(clip: List<FileEntry>, dest: Location, move: Boolean, fromClipboard: Boolean) {
         if (clip.isEmpty()) return
-        val dest = vm.location
-        val move = FileClipboard.cut
         scope.launch {
             val clashes = withContext(Dispatchers.IO) {
                 try {
@@ -261,9 +269,19 @@ fun BrowserScreen(vm: BrowserViewModel, islandSpace: Dp) {
             }
             if (clashes.isEmpty()) {
                 Ops.paste(clip, dest, move, Conflict.KeepBoth)
-                FileClipboard.clear()
-            } else dlg = Dlg.Conflicts(clashes, clip, dest, move)
+                if (fromClipboard) FileClipboard.clear()
+            } else dlg = Dlg.Conflicts(clashes, clip, dest, move, fromClipboard)
         }
+    }
+
+    fun startPaste() = pasteInto(FileClipboard.items, vm.location, FileClipboard.cut, fromClipboard = true)
+
+    /** Dual pane: copy or move the selection straight into the folder open in the other pane. */
+    fun toOtherPane(move: Boolean) {
+        val dest = BrowserTabs.otherLocation(vm) ?: return
+        val sel = vm.selected()
+        vm.selection.clear()
+        pasteInto(sel, dest, move, fromClipboard = false)
     }
 
     val pasting = FileClipboard.items.isNotEmpty()
@@ -274,10 +292,13 @@ fun BrowserScreen(vm: BrowserViewModel, islandSpace: Dp) {
     Box(Modifier.fillMaxSize()) {
     Scaffold(
         topBar = {
-            if (vm.selecting) {
-                SelectionBar(vm, readOnly, onDialog = { dlg = it })
-            } else {
-                MainBar(vm, onDialog = { dlg = it })
+            Column {
+                if (vm.selecting) {
+                    SelectionBar(vm, readOnly, onDialog = { dlg = it }, onOtherPane = if (dual) { move: Boolean -> toOtherPane(move) } else null)
+                } else {
+                    MainBar(vm, pane = pane, compact = dual && pane?.right == true, onDialog = { dlg = it })
+                }
+                if (pane != null && !vm.searchOpen && (dual || pane.tabs.size > 1)) TabStrip(pane, focused, dual)
             }
         },
         floatingActionButton = {
@@ -393,7 +414,7 @@ fun BrowserScreen(vm: BrowserViewModel, islandSpace: Dp) {
         is Dlg.Conflicts -> ConflictDialog(d.names, onDismiss = { dlg = null }) { choice ->
             dlg = null
             Ops.paste(d.items, d.dest, d.move, choice)
-            FileClipboard.clear()
+            if (d.fromClipboard) FileClipboard.clear()
         }
         is Dlg.Error -> InfoDialog(d.title, d.message) { dlg = null }
     }
@@ -406,7 +427,7 @@ fun BrowserScreen(vm: BrowserViewModel, islandSpace: Dp) {
 // ---------- Top bars ----------
 
 @Composable
-private fun MainBar(vm: BrowserViewModel, onDialog: (Dlg) -> Unit) {
+private fun MainBar(vm: BrowserViewModel, pane: Pane?, compact: Boolean, onDialog: (Dlg) -> Unit) {
     val ctx = LocalContext.current
     val nav = LocalNav.current
     val s = App.settings
@@ -441,7 +462,9 @@ private fun MainBar(vm: BrowserViewModel, onDialog: (Dlg) -> Unit) {
     Column(Modifier.fillMaxWidth().background(CtrlColors.Background)) {
     CtrlTopBar(
         stringResource(R.string.wordmark_name),
-        profile = { ProfileButton(connected = vm.location.vfsId.startsWith(RemoteVfs.PREFIX) && vm.error == null) },
+        // In dual pane the right pane leaves the wordmark and profile button to the left one, so both bars fit.
+        profile = if (compact) null else { { ProfileButton(connected = vm.location.vfsId.startsWith(RemoteVfs.PREFIX) && vm.error == null) } },
+        showWordmark = !compact,
         actions = {
             CtrlIconButton(Icons.Outlined.Search, stringResource(R.string.search), onClick = { vm.searchOpen = true })
             Box {
@@ -470,6 +493,21 @@ private fun MainBar(vm: BrowserViewModel, onDialog: (Dlg) -> Unit) {
             Box {
                 CtrlIconButton(Icons.Outlined.MoreVert, stringResource(R.string.more), onClick = { menu = true })
                 DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
+                    if (pane != null && pane.tabs.size < BrowserTabs.MAX_TABS) DropdownMenuItem(
+                        text = { Text(stringResource(R.string.new_tab)) },
+                        leadingIcon = { Icon(Icons.Outlined.Tab, null) },
+                        onClick = { menu = false; BrowserTabs.openTab(vm, vm.location) },
+                    )
+                    if (pane != null && pane.tabs.size > 1) DropdownMenuItem(
+                        text = { Text(stringResource(R.string.close_this_tab)) },
+                        leadingIcon = { Icon(Icons.Outlined.Close, null) },
+                        onClick = { menu = false; pane.close(pane.active) },
+                    )
+                    if (BrowserTabs.wideWindow) DropdownMenuItem(
+                        text = { Text(if (s.dualPane) stringResource(R.string.single_pane) else stringResource(R.string.dual_pane)) },
+                        leadingIcon = { Icon(Icons.Outlined.VerticalSplit, null) },
+                        onClick = { menu = false; s.dualPane = !s.dualPane },
+                    )
                     DropdownMenuItem(
                         text = { Text(if (s.gridView) stringResource(R.string.list_view) else stringResource(R.string.grid_view)) },
                         leadingIcon = { Icon(if (s.gridView) Icons.Outlined.ViewList else Icons.Outlined.GridView, null) },
@@ -559,7 +597,7 @@ private fun subtitle(vm: BrowserViewModel): String {
     val ctx = LocalContext.current
     if (vm.isLocal) return vm.vfsTitle
     if (vm.isArchive) {
-        val label = (App.vfs.find(vm.location.vfsId) as? ArchiveVfs)?.loadedFormatLabel
+        val label = (runCatching { App.vfs.find(vm.location.vfsId) }.getOrNull() as? ArchiveVfs)?.loadedFormatLabel
         return App.str(R.string.subtitle_read_only, label?.let { App.str(R.string.archive_2, it) } ?: App.str(R.string.archive))
     }
     val sp = vm.space
@@ -568,7 +606,7 @@ private fun subtitle(vm: BrowserViewModel): String {
 }
 
 @Composable
-private fun SelectionBar(vm: BrowserViewModel, readOnly: Boolean, onDialog: (Dlg) -> Unit) {
+private fun SelectionBar(vm: BrowserViewModel, readOnly: Boolean, onDialog: (Dlg) -> Unit, onOtherPane: ((Boolean) -> Unit)? = null) {
     val ctx = LocalContext.current
     var menu by remember { mutableStateOf(false) }
     val sel = vm.selected()
@@ -596,6 +634,14 @@ private fun SelectionBar(vm: BrowserViewModel, readOnly: Boolean, onDialog: (Dlg
                 DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
                     DropdownMenuItem(text = { Text(stringResource(R.string.select_all)) }, leadingIcon = { Icon(Icons.Outlined.SelectAll, null) },
                         onClick = { vm.selectAll(); menu = false })
+                    if (onOtherPane != null) {
+                        val other = BrowserTabs.otherLocation(vm)
+                        val otherWritable = other != null && canWriteTo(other)
+                        DropdownMenuItem(text = { Text(stringResource(R.string.copy_to_other_pane)) }, leadingIcon = { Icon(Icons.Outlined.ContentCopy, null) },
+                            enabled = otherWritable, onClick = { menu = false; onOtherPane(false) })
+                        if (!readOnly) DropdownMenuItem(text = { Text(stringResource(R.string.move_to_other_pane)) }, leadingIcon = { Icon(Icons.AutoMirrored.Outlined.DriveFileMove, null) },
+                            enabled = otherWritable, onClick = { menu = false; onOtherPane(true) })
+                    }
                     if (sel.any { !it.isDir }) DropdownMenuItem(text = { Text(stringResource(R.string.share)) }, leadingIcon = { Icon(Icons.Outlined.Share, null) },
                         onClick = { menu = false; shareFiles(ctx, sel) })
                     if (single != null && !readOnly) DropdownMenuItem(text = { Text(stringResource(R.string.rename)) }, leadingIcon = { Icon(Icons.Outlined.DriveFileRenameOutline, null) },
@@ -624,7 +670,7 @@ private fun SelectionBar(vm: BrowserViewModel, readOnly: Boolean, onDialog: (Dlg
 
 // ---------- Item actions ----------
 
-enum class ItemAction { Open, OpenWith, EditWith, EditText, Share, Copy, Cut, Rename, Delete, Compress, Extract, Browse, Bookmark, CopyPath, Properties, OpenLocation, Checksum, HomeScreen }
+enum class ItemAction { Open, OpenWith, EditWith, EditText, Share, Copy, Cut, Rename, Delete, Compress, Extract, Browse, Bookmark, CopyPath, Properties, OpenLocation, Checksum, HomeScreen, NewTab, OtherPane }
 
 private fun handleItemAction(
     ctx: android.content.Context,
@@ -659,6 +705,8 @@ private fun handleItemAction(
         ItemAction.OpenLocation -> vm.navigate(e.parentLocation)
         ItemAction.Checksum -> onDialog(Dlg.Checksum(e))
         ItemAction.HomeScreen -> pinShortcut(ctx, e.name, e.location)
+        ItemAction.NewTab -> BrowserTabs.openTab(vm, e.location)
+        ItemAction.OtherPane -> BrowserTabs.openInOtherPane(vm, e.location)
     }
 }
 
@@ -686,6 +734,10 @@ private fun ItemMenu(e: FileEntry, readOnly: Boolean, inSearch: Boolean, expande
         }
         // Zip-based files with their own app (APKs, e-books, office files) open normally; look inside from here.
         if (Mime.canBrowseAsArchive(e) && !Mime.isArchive(e)) entry(stringResource(R.string.browse_contents), Icons.Outlined.FolderZip, ItemAction.Browse)
+        if (e.isDir && !e.vfsId.startsWith(ArchiveVfs.PREFIX)) {
+            entry(stringResource(R.string.open_in_new_tab), Icons.Outlined.Tab, ItemAction.NewTab)
+            if (BrowserTabs.dualPane) entry(stringResource(R.string.open_in_other_pane), Icons.Outlined.VerticalSplit, ItemAction.OtherPane)
+        }
         if (e.isDir) entry(
             if (App.bookmarks.contains(e.location)) stringResource(R.string.remove_bookmark) else stringResource(R.string.bookmark),
             if (App.bookmarks.contains(e.location)) Icons.Outlined.BookmarkRemove else Icons.Outlined.BookmarkAdd,

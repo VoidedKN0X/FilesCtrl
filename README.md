@@ -18,6 +18,8 @@ Part of the [Ctrl series](#the-ctrl-series) by VKNXWorks.
 - **Your servers in the system file picker**, so other apps can open and save files on them
 - **Copy, move, rename and delete** between your phone and any server, in the background
 - **Archives**: open ZIP, 7z, RAR (RAR4), TAR (.tar.gz, .tar.xz, .tar.zst, .tar.bz2 and more), CPIO, AR/DEB and single compressed files (.gz, .xz, .zst, .bz2 …) like folders, extract them, and compress to ZIP, 7z or TAR.* with optional AES-256 passwords
+- **Tabs**, restored when you open the app again, and **dual pane** on tablets, foldables and in landscape: two folders side by side, with copy and move from one to the other in one tap
+- **Built-in picture viewer** for JPEG, PNG, WebP, GIF, HEIC and AVIF, also on servers and in archives: swipe through the folder, pinch to zoom, rotate, photo info (camera, date, exposure), share, delete or open in another app
 - **Save to FilesCtrl** from any app's share sheet: files of any type, and text as a .txt file, saved into any folder on your phone or a server, in the background. The last folder you used is offered first
 - **Checksums**: MD5, SHA-1, SHA-256, SHA-512 and CRC32 of any file, also on servers, with *Compare with* for a pasted hash
 - **Home screen shortcuts** to folders and bookmarks, and your first bookmarks on the app icon

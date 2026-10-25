@@ -27,6 +27,8 @@ import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Fingerprint
 import androidx.compose.material.icons.outlined.FolderSpecial
 import androidx.compose.material.icons.outlined.GridView
+import androidx.compose.material.icons.outlined.Photo
+import androidx.compose.material.icons.outlined.VerticalSplit
 import androidx.compose.material.icons.outlined.Image
 import androidx.compose.material.icons.outlined.LightMode
 import androidx.compose.material.icons.outlined.Layers
@@ -120,6 +122,8 @@ fun SettingsScreen() {
         item {
             SettingsSection(stringResource(R.string.group_appearance)) {
                 ToggleItem(Icons.Outlined.GridView, stringResource(R.string.grid_view), stringResource(R.string.show_files_as_tiles_instead_of_a), s.gridView) { s.gridView = it }
+                ItemDivider()
+                ToggleItem(Icons.Outlined.VerticalSplit, stringResource(R.string.dual_pane), stringResource(R.string.dual_pane_subtitle), s.dualPane) { s.dualPane = it }
             }
         }
 
@@ -188,6 +192,11 @@ fun SettingsScreen() {
                     Icons.Outlined.Image, stringResource(R.string.thumbnails_on_network_locations),
                     stringResource(R.string.load_image_previews_over_the_network), s.nfsThumbnails,
                 ) { s.nfsThumbnails = it }
+                ItemDivider()
+                ToggleItem(
+                    Icons.Outlined.Photo, stringResource(R.string.open_pictures_in_filesctrl),
+                    stringResource(R.string.open_pictures_in_filesctrl_subtitle), s.builtInViewer,
+                ) { s.builtInViewer = it }
                 ItemDivider()
                 ToggleItem(
                     Icons.Outlined.Bookmarks, stringResource(R.string.launcher_bookmarks),

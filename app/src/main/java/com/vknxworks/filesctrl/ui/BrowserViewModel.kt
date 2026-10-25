@@ -32,8 +32,12 @@ object FileClipboard {
     fun clear() { items = emptyList(); cut = false }
 }
 
-class BrowserViewModel : ViewModel() {
-    var location by mutableStateOf(startLocation())
+/** One browser tab. [start]: the folder it opens in (phone storage when null). Loads when first shown. */
+class BrowserViewModel(start: Location? = null) : ViewModel() {
+    /** Tells tabs apart in the tab strip. */
+    val tabId: Int = nextTabId++
+
+    var location by mutableStateOf(start ?: startLocation())
         private set
     private val history = ArrayDeque<Pair<Location, Int>>()
     /** Scroll position to restore when the list for [location] appears. */
@@ -88,8 +92,15 @@ class BrowserViewModel : ViewModel() {
     private var loadJob: Job? = null
     private var searchJob: Job? = null
 
+    /** Remembers where the list was scrolled when the tab goes off screen, to come back to it. */
+    fun keepScroll(index: Int) { restoreIndex = index }
+
+    /** Loads the first time the tab is on screen, and again if it couldn't load before (locked, offline). */
+    fun ensureLoaded() {
+        if (loadCount == 0 && !loading) load() else if (error != null && !loading) load(quiet = true)
+    }
+
     init {
-        load()
         viewModelScope.launch {
             Ops.changed.collect { loc -> if (loc == location) load(quiet = true) }
         }
@@ -100,7 +111,13 @@ class BrowserViewModel : ViewModel() {
 
     private val home: Location get() = Location(LocalVfs.ID, App.vfs.local.primaryRoot)
 
-    val vfsTitle: String get() = App.vfs.find(location.vfsId)?.title ?: ""
+    /**
+     * The file system for [id], or null. Never throws: a tab restored on a server is shown (and asks to unlock)
+     * while the app is still locked and its passwords aren't available yet.
+     */
+    private fun findVfs(id: String) = try { App.vfs.find(id) } catch (_: Exception) { null }
+
+    val vfsTitle: String get() = findVfs(location.vfsId)?.title ?: ""
     val isLocal: Boolean get() = location.vfsId == LocalVfs.ID
     val readOnly: Boolean
         get() = isArchive || (location.vfsId.startsWith(RemoteVfs.PREFIX) &&
@@ -118,7 +135,7 @@ class BrowserViewModel : ViewModel() {
     var passwordPromptHidden by mutableStateOf(false)
 
     fun unlockArchive(password: CharArray) {
-        (App.vfs.find(location.vfsId) as? ArchiveVfs)?.password = password
+        (findVfs(location.vfsId) as? ArchiveVfs)?.password = password
         lockedArchive = null
         load()
     }
@@ -135,7 +152,7 @@ class BrowserViewModel : ViewModel() {
 
     /** Inside an archive, the trail starts with the folders the archive file is in, then the archive itself. */
     private fun crumbsFor(loc: Location, depth: Int = 0): List<Pair<String, Location>> {
-        val vfs = App.vfs.find(loc.vfsId) ?: return emptyList()
+        val vfs = findVfs(loc.vfsId) ?: return emptyList()
         val (root, label) = vfs.rootOf(loc.path)
         val out = mutableListOf<Pair<String, Location>>()
         if (vfs is ArchiveVfs && depth < 8) ArchiveVfs.archiveOf(loc.vfsId)?.let { arc ->
@@ -173,7 +190,7 @@ class BrowserViewModel : ViewModel() {
     }
 
     fun up(currentIndex: Int, addToHistory: Boolean = true) {
-        val vfs = App.vfs.find(location.vfsId) ?: return
+        val vfs = findVfs(location.vfsId) ?: return
         val (root, _) = vfs.rootOf(location.path)
         if (location.path == root) {
             // Up from the top of an archive goes to the folder the archive is in.
@@ -185,7 +202,7 @@ class BrowserViewModel : ViewModel() {
 
     val canGoUp: Boolean
         get() {
-            val vfs = App.vfs.find(location.vfsId) ?: return false
+            val vfs = findVfs(location.vfsId) ?: return false
             return isArchive || location.path != vfs.rootOf(location.path).first
         }
 
@@ -342,6 +359,7 @@ class BrowserViewModel : ViewModel() {
     }
 
     companion object {
+        private var nextTabId = 1
         private val collator: Collator = Collator.getInstance().apply { strength = Collator.SECONDARY }
 
         /** Natural order: "file2" before "file10", case-insensitive. */

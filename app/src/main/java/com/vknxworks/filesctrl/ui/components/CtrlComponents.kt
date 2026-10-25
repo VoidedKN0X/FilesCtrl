@@ -205,6 +205,7 @@ fun CtrlTopBar(
     statusBarPadding: Boolean = true,
     actions: @Composable RowScope.() -> Unit = {},
     profile: (@Composable () -> Unit)? = null,
+    showWordmark: Boolean = true,
 ) {
     Row(
         modifier
@@ -214,7 +215,7 @@ fun CtrlTopBar(
             .height(48.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        CtrlWordmark(name)
+        if (showWordmark) CtrlWordmark(name)
         Spacer(Modifier.weight(1f))
         actions()
         if (profile != null) {

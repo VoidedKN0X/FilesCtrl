@@ -4,6 +4,38 @@ What changed in each FilesCtrl version. Every release on the [Releases page](htt
 
 To publish a new version: bump `versionCode` and `versionName` in `app/build.gradle.kts`, add a section here, and push to `main`. Pushes without a version bump only build; they don't make a release.
 
+## 1.7.0 (2026-10-25)
+
+Tabs, two folders side by side on wide screens, and a built-in picture viewer that works on your servers too.
+
+### New
+
+- **Tabs in the Files tab.** Open a folder in a new tab from its ⋮ menu (**Open in new tab**), or open another tab of the folder you're in from the top bar's ⋮ menu (**New tab**). Once there's more than one, a row of tabs shows under the top bar with each folder's name: tap one to switch, × to close it, + to open another. Each tab keeps its own folder, back history, scroll position and selection. Up to 12 tabs per pane. **Close this tab** is in the top bar's ⋮ menu as well.
+- **Your tabs come back** when FilesCtrl starts again, in the folders they were showing. A tab that was inside an archive comes back in the folder the archive is in; tabs on a network location you've since removed are left out. With the app lock on, tabs on servers wait for you to unlock before they connect.
+- **Dual pane on wide screens.** On tablets, unfolded foldables and phones in landscape, the Files tab shows two folders side by side, each with its own tabs. The pane you last touched has a violet line under its tabs: Places, home screen shortcuts and back act on that one. On a phone held upright there's one pane with tabs, as before.
+  - **Copy to other pane** and **Move to other pane** in selection mode's ⋮ menu copy or move what you selected straight into the folder open in the other pane, in the background like Paste (with the same question when names are already taken). They're greyed out when the other pane is read-only.
+  - **Open in other pane** in a folder's ⋮ menu opens that folder in the other pane.
+  - Switch dual pane off (or back on) under **Settings > Appearance > Dual pane**, or with **Single pane** / **Dual pane** in the top bar's ⋮ menu on a wide screen.
+- **Built-in picture viewer.** Tapping a JPEG, PNG, WebP, GIF, HEIC/HEIF, AVIF or BMP picture now opens it in FilesCtrl, on your phone, on any server (NFS, SMB, SFTP, FTP/FTPS, WebDAV) and inside archives:
+  - **Swipe** left and right through the other pictures in the same folder, in the folder's sort order, with "3 / 12" at the top.
+  - **Pinch** or **double-tap** to zoom, and drag to look around while zoomed in. Pictures are drawn at up to twice the screen size, so they stay sharp when zoomed without huge photos running out of memory.
+  - **Rotate** turns the view by 90° at a time (the file itself isn't changed).
+  - **Info** shows the location, size, dimensions and megapixels, the modified date, and from the photo's EXIF data when it has it: when it was taken, the camera, the lens and the exposure (aperture, shutter speed, focal length, ISO).
+  - **Share**, **Open with** (another app, as before) and **Delete** (asks first when **Confirm before deleting** is on; not shown on read-only servers or inside archives).
+  - Tap the picture to hide or show the buttons. Animated GIFs and WebPs play.
+  - Pictures on servers are read through FilesCtrl's own connection and kept in a private cache for a day (at most 256 MB, oldest first), so swiping back or opening Info doesn't download them again. **The cache is emptied when FilesCtrl locks.**
+  - A picture the phone can't decode shows a message with **Open with**, so you can still open it in another app.
+  - To keep opening pictures in another app instead, switch off **Settings > Files > Open pictures in FilesCtrl**. **Open with** in every file's ⋮ menu still works either way.
+
+### Changed
+
+- FilesCtrl no longer always starts in phone storage: it opens with the tabs you had open last time.
+- In dual pane, the right pane's top bar leaves out the FILES/CTRL wordmark and the profile button, so both fit; settings still open from the profile picture in the left pane.
+
+### Notes
+
+- The viewer is part of FilesCtrl's main window, so the app lock, **Hide in screenshots** and **Hide in recent apps** cover it like every other screen.
+
 ## 1.6.0 (2026-10-25)
 
 Save what other apps share straight into any folder, on your phone or on a server; work out and compare checksums; and put folders on your home screen.

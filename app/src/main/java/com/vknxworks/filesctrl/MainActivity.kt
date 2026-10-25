@@ -67,8 +67,8 @@ import com.vknxworks.filesctrl.fs.LocalVfs
 import com.vknxworks.filesctrl.fs.Location
 import com.vknxworks.filesctrl.fs.RemoteVfs
 import com.vknxworks.filesctrl.ops.Ops
-import com.vknxworks.filesctrl.ui.BrowserScreen
-import com.vknxworks.filesctrl.ui.BrowserViewModel
+import com.vknxworks.filesctrl.ui.BrowserPanes
+import com.vknxworks.filesctrl.ui.BrowserTabs
 import com.vknxworks.filesctrl.ui.EditorScreen
 import com.vknxworks.filesctrl.ui.FilesTheme
 import com.vknxworks.filesctrl.ui.isAppInDarkTheme
@@ -162,7 +162,11 @@ object MainTab {
 @Composable
 private fun Root(activity: FragmentActivity, lockVm: AppLockViewModel = viewModel()) {
     val nav = rememberNavController()
-    val vm: BrowserViewModel = viewModel()
+    // The browser's tabs (both panes), restored from last time; saved again whenever they change.
+    remember { BrowserTabs.init() }
+    LaunchedEffect(Unit) {
+        androidx.compose.runtime.snapshotFlow { BrowserTabs.snapshot() }.collect { App.settings.tabs = it }
+    }
     var confirmReset by remember { mutableStateOf(false) }
     var backgroundSince by remember { mutableStateOf(0L) }
 
@@ -183,10 +187,12 @@ private fun Root(activity: FragmentActivity, lockVm: AppLockViewModel = viewMode
                     if (away && Ops.active.isEmpty()) {
                         Thread {
                             App.vfs.dropAll()
-                            activity.runOnUiThread { if (vm.location.vfsId.startsWith(RemoteVfs.PREFIX)) vm.load(quiet = vm.error == null) }
+                            activity.runOnUiThread {
+                                BrowserTabs.visible().forEach { vm -> if (vm.location.vfsId.startsWith(RemoteVfs.PREFIX)) vm.load(quiet = vm.error == null) }
+                            }
                         }.start()
-                    } else if (away && vm.location.vfsId.startsWith(RemoteVfs.PREFIX) && vm.error != null) {
-                        vm.load()
+                    } else if (away) {
+                        BrowserTabs.visible().forEach { vm -> if (vm.location.vfsId.startsWith(RemoteVfs.PREFIX) && vm.error != null) vm.load() }
                     }
                 }
                 else -> Unit
@@ -201,13 +207,13 @@ private fun Root(activity: FragmentActivity, lockVm: AppLockViewModel = viewMode
         val loc = PendingOpen.location ?: return@LaunchedEffect
         PendingOpen.location = null
         while (nav.previousBackStackEntry != null && nav.popBackStack()) { }
-        vm.navigate(loc)
+        BrowserTabs.focused.navigate(loc)
         MainTab.selected = MainTab.FILES
     }
 
     // After unlocking, show the server folder again: it couldn't connect while the passwords were locked away.
     LaunchedEffect(AppLockState.unlocked) {
-        if (AppLockState.unlocked && vm.location.vfsId.startsWith(RemoteVfs.PREFIX)) vm.load(quiet = vm.error == null)
+        if (AppLockState.unlocked) BrowserTabs.visible().forEach { vm -> if (vm.location.vfsId.startsWith(RemoteVfs.PREFIX)) vm.load(quiet = vm.error == null) }
     }
 
     // The app stays underneath the lock screen (so a half-typed text or server form isn't lost), hidden from
@@ -234,7 +240,7 @@ private fun Root(activity: FragmentActivity, lockVm: AppLockViewModel = viewMode
     LaunchedEffect(locked) { if (locked) { focus.clearFocus(force = true); keyboard?.hide() } }
 
     Box(Modifier.fillMaxSize()) {
-        Box(Modifier.fillMaxSize().then(if (locked) Modifier.clearAndSetSemantics { } else Modifier)) { AppContent(nav, vm) }
+        Box(Modifier.fillMaxSize().then(if (locked) Modifier.clearAndSetSemantics { } else Modifier)) { AppContent(nav) }
         if (locked) {
             LockWindow {
                 LockScreen(vm = lockVm, onForgot = { confirmReset = true })
@@ -263,7 +269,7 @@ fun ResetLockDialog(onDismiss: () -> Unit) {
 }
 
 @Composable
-private fun AppContent(nav: androidx.navigation.NavHostController, vm: BrowserViewModel) {
+private fun AppContent(nav: androidx.navigation.NavHostController) {
     CompositionLocalProvider(LocalNav provides nav) {
         NavHost(
             nav, startDestination = "main",
@@ -272,7 +278,7 @@ private fun AppContent(nav: androidx.navigation.NavHostController, vm: BrowserVi
             popEnterTransition = { slideInHorizontally(tween(300)) { -it / 5 } + fadeIn(tween(220)) },
             popExitTransition = { slideOutHorizontally(tween(300)) { it / 8 } + fadeOut(tween(160)) },
         ) {
-            composable("main") { MainShell(vm) }
+            composable("main") { MainShell() }
             // The profile picture opens the You page; Settings opens from there.
             composable("you") { YouScreen() }
             composable("settings") { SettingsScreen() }
@@ -282,12 +288,15 @@ private fun AppContent(nav: androidx.navigation.NavHostController, vm: BrowserVi
                     // Guarded: a second call (double tap) or one after the screen already closed does nothing.
                     if (!nav.close("server/{id}")) return@ServerEditScreen
                     if (openId != null) {
-                        vm.navigate(Location(RemoteVfs.idFor(openId), "/"))
+                        BrowserTabs.focused.navigate(Location(RemoteVfs.idFor(openId), "/"))
                         MainTab.selected = MainTab.FILES
-                    } else if (id != null && App.servers.get(id) == null && vm.location.vfsId == RemoteVfs.idFor(id)) {
-                        // The location we were looking at was removed.
-                        vm.navigate(Location(LocalVfs.ID, App.vfs.local.primaryRoot), addToHistory = false)
-                    } else if (id != null && vm.location.vfsId == RemoteVfs.idFor(id)) vm.load()
+                    } else if (id != null) {
+                        val gone = App.servers.get(id) == null
+                        BrowserTabs.all().filter { it.location.vfsId == RemoteVfs.idFor(id) }.forEach { vm ->
+                            // A tab looking at a removed location goes back to phone storage.
+                            if (gone) vm.navigate(Location(LocalVfs.ID, App.vfs.local.primaryRoot), addToHistory = false) else vm.load()
+                        }
+                    }
                 }
             }
             composable("edit?loc={loc}") { entry ->
@@ -295,6 +304,12 @@ private fun AppContent(nav: androidx.navigation.NavHostController, vm: BrowserVi
                 val loc = Location.fromKey(raw)
                 if (loc == null) LaunchedEffect(Unit) { nav.close("edit?loc={loc}") }
                 else EditorScreen(remember(loc) { VfsTextSource(loc) }, onBack = { nav.back() })
+            }
+            // The built-in picture viewer.
+            composable("view?loc={loc}") { entry ->
+                val loc = Location.fromKey(entry.arguments?.getString("loc").orEmpty())
+                if (loc == null) LaunchedEffect(Unit) { nav.close("view?loc={loc}") }
+                else com.vknxworks.filesctrl.viewer.ImageViewerScreen(loc, onBack = { nav.back() })
             }
         }
     }
@@ -305,7 +320,7 @@ private fun AppContent(nav: androidx.navigation.NavHostController, vm: BrowserVi
  * windows (tablets, unfolded foldables, landscape) they sit in a side rail.
  */
 @Composable
-private fun MainShell(vm: BrowserViewModel) {
+private fun MainShell() {
     val nav = LocalNav.current
     val tabs = listOf(
         CtrlTab(MainTab.FILES, Icons.Outlined.Folder, App.str(R.string.files)),
@@ -317,18 +332,22 @@ private fun MainShell(vm: BrowserViewModel) {
 
     BoxWithConstraints(Modifier.fillMaxSize()) {
         val rail = maxWidth >= 600.dp
+        // Two browsers side by side on wide windows (never on a phone held upright), unless switched off.
+        val wide = maxWidth >= 700.dp
+        val dual = wide && App.settings.dualPane
+        androidx.compose.runtime.SideEffect { BrowserTabs.wideWindow = wide; BrowserTabs.dualPane = dual }
         val content: @Composable () -> Unit = {
             AnimatedContent(MainTab.selected, transitionSpec = { fadeIn() togetherWith fadeOut() }, label = "tab") { t ->
                 when (t) {
                     MainTab.PLACES -> Box(Modifier.statusBarsPadding()) {
                         PlacesTab(
-                            current = vm.location,
-                            onOpen = { vm.jump(it, 0); MainTab.selected = MainTab.FILES },
+                            current = BrowserTabs.focused.location,
+                            onOpen = { BrowserTabs.focused.jump(it, 0); MainTab.selected = MainTab.FILES },
                             onAddServer = { nav.go("server/new") },
                             onEditServer = { nav.go("server/$it") },
                         )
                     }
-                    else -> BrowserScreen(vm, islandSpace = if (rail) 0.dp else 96.dp)
+                    else -> BrowserPanes(dual, islandSpace = if (rail) 0.dp else 96.dp)
                 }
             }
         }

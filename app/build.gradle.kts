@@ -14,8 +14,8 @@ android {
         targetSdk = 35
         // CI passes the run number so every build installs over the previous one.
         // Bump both to publish a new release (see CHANGELOG.md).
-        versionCode = 46
-        versionName = "1.6.0"
+        versionCode = 47
+        versionName = "1.7.0"
 
         // 64-bit ARM phones only (arm64-v8a), like every Ctrl app. The NFS client (libnfs) is native.
         ndk { abiFilters += listOf("arm64-v8a") }
@@ -141,4 +141,6 @@ dependencies {
     val coil = "3.1.0"
     implementation("io.coil-kt.coil3:coil-compose:$coil")
     implementation("io.coil-kt.coil3:coil-video:$coil")
+    implementation("io.coil-kt.coil3:coil-gif:$coil") // animated GIF/WebP in the picture viewer
+    implementation("androidx.exifinterface:exifinterface:1.4.1") // date and camera in the picture info sheet
 }
