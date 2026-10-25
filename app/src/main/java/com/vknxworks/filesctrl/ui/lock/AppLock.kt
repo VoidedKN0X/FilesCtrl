@@ -402,12 +402,12 @@ fun LockScreen(vm: AppLockViewModel, onForgot: () -> Unit) {
         if (cipher == null) {
             // Invalidated by a newly added fingerprint: the vault turned fingerprint unlock off.
             if (!vm.vault.biometricEnabled) bioMessage = context.getString(R.string.lock_fingerprint_changed)
-        } else if (activity != null) runCatching {
+        } else if (activity != null && !activity.isFinishing && !activity.isDestroyed) runCatching {
             showBiometricPrompt(activity, context.getString(R.string.lock_fingerprint_title), cipher, subtitle = context.getString(R.string.lock_fingerprint_subtitle), onError = { bioMessage = it }) { unlockedCipher ->
                 if (vm.vault.unlockWithBiometric(unlockedCipher)) vm.unlocked()
                 else bioMessage = context.getString(R.string.lock_fingerprint_failed)
             }
-        }
+        }.onFailure { bioMessage = context.getString(R.string.lock_fingerprint_failed) }
     }
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     // The lock window's own focus (it's a dialog): the prompt waits until it's really on screen.
@@ -525,6 +525,11 @@ fun PinRequestScreen(request: PinRequest) {
 fun LockWindow(content: @Composable () -> Unit) {
     // Opaque cover in the app's own window (also behind the system bars).
     Surface(Modifier.fillMaxSize().clearAndSetSemantics { }, color = com.vknxworks.filesctrl.ui.theme.CtrlColors.Background) {}
+    // Locking as the app closes (Back on the first screen, swiped away, "lock immediately") recomposes on an
+    // activity that's already finishing: a new window there crashes. The cover above is enough then, and the
+    // next start opens locked anyway.
+    val activity = LocalContext.current.lockActivity()
+    if (activity != null && (activity.isFinishing || activity.isDestroyed)) return
     Dialog(
         onDismissRequest = {},
         properties = DialogProperties(

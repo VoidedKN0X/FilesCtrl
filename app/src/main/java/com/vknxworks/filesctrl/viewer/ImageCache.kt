@@ -63,10 +63,14 @@ object ImageCache {
                     App.vfs.get(e.vfsId).openRead(e.path).use { input ->
                         tmp.outputStream().use { out ->
                             val buf = ByteArray(256 * 1024)
+                            var total = 0L
                             while (true) {
                                 coroutineContext.ensureActive()
                                 val n = input.read(buf)
                                 if (n < 0) break
+                                total += n
+                                // Servers that don't report a size (some WebDAV ones) can't fill the phone's storage.
+                                if (total > MAX_BYTES) throw IOException(App.str(R.string.viewer_too_large))
                                 out.write(buf, 0, n)
                             }
                         }

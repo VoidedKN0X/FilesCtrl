@@ -152,10 +152,15 @@ fun SettingsScreen() {
                         if (on && act != null) {
                             val cipher = vault.biometricEnrolCipher()
                             if (cipher == null) Toast.makeText(ctx, R.string.lock_fingerprint_setup_failed, Toast.LENGTH_SHORT).show()
-                            else showBiometricPrompt(act, ctx.getString(R.string.lock_fingerprint_enable_title), cipher, subtitle = ctx.getString(R.string.lock_fingerprint_enable_subtitle)) { unlocked ->
-                                if (!vault.finishBiometricEnrol(unlocked)) {
-                                    Toast.makeText(ctx, R.string.lock_fingerprint_setup_failed, Toast.LENGTH_SHORT).show()
+                            else try {
+                                showBiometricPrompt(act, ctx.getString(R.string.lock_fingerprint_enable_title), cipher, subtitle = ctx.getString(R.string.lock_fingerprint_enable_subtitle)) { unlocked ->
+                                    if (!vault.finishBiometricEnrol(unlocked)) {
+                                        Toast.makeText(ctx, R.string.lock_fingerprint_setup_failed, Toast.LENGTH_SHORT).show()
+                                    }
                                 }
+                            } catch (_: Exception) {
+                                // The system refused to show the prompt (e.g. while leaving the app).
+                                Toast.makeText(ctx, R.string.lock_fingerprint_setup_failed, Toast.LENGTH_SHORT).show()
                             }
                         } else if (!on) vault.disableBiometric()
                     }

@@ -34,7 +34,8 @@ object Shortcuts {
      */
     fun locationFrom(intent: Intent?): Location? {
         if (intent?.action != ACTION_OPEN) return null
-        val loc = intent.getStringExtra(EXTRA_LOCATION)?.let { Location.fromKey(it) } ?: return null
+        // Any app can start MainActivity: a malformed extra is ignored instead of crashing the start.
+        val loc = runCatching { intent.getStringExtra(EXTRA_LOCATION) }.getOrNull()?.let { Location.fromKey(it) } ?: return null
         val path = Paths.normalize(loc.path) ?: return null
         return when {
             loc.vfsId == LocalVfs.ID ->
