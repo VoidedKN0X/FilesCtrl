@@ -49,6 +49,8 @@ import androidx.compose.material.icons.automirrored.outlined.DriveFileMove
 import androidx.compose.material.icons.automirrored.outlined.OpenInNew
 import androidx.compose.material.icons.automirrored.outlined.Sort
 import androidx.compose.material.icons.outlined.Add
+import androidx.compose.material.icons.outlined.Home
+import androidx.compose.material.icons.outlined.Tag
 import androidx.compose.material.icons.outlined.BookmarkAdd
 import androidx.compose.material.icons.outlined.BookmarkRemove
 import androidx.compose.material.icons.outlined.Check
@@ -177,6 +179,7 @@ private sealed interface Dlg {
     data class Rename(val e: FileEntry) : Dlg
     data class Delete(val items: List<FileEntry>) : Dlg
     data class Props(val e: FileEntry) : Dlg
+    data class Checksum(val e: FileEntry) : Dlg
     data class Compress(val items: List<FileEntry>) : Dlg
     data class Extract(val archive: FileEntry, val dest: Location) : Dlg
     data class Conflicts(val names: List<String>, val items: List<FileEntry>, val dest: Location, val move: Boolean) : Dlg
@@ -377,6 +380,7 @@ fun BrowserScreen(vm: BrowserViewModel, islandSpace: Dp) {
             Ops.delete(d.items)
         }
         is Dlg.Props -> PropertiesDialog(d.e, onDismiss = { dlg = null }, onChanged = { vm.load(quiet = true) })
+        is Dlg.Checksum -> ChecksumDialog(d.e) { dlg = null }
         is Dlg.Compress -> CompressDialog(
             (if (d.items.size == 1) d.items[0].name.substringBeforeLast('.').ifEmpty { d.items[0].name } else vm.title),
             onDismiss = { dlg = null },
@@ -496,6 +500,14 @@ private fun MainBar(vm: BrowserViewModel, onDialog: (Dlg) -> Unit) {
                             menu = false
                         },
                     )
+                    if (com.vknxworks.filesctrl.shortcuts.Shortcuts.canPin(vm.location)) DropdownMenuItem(
+                        text = { Text(stringResource(R.string.add_to_home_screen)) },
+                        leadingIcon = { Icon(Icons.Outlined.Home, null) },
+                        onClick = {
+                            menu = false
+                            pinShortcut(ctx, App.bookmarks.all.firstOrNull { it.location == vm.location }?.name ?: vm.title, vm.location)
+                        },
+                    )
                     DropdownMenuItem(
                         text = { Text(stringResource(R.string.copy_path)) },
                         leadingIcon = { Icon(Icons.Outlined.Link, null) },
@@ -600,6 +612,8 @@ private fun SelectionBar(vm: BrowserViewModel, readOnly: Boolean, onDialog: (Dlg
                             copyText(ctx, App.str(R.string.paths), sel.joinToString("\n") { displayPath(it) })
                             Toast.makeText(ctx, if (sel.size == 1) App.str(R.string.path_copied) else App.str(R.string.paths_copied, sel.size), Toast.LENGTH_SHORT).show()
                         })
+                    if (single != null && !single.isDir) DropdownMenuItem(text = { Text(stringResource(R.string.checksums)) }, leadingIcon = { Icon(Icons.Outlined.Tag, null) },
+                        onClick = { menu = false; onDialog(Dlg.Checksum(single)) })
                     if (single != null) DropdownMenuItem(text = { Text(stringResource(R.string.properties)) }, leadingIcon = { Icon(Icons.Outlined.Info, null) },
                         onClick = { menu = false; onDialog(Dlg.Props(single)) })
                 }
@@ -610,7 +624,7 @@ private fun SelectionBar(vm: BrowserViewModel, readOnly: Boolean, onDialog: (Dlg
 
 // ---------- Item actions ----------
 
-enum class ItemAction { Open, OpenWith, EditWith, EditText, Share, Copy, Cut, Rename, Delete, Compress, Extract, Browse, Bookmark, CopyPath, Properties, OpenLocation }
+enum class ItemAction { Open, OpenWith, EditWith, EditText, Share, Copy, Cut, Rename, Delete, Compress, Extract, Browse, Bookmark, CopyPath, Properties, OpenLocation, Checksum, HomeScreen }
 
 private fun handleItemAction(
     ctx: android.content.Context,
@@ -643,6 +657,8 @@ private fun handleItemAction(
         }
         ItemAction.Properties -> onDialog(Dlg.Props(e))
         ItemAction.OpenLocation -> vm.navigate(e.parentLocation)
+        ItemAction.Checksum -> onDialog(Dlg.Checksum(e))
+        ItemAction.HomeScreen -> pinShortcut(ctx, e.name, e.location)
     }
 }
 
@@ -675,6 +691,8 @@ private fun ItemMenu(e: FileEntry, readOnly: Boolean, inSearch: Boolean, expande
             if (App.bookmarks.contains(e.location)) Icons.Outlined.BookmarkRemove else Icons.Outlined.BookmarkAdd,
             ItemAction.Bookmark,
         )
+        if (e.isDir && com.vknxworks.filesctrl.shortcuts.Shortcuts.canPin(e.location)) entry(stringResource(R.string.add_to_home_screen), Icons.Outlined.Home, ItemAction.HomeScreen)
+        if (!e.isDir) entry(stringResource(R.string.checksums), Icons.Outlined.Tag, ItemAction.Checksum)
         entry(stringResource(R.string.copy_path), Icons.Outlined.Link, ItemAction.CopyPath)
         entry(stringResource(R.string.properties), Icons.Outlined.Info, ItemAction.Properties)
     }
@@ -995,4 +1013,10 @@ private fun PermissionGate() {
             }
         }) { Text(stringResource(R.string.grant_access)) }
     }
+}
+
+/** Asks the launcher for a home screen shortcut to [loc], and says what happened. */
+fun pinShortcut(ctx: android.content.Context, name: String, loc: Location) {
+    val ok = com.vknxworks.filesctrl.shortcuts.Shortcuts.pin(ctx, name, loc)
+    Toast.makeText(ctx, if (ok) App.str(R.string.shortcut_requested, name) else App.str(R.string.shortcut_not_supported), Toast.LENGTH_SHORT).show()
 }

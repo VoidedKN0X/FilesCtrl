@@ -31,6 +31,9 @@ import org.apache.commons.compress.archivers.sevenz.SevenZOutputFile
 import kotlin.coroutines.coroutineContext
 import com.vknxworks.filesctrl.R
 
+/** A file another app shared with FilesCtrl: its name, size (-1 if unknown) and how to read it. */
+class IncomingItem(val name: String, val size: Long, val open: () -> java.io.InputStream, val discard: () -> Unit = {})
+
 /** What to do when a pasted item's name is already taken in the destination. */
 enum class Conflict { Replace, KeepBoth, Skip }
 
@@ -226,11 +229,17 @@ object Ops {
 
     private suspend fun copyFile(src: Vfs, e: FileEntry, dst: Vfs, target: String, t: OpTask) {
         t.detail = e.name
+        copyStream({ src.openRead(e.path) }, dst, target, t)
+        dst.setModified(target, e.modified)
+    }
+
+    /** Streams [open] into [target] with progress; a half-written target is removed on failure or cancel. */
+    private suspend fun copyStream(open: () -> java.io.InputStream, dst: Vfs, target: String, t: OpTask) {
         val buf = ByteArray(1024 * 1024)
         var ok = false
         var created = false
         try {
-            src.openRead(e.path).use { input ->
+            open().use { input ->
                 dst.openWrite(target).also { created = true }.use { out ->
                     var lastUi = 0L
                     var pending = 0L
@@ -246,13 +255,49 @@ object Ops {
                     t.bytesDone += pending
                 }
             }
-            dst.setModified(target, e.modified)
             ok = true
         } finally {
             // Don't leave half-copied files behind on failure or cancel (only ones this copy created).
             if (!ok && created) try { dst.delete(target, false) } catch (_: Exception) {}
         }
     }
+
+    // ---------- Save shared files ----------
+
+    /**
+     * Saves files another app shared with FilesCtrl into [dest]. Names that are taken get " (1)", " (2)"...
+     * Nothing already in the folder is ever replaced.
+     */
+    fun saveIncoming(items: List<IncomingItem>, dest: Location): OpTask =
+        launch(App.plural(R.plurals.saving_items, items.size, items.size), listOf(dest)) { t ->
+            val dst = App.vfs.get(dest.vfsId)
+            t.filesTotal = items.size
+            // Only count bytes when every size is known, so the bar doesn't jump.
+            if (items.all { it.size >= 0 }) t.bytesTotal = items.sumOf { it.size }
+            try {
+                for (item in items) {
+                    coroutineContext.ensureActive()
+                    t.detail = item.name
+                    if (!Paths.isSafeName(item.name)) { t.warnings += App.str(R.string.skipped_unsafe_name, item.name); t.filesDone++; continue }
+                    val name = Paths.unique(dest.path, item.name) { dst.exists(it) }
+                    val target = Paths.join(dest.path, name)
+                    checkInside(dst, target, dest.path)
+                    try {
+                        copyStream(item.open, dst, target, t)
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (e: Exception) {
+                        // One unreadable file doesn't stop the others.
+                        if (items.size == 1) throw e
+                        t.warnings += App.str(R.string.failed_3, item.name, e.message ?: e.javaClass.simpleName)
+                    }
+                    t.filesDone++
+                }
+            } finally {
+                // Streams that were opened in advance and never read (cancelled, failed) are closed.
+                items.forEach { runCatching { it.discard() } }
+            }
+        }
 
     // ---------- Delete ----------
 

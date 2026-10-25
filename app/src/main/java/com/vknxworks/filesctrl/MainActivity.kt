@@ -110,6 +110,8 @@ class MainActivity : FragmentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         App.init(this)
+        // Started from a home screen shortcut: open that folder (behind the app lock, like any start).
+        if (savedInstanceState == null) com.vknxworks.filesctrl.shortcuts.Shortcuts.locationFrom(intent)?.let { PendingOpen.location = it }
         val nightNow = (resources.configuration.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK) == android.content.res.Configuration.UI_MODE_NIGHT_YES
         enableEdgeToEdge(signalBarStyle(nightNow), signalBarStyle(nightNow))
         setContent {
@@ -132,12 +134,22 @@ class MainActivity : FragmentActivity() {
         }
     }
 
+    override fun onNewIntent(intent: android.content.Intent) {
+        super.onNewIntent(intent)
+        com.vknxworks.filesctrl.shortcuts.Shortcuts.locationFrom(intent)?.let { PendingOpen.location = it }
+    }
+
     override fun onStart() { super.onStart(); inForeground = true }
     override fun onStop() { super.onStop(); inForeground = false }
 
     companion object {
         @Volatile var inForeground = false
     }
+}
+
+/** A folder to open as soon as the browser is ready (from a home screen or launcher shortcut). */
+object PendingOpen {
+    var location by mutableStateOf<Location?>(null)
 }
 
 /** Which tab is showing; other screens can switch it. */
@@ -182,6 +194,15 @@ private fun Root(activity: FragmentActivity, lockVm: AppLockViewModel = viewMode
         }
         owner.lifecycle.addObserver(observer)
         onDispose { owner.lifecycle.removeObserver(observer) }
+    }
+
+    // A shortcut asked for a folder: show it in the Files tab, on top of whatever screen was open.
+    LaunchedEffect(PendingOpen.location) {
+        val loc = PendingOpen.location ?: return@LaunchedEffect
+        PendingOpen.location = null
+        while (nav.previousBackStackEntry != null && nav.popBackStack()) { }
+        vm.navigate(loc)
+        MainTab.selected = MainTab.FILES
     }
 
     // After unlocking, show the server folder again: it couldn't connect while the passwords were locked away.

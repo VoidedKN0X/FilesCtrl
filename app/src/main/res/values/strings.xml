@@ -574,4 +574,51 @@
 
     <!-- Whole sentences instead of joined pieces -->
     <string name="archive_format_with_compressor">%1$s · %2$s</string>
+
+    <!-- 1.6.0: Save to (share target) -->
+    <string name="share_target_label">Save to FilesCtrl</string>
+    <string name="share_save_to">Save to…</string>
+    <string name="share_save_here">Save here</string>
+    <string name="share_nothing">Nothing to save was shared</string>
+    <string name="share_unreadable">The app that shared these files no longer lets FilesCtrl read them. Share them again.</string>
+    <string name="share_text_name">Shared text %1$s</string>
+    <string name="share_file_name">Shared file</string>
+    <plurals name="share_items">
+        <item quantity="one">%1$d item to save</item>
+        <item quantity="other">%1$d items to save</item>
+    </plurals>
+    <plurals name="share_saving_to">
+        <item quantity="one">Saving %1$d item to %2$s</item>
+        <item quantity="other">Saving %1$d items to %2$s</item>
+    </plurals>
+    <plurals name="saving_items">
+        <item quantity="one">Saving %1$d item</item>
+        <item quantity="other">Saving %1$d items</item>
+    </plurals>
+    <string name="picker_choose_place">Choose a place</string>
+    <string name="picker_last_used">Last used</string>
+    <string name="picker_no_folders">No folders here. You can still save into this one, or make a new folder.</string>
+    <string name="picker_open_a_folder">Open a folder</string>
+    <string name="picker_read_only">Read-only</string>
+
+    <!-- 1.6.0: Checksums -->
+    <string name="checksums">Checksums</string>
+    <string name="checksum_reading">Reading %1$s of %2$s…</string>
+    <string name="checksum_reading_unknown">Reading %1$s…</string>
+    <string name="checksum_failed">Couldn\'t read the file: %1$s</string>
+    <string name="checksum_copy">Copy %1$s</string>
+    <string name="checksum_copied">%1$s copied</string>
+    <string name="checksum_compare">Compare with</string>
+    <string name="checksum_compare_hint">Paste a hash</string>
+    <string name="checksum_match">Matches the %1$s</string>
+    <string name="checksum_no_match_algo">Doesn\'t match: this looks like a %1$s, and the file\'s is different</string>
+    <string name="checksum_no_match">Doesn\'t match any of the hashes above</string>
+
+    <!-- 1.6.0: Home screen shortcuts -->
+    <string name="add_to_home_screen">Add to home screen</string>
+    <string name="shortcut_requested">Asked your launcher to add %1$s</string>
+    <string name="shortcut_not_supported">Your launcher doesn\'t accept shortcuts from apps</string>
+    <string name="shortcut_server_removed">This network location was removed from FilesCtrl</string>
+    <string name="launcher_bookmarks">Bookmarks on the app icon</string>
+    <string name="launcher_bookmarks_subtitle">Long-press FilesCtrl\'s icon on the home screen to open your first four bookmarks</string>
 </resources>

@@ -81,6 +81,13 @@ class Settings(context: Context) {
 
     var askedNotifications by bool("asked_notifications", false)
 
+    /** Where "Save to…" (files shared with FilesCtrl) saved last time, as a [Location.key]; empty if never. */
+    var lastSaveTo by str("last_save_to", "")
+
+    /** Show the first bookmarks when long-pressing FilesCtrl's icon on the home screen. */
+    private val _launcherBookmarks = bool("launcher_bookmarks", true)
+    var launcherBookmarks by _launcherBookmarks
+
 
     private operator fun <T> Pref<T>.getValue(thisRef: Any?, p: kotlin.reflect.KProperty<*>): T = value
     private operator fun <T> Pref<T>.setValue(thisRef: Any?, p: kotlin.reflect.KProperty<*>, v: T) { value = v }
@@ -102,6 +109,11 @@ class Bookmarks(context: Context) {
             }
         } catch (_: Exception) {}
     }
+
+    private val listeners = mutableListOf<() -> Unit>()
+
+    /** Called after every change to the list (the launcher shortcuts follow it). */
+    fun onChange(l: () -> Unit) { listeners += l }
 
     fun contains(loc: Location) = all.any { it.location == loc }
 
@@ -130,5 +142,6 @@ class Bookmarks(context: Context) {
         val arr = JSONArray()
         all.forEach { arr.put(JSONObject().put("name", it.name).put("loc", it.location.key)) }
         sp.edit().putString("list", arr.toString()).apply()
+        listeners.forEach { runCatching { it() } }
     }
 }

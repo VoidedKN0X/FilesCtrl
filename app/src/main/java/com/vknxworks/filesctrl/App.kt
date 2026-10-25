@@ -69,12 +69,18 @@ object App {
         bookmarks = Bookmarks(context)
         vfs = VfsRegistry(context, servers)
         lock = com.vknxworks.filesctrl.data.LockSettings(context)
+        bookmarks.onChange { com.vknxworks.filesctrl.shortcuts.Shortcuts.updateDynamic(context) }
         servers.onChange { id ->
-            if (servers.get(id) == null) bookmarks.removeVfs(RemoteVfs.idFor(id))
+            if (servers.get(id) == null) {
+                bookmarks.removeVfs(RemoteVfs.idFor(id))
+                com.vknxworks.filesctrl.shortcuts.Shortcuts.disableForVfs(context, RemoteVfs.idFor(id))
+            }
             // Let the system file picker see the new list of shares.
             context.contentResolver.notifyChange(DocumentsContract.buildRootsUri(NetDocumentsProvider.AUTHORITY), null)
         }
         Ops.init(context)
+        // Launcher shortcuts follow the bookmarks (kept off the main thread: it's a call into the launcher).
+        Thread { com.vknxworks.filesctrl.shortcuts.Shortcuts.updateDynamic(context) }.start()
     }
 
     /** Lets Android's file picker see the shares again, or not while FilesCtrl is locked. */

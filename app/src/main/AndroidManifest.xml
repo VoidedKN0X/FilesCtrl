@@ -97,6 +97,26 @@
             </intent-filter>
         </activity>
 
+        <!-- "Save to FilesCtrl" in the share sheet: any file type, and plain text (saved as a .txt file).
+             Exported so other apps can share to it; it only reads the content:// links it's given, behind
+             the app lock, and writes only into a folder the user picks. -->
+        <activity
+            android:name=".ShareActivity"
+            android:exported="true"
+            android:label="@string/share_target_label"
+            android:icon="@mipmap/ic_launcher"
+            android:excludeFromRecents="true"
+            android:taskAffinity=""
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden|density"
+            android:windowSoftInputMode="adjustResize">
+            <intent-filter android:label="@string/share_target_label">
+                <action android:name="android.intent.action.SEND" />
+                <action android:name="android.intent.action.SEND_MULTIPLE" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="*/*" />
+            </intent-filter>
+        </activity>
+
         <service
             android:name=".ops.OpService"
             android:exported="false"
