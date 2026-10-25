@@ -170,11 +170,11 @@ fun FileIcon(e: FileEntry, size: Dp, modifier: Modifier = Modifier, selected: Bo
     val shape = RoundedCornerShape(size * 0.28f)
     var failed by remember(e.path, e.modified) { mutableStateOf(false) }
     Box(
-        modifier.size(size).clip(shape).background(if (selected) MaterialTheme.colorScheme.primary else tint.copy(alpha = 0.14f)),
+        modifier.size(size).clip(shape).background(if (selected) com.vknxworks.filesctrl.ui.theme.CtrlColors.Accent else tint.copy(alpha = 0.14f)),
         contentAlignment = Alignment.Center,
     ) {
         if (selected) {
-            Icon(Icons.Filled.Check, null, tint = MaterialTheme.colorScheme.onPrimary, modifier = Modifier.size(size * 0.55f))
+            Icon(Icons.Filled.Check, null, tint = com.vknxworks.filesctrl.ui.theme.CtrlColors.Ink, modifier = Modifier.size(size * 0.55f))
         } else {
             Icon(kindIcon(kind), null, tint = tint, modifier = Modifier.size(size * 0.55f))
             if (hasThumbnail(e) && !failed) {

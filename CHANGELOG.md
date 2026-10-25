@@ -4,6 +4,30 @@ What changed in each FilesCtrl version. Every release on the [Releases page](htt
 
 To publish a new version: bump `versionCode` and `versionName` in `app/build.gradle.kts`, add a section here, and push to `main`. Pushes without a version bump only build; they don't make a release.
 
+## 1.5.0 (2026-10-25)
+
+Light mode that follows the device theme: FilesCtrl is now light when your phone's dark theme is off and dark when it's on, and switches by itself the moment you change it (also when your phone changes it on a schedule, at sunset for example).
+
+### New
+
+- **Signal Light.** A light version of the Ctrl / Signal look: a warm off-white background (#F5F5F1), white cards and sheets with thin light-grey borders (#DEDED7), near-black text (#0B0B0D) and grey secondary text (#5C5C64). Hero cards, the main buttons, the open tab in the bottom bar, switches that are on, selection mode and PIN cells keep the same violet fill (#B48CFF) with dark content as in dark mode.
+- **Darker violet for text and icons in light mode.** The pale violet is hard to read on white, so in light mode accent text and icons use a deeper violet (#6A3BDB): the "/" in the FILES/CTRL wordmark and in the path bar, the open/connected marks in Places, the chosen option in choice sheets, the border and cursor of the text field you're typing in, dialog buttons and icons, the fingerprint key on the lock screen, the result card in the server editor and the editor's cursor. In dark mode these stay the light violet (#B48CFF).
+- **Status bar and navigation bar follow along**: in light mode they take the light background with dark icons, in dark mode the dark background with light icons. Before the app has drawn (the launch screen), the window also uses the matching background, so there's no dark flash in light mode or light flash in dark mode.
+- **Notifications** for copies, moves and deletes use the violet accent that suits the current mode (the light violet in dark mode, the deeper violet in light mode).
+
+### Changed
+
+- **Every screen works in both modes**: the Files tab (top bar, path bar, file list and grid, selection mode, new folder/new file button, paste card), Places (storage card, rows, Add network), the You page, Settings and its choice sheets, the server editor, all dialogs and menus, search, the empty, error and permission screens, the lock screen and the PIN screens (keys are white with a thin border in light mode, empty PIN cells have a light grey outline), and the text editor (both inside FilesCtrl and when another app opens a file in it).
+- **Switches in light mode**: off is a light grey track (#DCDCD5) with a grey knob (#74747C); on is the violet track with a dark knob, the same as in dark mode.
+- **Progress and storage bars in light mode** use a light grey track (#E2E2DC) with a near-black fill. The loading line under the path bar stays violet.
+- **The floating bottom bar in light mode** is white (slightly see-through) with a thin grey border.
+- **Errors in light mode** (wrong PIN, failed connection, Delete and Remove buttons) use a deeper red (#D93636) that reads well on white.
+- There's still **no theme setting** in FilesCtrl and no Material You colours: the app simply follows your phone. To pick light or dark, change the dark theme setting on your phone.
+
+### Notes
+
+- FilesCtrl has no built-in photo or video viewer: photos and videos open in the app you choose, so nothing stays dark on its own.
+
 ## 1.4.0 (2026-10-25)
 
 FilesCtrl gets the new **Ctrl / Signal** look that the whole Ctrl series is moving to: dark, high contrast, one violet accent and two new typefaces. Only the look changes. Every screen, button, setting and feature works as before, and nothing you saved (servers, bookmarks, PIN, settings) is touched.

@@ -60,6 +60,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import androidx.compose.ui.res.stringResource
 import com.vknxworks.filesctrl.R
+import com.vknxworks.filesctrl.ui.theme.CtrlColors
 import com.vknxworks.filesctrl.ui.components.CtrlAlertDialog
 import com.vknxworks.filesctrl.ui.components.CtrlTextField
 
@@ -113,7 +114,7 @@ fun DeleteDialog(items: List<FileEntry>, remote: Boolean, onDismiss: () -> Unit,
             )
         },
         confirmButton = {
-            TextButton(onClick = onConfirm) { Text(stringResource(R.string.lock_delete), color = MaterialTheme.colorScheme.error) }
+            TextButton(onClick = onConfirm) { Text(stringResource(R.string.lock_delete), color = CtrlColors.Error) }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.lock_cancel)) } },
     )

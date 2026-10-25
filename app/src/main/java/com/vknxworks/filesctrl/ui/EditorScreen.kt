@@ -249,7 +249,7 @@ fun EditorScreen(source: TextSource, onBack: () -> Unit) {
                     IconToggleButton(checked = wrap, onCheckedChange = { wrap = it }) {
                         Icon(Icons.AutoMirrored.Outlined.WrapText, stringResource(R.string.wrap_lines))
                     }
-                    if (saving) CircularProgressIndicator(Modifier.padding(12.dp).padding(end = 4.dp).size(20.dp), strokeWidth = 2.dp, color = CtrlColors.Accent)
+                    if (saving) CircularProgressIndicator(Modifier.padding(12.dp).padding(end = 4.dp).size(20.dp), strokeWidth = 2.dp, color = CtrlColors.AccentText)
                     else if (!source.readOnly) IconButton(onClick = { save() }, enabled = dirty) { Icon(Icons.Outlined.Save, stringResource(R.string.save)) }
                     else IconButton(onClick = { run { com.vknxworks.filesctrl.ui.lock.AppLockState.expectReturn(); saveCopy.launch(source.name) } }, enabled = text != null) { Icon(Icons.Outlined.SaveAs, stringResource(R.string.save_a_copy)) }
                     Box {
@@ -272,9 +272,9 @@ fun EditorScreen(source: TextSource, onBack: () -> Unit) {
             when {
                 error != null -> Text(
                     error!!, Modifier.align(Alignment.Center).padding(32.dp),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center,
+                    color = CtrlColors.Muted, textAlign = TextAlign.Center,
                 )
-                t == null -> CircularProgressIndicator(Modifier.align(Alignment.Center), color = CtrlColors.Accent)
+                t == null -> CircularProgressIndicator(Modifier.align(Alignment.Center), color = CtrlColors.AccentText)
                 else -> {
                     val vScroll = rememberScrollState()
                     val hScroll = rememberScrollState()
@@ -287,9 +287,9 @@ fun EditorScreen(source: TextSource, onBack: () -> Unit) {
                             fontFamily = CtrlFonts.Mono,
                             fontSize = 14.sp,
                             lineHeight = 20.sp,
-                            color = MaterialTheme.colorScheme.onSurface,
+                            color = CtrlColors.Text,
                         ),
-                        cursorBrush = SolidColor(CtrlColors.Accent),
+                        cursorBrush = SolidColor(CtrlColors.AccentText),
                         modifier = mod.padding(horizontal = 12.dp, vertical = 8.dp).let { if (wrap) it.fillMaxWidth() else it },
                     )
                 }

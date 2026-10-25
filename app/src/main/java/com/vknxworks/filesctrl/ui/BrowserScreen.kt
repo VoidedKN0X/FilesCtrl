@@ -697,7 +697,7 @@ private fun Breadcrumbs(vm: BrowserViewModel, onClick: (Location) -> Unit) {
         itemsIndexed(crumbs) { i, (label, loc) ->
             val last = i == crumbs.size - 1
             Row(verticalAlignment = Alignment.CenterVertically) {
-                if (i > 0) Text("/", style = CtrlType.Meta.copy(fontWeight = FontWeight.SemiBold), color = CtrlColors.Accent)
+                if (i > 0) Text("/", style = CtrlType.Meta.copy(fontWeight = FontWeight.SemiBold), color = CtrlColors.AccentText)
                 Text(
                     label,
                     style = CtrlType.Meta.copy(fontWeight = if (last) FontWeight.SemiBold else FontWeight.Normal),
@@ -802,7 +802,7 @@ private fun FileGrid(items: List<FileEntry>, vm: BrowserViewModel, state: LazyGr
                 Modifier.padding(5.dp).fillMaxWidth()
                     .clip(CtrlShapes.Card)
                     .background(if (selected) CtrlColors.Accent.copy(alpha = 0.14f) else CtrlColors.Surface)
-                    .border(1.dp, if (selected) CtrlColors.Accent else CtrlColors.CardBorder, CtrlShapes.Card)
+                    .border(1.dp, if (selected) CtrlColors.AccentText else CtrlColors.CardBorder, CtrlShapes.Card)
                     .combinedClickable(
                         onClick = { if (vm.selecting) vm.toggle(e) else onOpen(e) },
                         onLongClick = { vm.toggle(e) },
@@ -911,7 +911,7 @@ private fun PasteBar(readOnly: Boolean, modifier: Modifier = Modifier, onPaste: 
             Modifier.fillMaxWidth().padding(start = 16.dp, end = 8.dp, top = 6.dp, bottom = 6.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Icon(if (FileClipboard.cut) Icons.AutoMirrored.Outlined.DriveFileMove else Icons.Outlined.ContentCopy, null, tint = CtrlColors.Accent)
+            Icon(if (FileClipboard.cut) Icons.AutoMirrored.Outlined.DriveFileMove else Icons.Outlined.ContentCopy, null, tint = CtrlColors.AccentText)
             Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f)) {
                 Text(

@@ -155,7 +155,7 @@ fun PlacesTab(current: Location, onOpen: (Location) -> Unit, onAddServer: () -> 
                 title = s.title,
                 meta = sp?.let { App.str(R.string.of_used, Fmt.size(ctx, it.total - it.free), Fmt.size(ctx, it.total)) } ?: s.host,
                 usage = sp,
-                status = { CtrlDot(if (isOpen || connected) CtrlColors.Accent else CtrlColors.Inactive) },
+                status = { CtrlDot(if (isOpen || connected) CtrlColors.AccentText else CtrlColors.Inactive) },
                 trailing = {
                     IconButton(onClick = { onEditServer(s.id) }) { Icon(Icons.Outlined.Edit, stringResource(R.string.edit, s.title), Modifier.size(20.dp), tint = CtrlColors.Muted) }
                 },
@@ -167,7 +167,7 @@ fun PlacesTab(current: Location, onOpen: (Location) -> Unit, onAddServer: () -> 
                 height = 56.dp,
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 10.dp),
             ) {
-                Icon(Icons.Outlined.Add, null, Modifier.size(20.dp), tint = CtrlColors.Accent)
+                Icon(Icons.Outlined.Add, null, Modifier.size(20.dp), tint = CtrlColors.AccentText)
                 Spacer(Modifier.width(10.dp))
                 Column {
                     Text(stringResource(R.string.add_network), style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold)

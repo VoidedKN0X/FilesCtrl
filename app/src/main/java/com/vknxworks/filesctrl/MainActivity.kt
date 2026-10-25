@@ -71,6 +71,7 @@ import com.vknxworks.filesctrl.ui.BrowserScreen
 import com.vknxworks.filesctrl.ui.BrowserViewModel
 import com.vknxworks.filesctrl.ui.EditorScreen
 import com.vknxworks.filesctrl.ui.FilesTheme
+import com.vknxworks.filesctrl.ui.isAppInDarkTheme
 import com.vknxworks.filesctrl.ui.LocalNav
 import com.vknxworks.filesctrl.ui.back
 import com.vknxworks.filesctrl.ui.close
@@ -98,20 +99,25 @@ import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.semantics.clearAndSetSemantics
 
 // FragmentActivity (a ComponentActivity) is required by the fingerprint prompt.
-/** The system bars take the Ctrl / Signal background colour (#08080A). */
-internal val SIGNAL_BAR_COLOR: Int = Color.rgb(0x08, 0x08, 0x0A)
+/** The system bars take the Signal background colour: #08080A with light icons, or #F5F5F1 with dark icons. */
+internal val SIGNAL_BAR_DARK: Int = Color.rgb(0x08, 0x08, 0x0A)
+internal val SIGNAL_BAR_LIGHT: Int = Color.rgb(0xF5, 0xF5, 0xF1)
+
+internal fun signalBarStyle(dark: Boolean): SystemBarStyle =
+    if (dark) SystemBarStyle.dark(SIGNAL_BAR_DARK) else SystemBarStyle.light(SIGNAL_BAR_LIGHT, SIGNAL_BAR_DARK)
 
 class MainActivity : FragmentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         App.init(this)
-        enableEdgeToEdge(SystemBarStyle.dark(SIGNAL_BAR_COLOR), SystemBarStyle.dark(SIGNAL_BAR_COLOR))
+        val nightNow = (resources.configuration.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK) == android.content.res.Configuration.UI_MODE_NIGHT_YES
+        enableEdgeToEdge(signalBarStyle(nightNow), signalBarStyle(nightNow))
         setContent {
             FilesTheme {
-                // Dark only: light status and navigation bar icons over the app's background colour, edge to edge.
-                LaunchedEffect(Unit) {
-                    val style = SystemBarStyle.dark(SIGNAL_BAR_COLOR)
-                    enableEdgeToEdge(statusBarStyle = style, navigationBarStyle = style)
+                // Follows the phone's dark theme: light bar icons in dark, dark icons in light, bars in the background colour.
+                val dark = isAppInDarkTheme()
+                LaunchedEffect(dark) {
+                    enableEdgeToEdge(statusBarStyle = signalBarStyle(dark), navigationBarStyle = signalBarStyle(dark))
                 }
                 val secure = App.lock.hideScreenshots || com.vknxworks.filesctrl.ui.lock.SecureScreens.active > 0
                 // "Hide in recent apps", and always with the app lock on: a blank card instead of a snapshot.

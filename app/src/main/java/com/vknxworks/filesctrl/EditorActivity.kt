@@ -22,6 +22,7 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.vknxworks.filesctrl.ui.EditorScreen
 import com.vknxworks.filesctrl.ui.FilesTheme
+import com.vknxworks.filesctrl.ui.isAppInDarkTheme
 import com.vknxworks.filesctrl.ui.UriTextSource
 import com.vknxworks.filesctrl.ui.lock.AppLockViewModel
 import com.vknxworks.filesctrl.ui.lock.LockScreen
@@ -61,12 +62,14 @@ class EditorActivity : FragmentActivity() {
             try { packageManager.getApplicationLabel(packageManager.getApplicationInfo(pkg, 0)).toString() } catch (_: Exception) { null }
         }?.takeIf { it != getString(R.string.app_name) }
 
-        enableEdgeToEdge(SystemBarStyle.dark(SIGNAL_BAR_COLOR), SystemBarStyle.dark(SIGNAL_BAR_COLOR))
+        val nightNow = (resources.configuration.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK) == android.content.res.Configuration.UI_MODE_NIGHT_YES
+        enableEdgeToEdge(signalBarStyle(nightNow), signalBarStyle(nightNow))
         setContent {
             FilesTheme {
-                LaunchedEffect(Unit) {
-                    val style = SystemBarStyle.dark(SIGNAL_BAR_COLOR)
-                    enableEdgeToEdge(statusBarStyle = style, navigationBarStyle = style)
+                // Follows the phone's dark theme: light bar icons in dark, dark icons in light, bars in the background colour.
+                val dark = isAppInDarkTheme()
+                LaunchedEffect(dark) {
+                    enableEdgeToEdge(statusBarStyle = signalBarStyle(dark), navigationBarStyle = signalBarStyle(dark))
                 }
                 val secure = App.lock.hideScreenshots || com.vknxworks.filesctrl.ui.lock.SecureScreens.active > 0
                 // "Hide in recent apps", and always with the app lock on: a blank card instead of a snapshot.
