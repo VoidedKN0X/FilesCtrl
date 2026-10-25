@@ -50,6 +50,16 @@ class WebDavVfs(override val server: NetServer) : RemoteVfs {
             .readTimeout(t * 3, TimeUnit.SECONDS)
             .writeTimeout(t * 3, TimeUnit.SECONDS)
             .followRedirects(false)
+            .followSslRedirects(false)
+        // Plain HTTP only for the server address the user accepted the "unencrypted" warning for; never to any
+        // other host, and never as a downgrade from HTTPS (redirects aren't followed across schemes either).
+        val httpGuard = okhttp3.Interceptor { chain ->
+            val req = chain.request()
+            if (!req.isHttps && !(server.httpAccepted && sameServer(req.url))) throw IOException(App.str(R.string.webdav_http_not_accepted, server.host.trim()))
+            chain.proceed(req)
+        }
+        // Before credentials are added, and again for every request actually sent (sign-in retries included).
+        b.addInterceptor(httpGuard).addNetworkInterceptor(httpGuard)
         if (server.username.isNotBlank()) {
             // Answer challenges, and send credentials up front so PUT bodies aren't sent twice.
             val cred = Credentials.basic(server.username, server.password, Charsets.UTF_8)
@@ -83,6 +93,8 @@ class WebDavVfs(override val server: NetServer) : RemoteVfs {
     override fun close() { used = false }
 
     private fun exec(req: Request, what: String, path: String, redirects: Int = 0): Response {
+        // Nothing (not even the request without a password) goes to an http:// server the user hasn't accepted.
+        if (server.isPlainHttp && !server.httpAccepted) throw IOException(App.str(R.string.webdav_http_not_accepted, server.host.trim()))
         used = true
         val resp = try {
             client.newCall(req).execute()
@@ -318,6 +330,8 @@ class WebDavVfs(override val server: NetServer) : RemoteVfs {
         is java.net.SocketTimeoutException -> IOException(App.str(R.string.failed_the_server_stopped_responding, what))
         is java.net.ConnectException -> IOException(App.str(R.string.couldn_t_reach_on_port, server.host, server.effectivePort))
         is java.net.UnknownHostException -> IOException(App.str(R.string.unknown_server_address, server.host))
+        // Android's network security policy refused plain HTTP.
+        is java.net.UnknownServiceException -> IOException(App.str(R.string.err_cleartext_blocked, server.host))
         else -> IOException(App.str(R.string.failed_3, what, e.message ?: e.javaClass.simpleName))
     }
 }

@@ -61,6 +61,11 @@ data class NetServer(
     val secure: Boolean = false,
     /** Accept self-signed / untrusted TLS certificates (FTPS, WebDAV over HTTPS). */
     val insecureTls: Boolean = false,
+    /**
+     * WebDAV over plain HTTP: the server address the user accepted the "unencrypted connection" warning for.
+     * Empty = not accepted. Nothing is sent to an http:// WebDAV server unless this matches [host].
+     */
+    val httpAcceptedHost: String = "",
     val readOnly: Boolean = false,
     val timeoutSec: Int = 10,
     // NFS
@@ -72,6 +77,13 @@ data class NetServer(
 ) {
     val title: String get() = name.ifBlank { host }
     val effectivePort: Int get() = if (port > 0) port else type.port(secure)
+
+    /** WebDAV over plain HTTP (not encrypted). FTP without TLS is its own protocol and isn't counted here. */
+    val isPlainHttp: Boolean get() = type == Proto.WEBDAV && !secure
+
+    /** Plain HTTP WebDAV the user accepted the warning for, for this exact address. */
+    val httpAccepted: Boolean
+        get() = isPlainHttp && httpAcceptedHost.isNotBlank() && httpAcceptedHost.trim().equals(host.trim(), ignoreCase = true)
     val scheme: String
         get() = when (type) {
             Proto.NFS -> "nfs"
@@ -98,7 +110,7 @@ data class NetServer(
         .put("path", path).put("username", username).put("password", seal(password)).put("domain", domain)
         .put("privateKey", seal(privateKey)).put("hostKey", hostKey).put("certPin", certPin).put("secure", secure)
         .put("smbSigning", smbSigning).put("smbEncrypt", smbEncrypt).put("guest", guest)
-        .put("insecureTls", insecureTls).put("readOnly", readOnly).put("timeoutSec", timeoutSec)
+        .put("insecureTls", insecureTls).put("httpAcceptedHost", httpAcceptedHost).put("readOnly", readOnly).put("timeoutSec", timeoutSec)
         .put("version", version).put("uid", uid).put("gid", gid).put("mountPort", mountPort)
 
     companion object {
@@ -124,6 +136,7 @@ data class NetServer(
                 guest = if (o.has("guest")) o.optBoolean("guest", false) else type == Proto.SMB && o.optString("username").isBlank(),
                 secure = o.optBoolean("secure", false),
                 insecureTls = o.optBoolean("insecureTls", false),
+                httpAcceptedHost = o.optString("httpAcceptedHost"),
                 readOnly = o.optBoolean("readOnly", false),
                 timeoutSec = o.optInt("timeoutSec", 10),
                 version = o.optInt("version", 0),

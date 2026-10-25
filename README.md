@@ -28,6 +28,7 @@ Part of the [Ctrl series](#the-ctrl-series) by VKNXWorks.
 - **Built-in text editor** for config files and notes, also offered to other apps
 - **Read-only servers**: switch it on and FilesCtrl hides every option that would change something there, and refuses writes from other apps
 - **Checked connections**: SFTP host keys and self-signed WebDAV/FTPS certificates are only trusted after you confirm their fingerprint; SMB signing is on by default, with optional encryption
+- **WebDAV over HTTPS by default**; plain HTTP only for your own server, after a one-time warning, and marked *Not encrypted (HTTP)* in Places
 - Passwords and keys are stored encrypted; **app lock** with its own PIN and optional fingerprint unlock, which keeps saved passwords and keys encrypted while the app is locked
 - The Ctrl / Signal look shared by every Ctrl app: dark and light modes that follow your phone's dark theme, one violet accent, Space Grotesk and JetBrains Mono, and a tablet layout
 
@@ -94,6 +95,7 @@ Turn it on under **Settings > Privacy and security > App lock** (tap your profil
 **Telemetry-free.** FilesCtrl has no analytics, crash reporting, usage stats or tracking of any kind. It only talks to the servers you add: your NFS, SMB, SFTP, FTP/FTPS and WebDAV servers.
 
 - Files on your phone never leave it unless you copy, move or share them yourself.
+- WebDAV uses HTTPS by default. Plain HTTP is only used for your own server after you accept a warning that your password and files then travel unencrypted, and FilesCtrl never switches a server from HTTPS to HTTP or follows a redirect to HTTP.
 - The Support, Report a bug, Source code and Licence links on the You page (tap your profile picture) open in your browser, only when you tap them.
 
 ## Build from source

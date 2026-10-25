@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Server addresses are typed by the user, so cleartext can't be limited to fixed domains here.
+     Plain HTTP stays possible at the platform level because WebDAV servers often run on a home network,
+     but FilesCtrl enforces it in code (WebDavVfs): nothing is sent over HTTP except to a WebDAV server
+     address the user chose after the "unencrypted connection" warning, and never as a redirect from HTTPS.
+     Trust anchors stay what they were before this file existed (system CAs only); self-signed certificates
+     are pinned per server (TlsPin), which checks the pin before these anchors and isn't affected. -->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="true">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+</network-security-config>

@@ -4,6 +4,28 @@ What changed in each FilesCtrl version. Every release on the [Releases page](htt
 
 To publish a new version: bump `versionCode` and `versionName` in `app/build.gradle.kts`, add a section here, and push to `main`. Pushes without a version bump only build; they don't make a release.
 
+## 1.8.0 (2026-10-25)
+
+WebDAV servers without HTTPS work again, after a clear warning, and HTTPS stays the default.
+
+### Fixed
+
+- **WebDAV with "Use HTTPS" switched off connects again.** Android blocked every plain-HTTP connection, so a WebDAV server on your home network without HTTPS couldn't be opened, tested or used from other apps. It now works in the Files tab, the picture viewer, the system file picker and "Open with".
+
+### Changed
+
+- **New WebDAV servers start with Use HTTPS on.** Turn it off for a server that only speaks HTTP.
+- **You can paste a full WebDAV address** such as `http://nas.local:8080/dav` into **Server address**: FilesCtrl sets Use HTTPS, the port and the path from it. An address without `http://` or `https://` keeps using HTTPS.
+- **WebDAV servers on plain HTTP show "Not encrypted (HTTP)"** next to their address in Places, and under the **Use HTTPS** switch in the server editor.
+
+### Security
+
+- **One-time warning before plain HTTP.** Turning **Use HTTPS** off for a WebDAV server (or tapping **Test connection** or **Save** with it off) asks "Use an unencrypted connection?" first: your username, password and files would be sent unencrypted, which is fine on your home network or a VPN but risky anywhere else. **Use HTTP** remembers your choice for that server address; **Cancel** keeps everything as it was. Changing the address asks again.
+- **Nothing is sent to an HTTP WebDAV server you haven't accepted**, not even a request without your password. A WebDAV server saved with HTTPS off by an older version asks for this confirmation once: edit it and tap **Test connection** or **Save**.
+- **No silent downgrade to HTTP.** FilesCtrl never switches a server from HTTPS to HTTP, never follows a redirect from HTTPS to HTTP (or to another server), and only sends your password to the exact address you set.
+- Certificate checks are unchanged: HTTPS servers are checked against the phone's built-in certificates, and self-signed certificates you trusted are still checked by their fingerprint.
+- FTP without encryption is unchanged: it's a separate protocol and still shows its own warning under **Encrypt (FTPS)**.
+
 ## 1.7.1 (2026-10-25)
 
 Fixes for crashes when FilesCtrl closes, and tighter checks on names and paths that come from other apps and servers.

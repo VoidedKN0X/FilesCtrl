@@ -92,6 +92,7 @@ import com.vknxworks.filesctrl.ui.theme.CtrlFonts
 import com.vknxworks.filesctrl.ui.theme.CtrlShapes
 import com.vknxworks.filesctrl.ui.components.CtrlAlertDialog
 import com.vknxworks.filesctrl.ui.components.CtrlTextField
+import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 
 private sealed interface TestResult {
     data object Running : TestResult
@@ -127,6 +128,10 @@ fun ServerEditScreen(serverId: String?, onDone: (openId: String?) -> Unit) {
     var untrusted by remember { mutableStateOf<com.vknxworks.filesctrl.fs.UntrustedIdentityException?>(null) }
     var secure by remember { mutableStateOf(base.secure) }
     var insecureTls by remember { mutableStateOf(base.insecureTls) }
+    /** The address the user accepted plain HTTP for (WebDAV only). */
+    var httpOkHost by remember { mutableStateOf(base.httpAcceptedHost) }
+    /** Waiting for "Use HTTP" / Cancel: what to do once accepted (Cancel does nothing). */
+    var askHttp by remember { mutableStateOf<(() -> Unit)?>(null) }
     var readOnly by remember { mutableStateOf(base.readOnly) }
     var timeout by remember { mutableStateOf(base.timeoutSec.toString()) }
     var version by remember { mutableStateOf(base.version) }
@@ -173,6 +178,8 @@ fun ServerEditScreen(serverId: String?, onDone: (openId: String?) -> Unit) {
         guest = type == Proto.SMB && guest,
         secure = secure,
         insecureTls = insecureTls,
+        // Kept only while this is plain-HTTP WebDAV; turning HTTPS back on forgets it.
+        httpAcceptedHost = if (type == Proto.WEBDAV && !secure) httpOkHost.trim() else "",
         readOnly = readOnly,
         timeoutSec = timeout.toIntOrNull()?.coerceIn(2, 120) ?: 10,
         version = version,
@@ -180,6 +187,34 @@ fun ServerEditScreen(serverId: String?, onDone: (openId: String?) -> Unit) {
         gid = gid.toIntOrNull() ?: 1000,
         mountPort = mountPort.toIntOrNull()?.coerceIn(0, 65535) ?: 0,
     )
+
+    /**
+     * WebDAV: an address typed or pasted as a URL ("http://nas:8080/dav") sets HTTPS on or off, the port and
+     * the path from it. Without a scheme nothing changes (new WebDAV servers use HTTPS).
+     */
+    fun normalizeAddress() {
+        if (type != Proto.WEBDAV) return
+        val raw = host.trim()
+        val lower = raw.lowercase()
+        if (!lower.startsWith("http://") && !lower.startsWith("https://")) return
+        val u = raw.toHttpUrlOrNull() ?: return
+        secure = u.isHttps
+        host = u.host
+        val explicitPort = Regex("^[a-zA-Z]+://[^/?#]*:(\\d+)").find(raw) != null
+        if (explicitPort) port = u.port.toString()
+        if (u.encodedPath != "/" && path.isBlank()) path = u.encodedPath.trimEnd('/')
+    }
+
+    /** Runs [then] with the built server, after the one-time "unencrypted connection" question if it's plain HTTP. */
+    fun withHttpOk(then: (NetServer) -> Unit) {
+        normalizeAddress()
+        val s = build()
+        if (!s.isPlainHttp || s.httpAccepted) { then(s); return }
+        askHttp = {
+            httpOkHost = host.trim()
+            then(build())
+        }
+    }
 
     fun runTest(s: NetServer) {
         test = TestResult.Running
@@ -259,12 +294,13 @@ fun ServerEditScreen(serverId: String?, onDone: (openId: String?) -> Unit) {
                     if (existing != null) CtrlIconButton(Icons.Outlined.Delete, stringResource(R.string.remove), onClick = { confirmDelete = true }, tint = CtrlColors.Error)
                     Spacer(Modifier.width(6.dp))
                     CtrlButton(enabled = valid, height = 44.dp, onClick = {
-                        val s = build()
-                        try {
-                            App.servers.save(s)
-                            onDone(if (existing == null) s.id else null)
-                        } catch (e: Exception) {
-                            message = e.message ?: App.str(R.string.couldn_t_save_the_server)
+                        withHttpOk { s ->
+                            try {
+                                App.servers.save(s)
+                                onDone(if (existing == null) s.id else null)
+                            } catch (e: Exception) {
+                                message = e.message ?: App.str(R.string.couldn_t_save_the_server)
+                            }
                         }
                     }) { Text(stringResource(R.string.save), fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold) }
                 },
@@ -280,7 +316,11 @@ fun ServerEditScreen(serverId: String?, onDone: (openId: String?) -> Unit) {
                 Proto.entries.forEach { p ->
                     FilterChip(
                         selected = type == p,
-                        onClick = { type = p; test = null },
+                        onClick = {
+                            type = p; test = null
+                            // A new WebDAV server uses HTTPS unless the user turns it off; FTP stays plain unless FTPS is chosen.
+                            if (existing == null) secure = p == Proto.WEBDAV
+                        },
                         label = { Text(p.label.uppercase(), fontFamily = CtrlFonts.Mono, fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold) },
                         leadingIcon = { Icon(protoIcon(p), null, Modifier.size(18.dp)) },
                         shape = CtrlShapes.Badge,
@@ -384,12 +424,25 @@ fun ServerEditScreen(serverId: String?, onDone: (openId: String?) -> Unit) {
                 SwitchRow(
                     if (type == Proto.FTP) stringResource(R.string.encrypt_ftps) else stringResource(R.string.use_https),
                     when {
+                        !secure && type == Proto.WEBDAV -> App.str(R.string.webdav_http_warning)
                         !secure -> App.str(R.string.off_your_password_and_files_travel)
                         type == Proto.FTP -> App.str(R.string.explicit_tls_on_the_normal_ftp_port)
                         else -> null
                     },
                     secure,
-                ) { secure = it }
+                ) { on ->
+                    // WebDAV: turning HTTPS off asks once for this address (again at Save / Test if it changes).
+                    if (!on && type == Proto.WEBDAV && host.isNotBlank() && !httpOkHost.trim().equals(host.trim(), ignoreCase = true)) {
+                        askHttp = {
+                            httpOkHost = host.trim()
+                            secure = false
+                            test = null
+                        }
+                    } else {
+                        secure = on
+                        test = null
+                    }
+                }
                 if (secure) SwitchRow(
                     stringResource(R.string.accept_self_signed_certificates),
                     stringResource(R.string.for_your_own_server_with_a),
@@ -544,11 +597,7 @@ fun ServerEditScreen(serverId: String?, onDone: (openId: String?) -> Unit) {
             CtrlButton(
                 height = 56.dp,
                 enabled = valid && test != TestResult.Running,
-                onClick = {
-                    test = TestResult.Running
-                    val s = build()
-                    runTest(s)
-                },
+                onClick = { withHttpOk { s -> runTest(s) } },
                 modifier = Modifier.fillMaxWidth(),
             ) {
                 if (test == TestResult.Running) {
@@ -583,6 +632,13 @@ fun ServerEditScreen(serverId: String?, onDone: (openId: String?) -> Unit) {
         )
     }
     message?.let { m -> InfoDialog(stringResource(R.string.network), m) { message = null } }
+    askHttp?.let { onAccept ->
+        HttpWarningDialog(
+            host = host.trim().ifBlank { App.str(R.string.my_nas) },
+            onDismiss = { askHttp = null },
+            onAccept = { askHttp = null; onAccept() },
+        )
+    }
     untrusted?.let { u ->
         TrustDialog(u, host.trim(), onDismiss = { untrusted = null }) {
             untrusted = null
@@ -590,6 +646,23 @@ fun ServerEditScreen(serverId: String?, onDone: (openId: String?) -> Unit) {
             runTest(build())
         }
     }
+}
+
+/** The Ctrl series' one-time question before using plain HTTP for a server. Nothing is sent before "Use HTTP". */
+@Composable
+private fun HttpWarningDialog(host: String, onDismiss: () -> Unit, onAccept: () -> Unit) {
+    CtrlAlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.http_title)) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(stringResource(R.string.http_body, host))
+                Text(stringResource(R.string.http_nothing_sent_yet), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        },
+        confirmButton = { TextButton(onClick = onAccept) { Text(stringResource(R.string.http_confirm), color = CtrlColors.Error) } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.lock_cancel)) } },
+    )
 }
 
 @Composable
