@@ -4,6 +4,33 @@ What changed in each FilesCtrl version. Every release on the [Releases page](htt
 
 To publish a new version: bump `versionCode` and `versionName` in `app/build.gradle.kts`, add a section here, and push to `main`. Pushes without a version bump only build; they don't make a release.
 
+## 1.6.0 (2026-10-25)
+
+Save what other apps share straight into any folder, on your phone or on a server; work out and compare checksums; and put folders on your home screen.
+
+### New
+
+- **Save to FilesCtrl** in Android's share sheet. Share one or more files of any type from another app (photos, downloads, documents, anything) and pick **Save to FilesCtrl**. A folder chooser opens with your phone's storage, SD cards and USB drives, every saved network location (NFS, SMB, SFTP, FTP/FTPS, WebDAV) and your bookmarks. Open the folder you want (you can make a new folder from the top bar) and tap **Save here**.
+  - The files are saved in the background by the same copy that Paste uses, with its progress notification and a **Cancel** button, so large files and slow servers keep going after the screen closes.
+  - **Shared text** (a link or a note shared from a browser or chat app, for example) is saved as a `.txt` file named after its subject, or "Shared text" with the date and time.
+  - Nothing in the folder is ever replaced: a name that's already taken gets " (1)", " (2)" and so on. Names are cleaned up so they can't point outside the chosen folder, and a file without an extension gets one from its type.
+  - **The folder you saved to last is remembered** and offered first, under **Last used**, and the chooser opens straight in it.
+  - Servers saved as read-only, and folders inside archives, can be browsed in the chooser but not saved to: the button says **Read-only**.
+  - With the app lock on, the lock screen comes first and nothing is listed until you unlock. **Hide in screenshots** and **Hide in recent apps** apply to the chooser too, and it doesn't stay in the recent-apps list after it closes.
+- **Checksums.** In a file's ⋮ menu, in the ⋮ menu of selection mode (one file selected) and in **Properties**, **Checksums** works out the file's **MD5, SHA-1, SHA-256, SHA-512 and CRC32** in a single read. It works on files on your phone and on any server (read straight from the server, nothing is copied to the phone first), with a progress bar showing how much has been read so far. Each result has a copy button. Closing the dialog stops the reading.
+  - **Compare with**: paste a hash (or tap the paste button in the field) and FilesCtrl says which checksum it matches, highlighting it. Spaces, colons, dashes and upper case are ignored, and a line copied from a checksum file (`<hash>  file.iso`) works too. When it doesn't match, it says which kind of hash the pasted one looks like.
+- **Add to home screen** for folders and bookmarks. In a folder's ⋮ menu, in the Files tab's ⋮ menu (for the folder you're in), in a folder's **Properties** and with the new home button next to each bookmark in **Places**, FilesCtrl asks your launcher to put a shortcut on the home screen. Tapping it opens FilesCtrl in that folder, on your phone or on a server, after the app lock when it's on. Folders on your phone get a folder icon, network locations a cloud icon.
+- **Your bookmarks on the app icon.** Long-press FilesCtrl's icon on the home screen to open one of your first four bookmarks directly (also through the app lock). The list follows your bookmarks as you add and remove them. Turn it off under **Settings > Files > Bookmarks on the app icon**.
+
+### Changed
+
+- A home screen shortcut to a network location you remove from FilesCtrl is greyed out by the launcher, saying the location was removed, instead of opening an error.
+
+### Security
+
+- Shortcuts only hold the folder's place (the server it's on and the path), never a password, key or address. FilesCtrl only opens a shortcut that points at your phone's own storage volumes or at a saved server, so another app can't use one to open anything else.
+- Save to FilesCtrl only reads the `content://` links it's given, never `file://` paths, so another app can't make it copy FilesCtrl's own private files somewhere.
+
 ## 1.5.0 (2026-10-25)
 
 Light mode that follows the device theme: FilesCtrl is now light when your phone's dark theme is off and dark when it's on, and switches by itself the moment you change it (also when your phone changes it on a schedule, at sunset for example).

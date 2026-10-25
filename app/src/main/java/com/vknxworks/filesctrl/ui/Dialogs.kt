@@ -182,6 +182,7 @@ fun PropertiesDialog(entry: FileEntry, onDismiss: () -> Unit, onChanged: () -> U
     var space by remember { mutableStateOf<String?>(null) }
     var linkTarget by remember { mutableStateOf<String?>(null) }
     var chmod by remember { mutableStateOf(false) }
+    var checksums by remember { mutableStateOf(false) }
     val vfs = App.vfs.find(e.vfsId)
 
     LaunchedEffect(entry.path) {
@@ -223,6 +224,10 @@ fun PropertiesDialog(entry: FileEntry, onDismiss: () -> Unit, onChanged: () -> U
                 linkTarget?.let { PropRow(stringResource(R.string.link_to), it, mono = true) }
                 if (e.mode != 0) PropRow(stringResource(R.string.permissions), "${Fmt.perms(e.mode)}  (${Fmt.octal(e.mode)})", mono = true)
                 if (e.uid >= 0) PropRow(stringResource(R.string.owner), stringResource(R.string.uid_gid, e.uid, e.gid), mono = true)
+                if (!e.isDir) TextButton(onClick = { checksums = true }) { Text(stringResource(R.string.checksums)) }
+                if (e.isDir && com.vknxworks.filesctrl.shortcuts.Shortcuts.canPin(e.location)) TextButton(onClick = { pinShortcut(ctx, e.name, e.location) }) {
+                    Text(stringResource(R.string.add_to_home_screen))
+                }
             }
         },
         confirmButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.close)) } },
@@ -230,6 +235,8 @@ fun PropertiesDialog(entry: FileEntry, onDismiss: () -> Unit, onChanged: () -> U
             if (vfs?.canChmod == true && e.mode != 0 && !e.isLink) TextButton(onClick = { chmod = true }) { Text(stringResource(R.string.permissions)) }
         },
     )
+
+    if (checksums) ChecksumDialog(e) { checksums = false }
 
     if (chmod) {
         ChmodDialog(e, onDismiss = { chmod = false }) { mode ->

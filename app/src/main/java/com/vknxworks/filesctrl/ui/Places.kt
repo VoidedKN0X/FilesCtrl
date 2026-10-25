@@ -21,6 +21,7 @@ import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.Cloud
 import androidx.compose.material.icons.outlined.Dns
 import androidx.compose.material.icons.outlined.Edit
+import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.Lan
 import androidx.compose.material.icons.outlined.SdCard
 import androidx.compose.material.icons.outlined.SwapVert
@@ -186,6 +187,11 @@ fun PlacesTab(current: Location, onOpen: (Location) -> Unit, onAddServer: () -> 
                     title = b.name,
                     meta = App.vfs.find(b.location.vfsId)?.title,
                     trailing = {
+                        if (com.vknxworks.filesctrl.shortcuts.Shortcuts.canPin(b.location)) {
+                            IconButton(onClick = { pinShortcut(ctx, b.name, b.location) }) {
+                                Icon(Icons.Outlined.Home, stringResource(R.string.add_to_home_screen), Modifier.size(18.dp), tint = CtrlColors.Muted)
+                            }
+                        }
                         IconButton(onClick = { App.bookmarks.remove(b.location) }) {
                             Icon(Icons.Outlined.Close, stringResource(R.string.remove_bookmark), Modifier.size(18.dp), tint = CtrlColors.Muted)
                         }

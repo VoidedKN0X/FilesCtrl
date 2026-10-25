@@ -20,6 +20,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.outlined.Sort
 import androidx.compose.material.icons.outlined.BatteryChargingFull
+import androidx.compose.material.icons.outlined.Bookmarks
 import androidx.compose.material.icons.outlined.Contrast
 import androidx.compose.material.icons.outlined.DarkMode
 import androidx.compose.material.icons.outlined.Delete
@@ -187,6 +188,15 @@ fun SettingsScreen() {
                     Icons.Outlined.Image, stringResource(R.string.thumbnails_on_network_locations),
                     stringResource(R.string.load_image_previews_over_the_network), s.nfsThumbnails,
                 ) { s.nfsThumbnails = it }
+                ItemDivider()
+                ToggleItem(
+                    Icons.Outlined.Bookmarks, stringResource(R.string.launcher_bookmarks),
+                    stringResource(R.string.launcher_bookmarks_subtitle), s.launcherBookmarks,
+                ) {
+                    s.launcherBookmarks = it
+                    val app = ctx.applicationContext
+                    Thread { com.vknxworks.filesctrl.shortcuts.Shortcuts.updateDynamic(app) }.start()
+                }
             }
         }
 
