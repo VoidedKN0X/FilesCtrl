@@ -78,7 +78,7 @@ Settings and About are behind your profile picture at the top right of the Files
 | Permission | What it's for |
 | --- | --- |
 | Internet | Connecting to the NFS, SMB, SFTP, FTP and WebDAV servers you add. Nothing else |
-| View network connections | Seeing whether the phone has a network connection. It doesn't give access to your Wi-Fi name or your location |
+| View network connections | Listed in the app, but FilesCtrl doesn't currently use it. It only says whether a network is available; it doesn't give access to your Wi-Fi name or your location |
 | Prevent phone from sleeping | Keeps the phone and Wi-Fi awake while a long copy or move runs with the screen off |
 | Ask to ignore battery optimisations | Only when you tap the battery option in Settings, so big transfers aren't stopped in the background |
 | All files access | Browsing your phone's own storage, SD cards and USB drives. Network shares work without it |
