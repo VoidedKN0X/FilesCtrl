@@ -4,6 +4,23 @@ What changed in each FilesCtrl version. Every release on the [Releases page](htt
 
 To publish a new version: bump `versionCode` and `versionName` in `app/build.gradle.kts`, add a section here, and push to `main`. Pushes without a version bump only build; they don't make a release.
 
+## 1.8.1 (2026-11-02)
+
+Popup menus no longer show a grey box around them.
+
+### Fixed
+
+- **Popup menus no longer show a grey box**: Every popup menu still drew Material's default shadow and tint. The shadow is drawn inside the popup's own window, so it showed up as a grey, square-ish edge around the menu, most visibly in light mode. Menus are now a flat Signal surface (dark grey #141417 in dark mode, white in light mode) with 16dp rounded corners, a thin 1dp border (#232328 dark, #DEDED7 light), and no shadow or tint.
+- **Menu items use the Signal colours**: text in the normal text colour, icons in the muted grey, and unavailable items greyed out. **Delete** in a file's ⋮ menu is shown in red.
+- **Menus changed**:
+  - The Files tab's sort menu (name, size, date and so on; Descending; Folders first)
+  - The Files tab's ⋮ menu (grid/list view, hidden files, select all, refresh, bookmark, copy path, extract all, folder properties)
+  - The ⋮ menu in selection mode (select all, share, rename, compress, extract here, open with, copy path, properties)
+  - The ⋮ menu on each file and folder (also in search results)
+  - The text editor's ⋮ menu (Save a copy)
+  - The server editor's list of NFS servers found on the network, and its list of a server's NFS exports
+- Nothing else changes: the same items, in the same order, doing the same things.
+
 ## 1.8.0 (2026-10-25)
 
 WebDAV servers without HTTPS work again, after a clear warning, and HTTPS stays the default.

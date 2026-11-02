@@ -35,6 +35,12 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExposedDropdownMenuBoxScope
+import androidx.compose.material3.MenuDefaults
+import androidx.compose.material3.MenuItemColors
+import androidx.compose.ui.unit.DpOffset
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Button
@@ -620,4 +626,84 @@ fun CtrlBottomBar(
             }
         }
     }
+}
+
+/**
+ * Popup menu in the Signal look: flat palette surface, 16dp corners, 1dp card border and no shadow or tonal tint
+ * (Material's default shadow drew a grey box around the popup). Same parameters as Material's DropdownMenu.
+ */
+@Composable
+fun CtrlDropdownMenu(
+    expanded: Boolean,
+    onDismissRequest: () -> Unit,
+    modifier: Modifier = Modifier,
+    offset: DpOffset = DpOffset(0.dp, 0.dp),
+    content: @Composable ColumnScope.() -> Unit,
+) {
+    DropdownMenu(
+        expanded = expanded,
+        onDismissRequest = onDismissRequest,
+        modifier = modifier,
+        offset = offset,
+        shape = CtrlShapes.Menu,
+        containerColor = CtrlColors.Surface,
+        tonalElevation = 0.dp,
+        shadowElevation = 0.dp,
+        border = BorderStroke(1.dp, CtrlColors.CardBorder),
+        content = content,
+    )
+}
+
+/** Menu item colours: palette text, muted icons, palette disabled colour. */
+@Composable
+fun ctrlMenuItemColors(destructive: Boolean = false): MenuItemColors = MenuDefaults.itemColors(
+    textColor = if (destructive) CtrlColors.Error else CtrlColors.Text,
+    leadingIconColor = if (destructive) CtrlColors.Error else CtrlColors.Muted,
+    trailingIconColor = CtrlColors.Muted,
+    disabledTextColor = CtrlColors.Inactive,
+    disabledLeadingIconColor = CtrlColors.Inactive,
+    disabledTrailingIconColor = CtrlColors.Inactive,
+)
+
+/** A menu row with the Signal item colours. Same parameters as Material's DropdownMenuItem. */
+@Composable
+fun CtrlDropdownMenuItem(
+    text: @Composable () -> Unit,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    leadingIcon: (@Composable () -> Unit)? = null,
+    trailingIcon: (@Composable () -> Unit)? = null,
+    enabled: Boolean = true,
+    destructive: Boolean = false,
+) {
+    DropdownMenuItem(
+        text = text,
+        onClick = onClick,
+        modifier = modifier,
+        leadingIcon = leadingIcon,
+        trailingIcon = trailingIcon,
+        enabled = enabled,
+        colors = ctrlMenuItemColors(destructive),
+    )
+}
+
+/** The exposed (anchored) version of [CtrlDropdownMenu], for ExposedDropdownMenuBox. */
+@Composable
+fun ExposedDropdownMenuBoxScope.CtrlExposedDropdownMenu(
+    expanded: Boolean,
+    onDismissRequest: () -> Unit,
+    modifier: Modifier = Modifier,
+    content: @Composable ColumnScope.() -> Unit,
+) {
+    ExposedDropdownMenu(
+        expanded = expanded,
+        onDismissRequest = onDismissRequest,
+        modifier = modifier,
+        shape = CtrlShapes.Menu,
+        containerColor = CtrlColors.Surface,
+        tonalElevation = 0.dp,
+        shadowElevation = 0.dp,
+        border = BorderStroke(1.dp, CtrlColors.CardBorder),
+        content = content,
+    )
 }

@@ -91,8 +91,6 @@ import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.HorizontalDivider
@@ -154,6 +152,8 @@ import kotlinx.coroutines.withContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.res.pluralStringResource
 import com.vknxworks.filesctrl.R
+import com.vknxworks.filesctrl.ui.components.CtrlDropdownMenu
+import com.vknxworks.filesctrl.ui.components.CtrlDropdownMenuItem
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.heightIn
@@ -469,21 +469,21 @@ private fun MainBar(vm: BrowserViewModel, pane: Pane?, compact: Boolean, onDialo
             CtrlIconButton(Icons.Outlined.Search, stringResource(R.string.search), onClick = { vm.searchOpen = true })
             Box {
                 CtrlIconButton(Icons.AutoMirrored.Outlined.Sort, stringResource(R.string.sort), onClick = { sortMenu = true })
-                DropdownMenu(expanded = sortMenu, onDismissRequest = { sortMenu = false }) {
+                CtrlDropdownMenu(expanded = sortMenu, onDismissRequest = { sortMenu = false }) {
                     SortBy.entries.forEach { by ->
-                        DropdownMenuItem(
+                        CtrlDropdownMenuItem(
                             text = { Text(by.name) },
                             leadingIcon = { if (s.sortBy == by) Icon(Icons.Outlined.Check, null) else Spacer(Modifier.size(24.dp)) },
                             onClick = { s.sortBy = by; sortMenu = false },
                         )
                     }
                     HorizontalDivider()
-                    DropdownMenuItem(
+                    CtrlDropdownMenuItem(
                         text = { Text(stringResource(R.string.descending)) },
                         leadingIcon = { if (s.sortDescending) Icon(Icons.Outlined.Check, null) else Spacer(Modifier.size(24.dp)) },
                         onClick = { s.sortDescending = !s.sortDescending; sortMenu = false },
                     )
-                    DropdownMenuItem(
+                    CtrlDropdownMenuItem(
                         text = { Text(stringResource(R.string.folders_first)) },
                         leadingIcon = { if (s.foldersFirst) Icon(Icons.Outlined.Check, null) else Spacer(Modifier.size(24.dp)) },
                         onClick = { s.foldersFirst = !s.foldersFirst; sortMenu = false },
@@ -492,44 +492,44 @@ private fun MainBar(vm: BrowserViewModel, pane: Pane?, compact: Boolean, onDialo
             }
             Box {
                 CtrlIconButton(Icons.Outlined.MoreVert, stringResource(R.string.more), onClick = { menu = true })
-                DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
-                    if (pane != null && pane.tabs.size < BrowserTabs.MAX_TABS) DropdownMenuItem(
+                CtrlDropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
+                    if (pane != null && pane.tabs.size < BrowserTabs.MAX_TABS) CtrlDropdownMenuItem(
                         text = { Text(stringResource(R.string.new_tab)) },
                         leadingIcon = { Icon(Icons.Outlined.Tab, null) },
                         onClick = { menu = false; BrowserTabs.openTab(vm, vm.location) },
                     )
-                    if (pane != null && pane.tabs.size > 1) DropdownMenuItem(
+                    if (pane != null && pane.tabs.size > 1) CtrlDropdownMenuItem(
                         text = { Text(stringResource(R.string.close_this_tab)) },
                         leadingIcon = { Icon(Icons.Outlined.Close, null) },
                         onClick = { menu = false; pane.close(pane.active) },
                     )
-                    if (BrowserTabs.wideWindow) DropdownMenuItem(
+                    if (BrowserTabs.wideWindow) CtrlDropdownMenuItem(
                         text = { Text(if (s.dualPane) stringResource(R.string.single_pane) else stringResource(R.string.dual_pane)) },
                         leadingIcon = { Icon(Icons.Outlined.VerticalSplit, null) },
                         onClick = { menu = false; s.dualPane = !s.dualPane },
                     )
-                    DropdownMenuItem(
+                    CtrlDropdownMenuItem(
                         text = { Text(if (s.gridView) stringResource(R.string.list_view) else stringResource(R.string.grid_view)) },
                         leadingIcon = { Icon(if (s.gridView) Icons.Outlined.ViewList else Icons.Outlined.GridView, null) },
                         onClick = { s.gridView = !s.gridView; menu = false },
                     )
-                    DropdownMenuItem(
+                    CtrlDropdownMenuItem(
                         text = { Text(if (s.showHidden) stringResource(R.string.hide_hidden_files) else stringResource(R.string.show_hidden_files)) },
                         leadingIcon = { Icon(if (s.showHidden) Icons.Outlined.VisibilityOff else Icons.Outlined.Visibility, null) },
                         onClick = { s.showHidden = !s.showHidden; menu = false },
                     )
-                    DropdownMenuItem(
+                    CtrlDropdownMenuItem(
                         text = { Text(stringResource(R.string.select_all)) },
                         leadingIcon = { Icon(Icons.Outlined.SelectAll, null) },
                         onClick = { vm.selectAll(); menu = false },
                     )
-                    DropdownMenuItem(
+                    CtrlDropdownMenuItem(
                         text = { Text(stringResource(R.string.refresh)) },
                         leadingIcon = { Icon(Icons.Outlined.Refresh, null) },
                         onClick = { vm.load(); menu = false },
                     )
                     val marked = App.bookmarks.contains(vm.location)
-                    DropdownMenuItem(
+                    CtrlDropdownMenuItem(
                         text = { Text(if (marked) stringResource(R.string.remove_bookmark) else stringResource(R.string.bookmark_this_folder)) },
                         leadingIcon = { Icon(if (marked) Icons.Outlined.BookmarkRemove else Icons.Outlined.BookmarkAdd, null) },
                         onClick = {
@@ -538,7 +538,7 @@ private fun MainBar(vm: BrowserViewModel, pane: Pane?, compact: Boolean, onDialo
                             menu = false
                         },
                     )
-                    if (com.vknxworks.filesctrl.shortcuts.Shortcuts.canPin(vm.location)) DropdownMenuItem(
+                    if (com.vknxworks.filesctrl.shortcuts.Shortcuts.canPin(vm.location)) CtrlDropdownMenuItem(
                         text = { Text(stringResource(R.string.add_to_home_screen)) },
                         leadingIcon = { Icon(Icons.Outlined.Home, null) },
                         onClick = {
@@ -546,7 +546,7 @@ private fun MainBar(vm: BrowserViewModel, pane: Pane?, compact: Boolean, onDialo
                             pinShortcut(ctx, App.bookmarks.all.firstOrNull { it.location == vm.location }?.name ?: vm.title, vm.location)
                         },
                     )
-                    DropdownMenuItem(
+                    CtrlDropdownMenuItem(
                         text = { Text(stringResource(R.string.copy_path)) },
                         leadingIcon = { Icon(Icons.Outlined.Link, null) },
                         onClick = {
@@ -557,7 +557,7 @@ private fun MainBar(vm: BrowserViewModel, pane: Pane?, compact: Boolean, onDialo
                         },
                     )
                     vm.archiveFile?.let { arc ->
-                        DropdownMenuItem(
+                        CtrlDropdownMenuItem(
                             text = { Text(stringResource(R.string.extract_all)) },
                             leadingIcon = { Icon(Icons.Outlined.Unarchive, null) },
                             onClick = {
@@ -566,7 +566,7 @@ private fun MainBar(vm: BrowserViewModel, pane: Pane?, compact: Boolean, onDialo
                             },
                         )
                     }
-                    DropdownMenuItem(
+                    CtrlDropdownMenuItem(
                         text = { Text(stringResource(R.string.folder_properties)) },
                         leadingIcon = { Icon(Icons.Outlined.Info, null) },
                         onClick = {
@@ -631,36 +631,36 @@ private fun SelectionBar(vm: BrowserViewModel, readOnly: Boolean, onDialog: (Dlg
             })
             Box {
                 CtrlIconButton(Icons.Outlined.MoreVert, stringResource(R.string.more), onClick = { menu = true }, tint = CtrlColors.Ink)
-                DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
-                    DropdownMenuItem(text = { Text(stringResource(R.string.select_all)) }, leadingIcon = { Icon(Icons.Outlined.SelectAll, null) },
+                CtrlDropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
+                    CtrlDropdownMenuItem(text = { Text(stringResource(R.string.select_all)) }, leadingIcon = { Icon(Icons.Outlined.SelectAll, null) },
                         onClick = { vm.selectAll(); menu = false })
                     if (onOtherPane != null) {
                         val other = BrowserTabs.otherLocation(vm)
                         val otherWritable = other != null && canWriteTo(other)
-                        DropdownMenuItem(text = { Text(stringResource(R.string.copy_to_other_pane)) }, leadingIcon = { Icon(Icons.Outlined.ContentCopy, null) },
+                        CtrlDropdownMenuItem(text = { Text(stringResource(R.string.copy_to_other_pane)) }, leadingIcon = { Icon(Icons.Outlined.ContentCopy, null) },
                             enabled = otherWritable, onClick = { menu = false; onOtherPane(false) })
-                        if (!readOnly) DropdownMenuItem(text = { Text(stringResource(R.string.move_to_other_pane)) }, leadingIcon = { Icon(Icons.AutoMirrored.Outlined.DriveFileMove, null) },
+                        if (!readOnly) CtrlDropdownMenuItem(text = { Text(stringResource(R.string.move_to_other_pane)) }, leadingIcon = { Icon(Icons.AutoMirrored.Outlined.DriveFileMove, null) },
                             enabled = otherWritable, onClick = { menu = false; onOtherPane(true) })
                     }
-                    if (sel.any { !it.isDir }) DropdownMenuItem(text = { Text(stringResource(R.string.share)) }, leadingIcon = { Icon(Icons.Outlined.Share, null) },
+                    if (sel.any { !it.isDir }) CtrlDropdownMenuItem(text = { Text(stringResource(R.string.share)) }, leadingIcon = { Icon(Icons.Outlined.Share, null) },
                         onClick = { menu = false; shareFiles(ctx, sel) })
-                    if (single != null && !readOnly) DropdownMenuItem(text = { Text(stringResource(R.string.rename)) }, leadingIcon = { Icon(Icons.Outlined.DriveFileRenameOutline, null) },
+                    if (single != null && !readOnly) CtrlDropdownMenuItem(text = { Text(stringResource(R.string.rename)) }, leadingIcon = { Icon(Icons.Outlined.DriveFileRenameOutline, null) },
                         onClick = { menu = false; vm.selection.clear(); onDialog(Dlg.Rename(single)) })
-                    if (!readOnly) DropdownMenuItem(text = { Text(stringResource(R.string.compress)) }, leadingIcon = { Icon(Icons.Outlined.FolderZip, null) },
+                    if (!readOnly) CtrlDropdownMenuItem(text = { Text(stringResource(R.string.compress)) }, leadingIcon = { Icon(Icons.Outlined.FolderZip, null) },
                         onClick = { menu = false; onDialog(Dlg.Compress(sel)) })
-                    if (single != null && Mime.canBrowseAsArchive(single) && !readOnly) DropdownMenuItem(text = { Text(stringResource(R.string.extract_here)) }, leadingIcon = { Icon(Icons.Outlined.Unarchive, null) },
+                    if (single != null && Mime.canBrowseAsArchive(single) && !readOnly) CtrlDropdownMenuItem(text = { Text(stringResource(R.string.extract_here)) }, leadingIcon = { Icon(Icons.Outlined.Unarchive, null) },
                         onClick = { menu = false; vm.selection.clear(); onDialog(Dlg.Extract(single, vm.location)) })
-                    if (single != null && !single.isDir) DropdownMenuItem(text = { Text(stringResource(R.string.open_with)) }, leadingIcon = { Icon(Icons.AutoMirrored.Outlined.OpenInNew, null) },
+                    if (single != null && !single.isDir) CtrlDropdownMenuItem(text = { Text(stringResource(R.string.open_with)) }, leadingIcon = { Icon(Icons.AutoMirrored.Outlined.OpenInNew, null) },
                         onClick = { menu = false; openFile(ctx, single, chooser = true) })
-                    DropdownMenuItem(text = { Text(stringResource(R.string.copy_path)) }, leadingIcon = { Icon(Icons.Outlined.Link, null) },
+                    CtrlDropdownMenuItem(text = { Text(stringResource(R.string.copy_path)) }, leadingIcon = { Icon(Icons.Outlined.Link, null) },
                         onClick = {
                             menu = false
                             copyText(ctx, App.str(R.string.paths), sel.joinToString("\n") { displayPath(it) })
                             Toast.makeText(ctx, if (sel.size == 1) App.str(R.string.path_copied) else App.str(R.string.paths_copied, sel.size), Toast.LENGTH_SHORT).show()
                         })
-                    if (single != null && !single.isDir) DropdownMenuItem(text = { Text(stringResource(R.string.checksums)) }, leadingIcon = { Icon(Icons.Outlined.Tag, null) },
+                    if (single != null && !single.isDir) CtrlDropdownMenuItem(text = { Text(stringResource(R.string.checksums)) }, leadingIcon = { Icon(Icons.Outlined.Tag, null) },
                         onClick = { menu = false; onDialog(Dlg.Checksum(single)) })
-                    if (single != null) DropdownMenuItem(text = { Text(stringResource(R.string.properties)) }, leadingIcon = { Icon(Icons.Outlined.Info, null) },
+                    if (single != null) CtrlDropdownMenuItem(text = { Text(stringResource(R.string.properties)) }, leadingIcon = { Icon(Icons.Outlined.Info, null) },
                         onClick = { menu = false; onDialog(Dlg.Props(single)) })
                 }
             }
@@ -712,10 +712,10 @@ private fun handleItemAction(
 
 @Composable
 private fun ItemMenu(e: FileEntry, readOnly: Boolean, inSearch: Boolean, expanded: Boolean, onDismiss: () -> Unit, onAction: (ItemAction) -> Unit) {
-    DropdownMenu(expanded = expanded, onDismissRequest = onDismiss) {
+    CtrlDropdownMenu(expanded = expanded, onDismissRequest = onDismiss) {
         @Composable
         fun entry(label: String, icon: ImageVector, a: ItemAction) {
-            DropdownMenuItem(text = { Text(label) }, leadingIcon = { Icon(icon, null) }, onClick = { onDismiss(); onAction(a) })
+            CtrlDropdownMenuItem(text = { Text(label) }, leadingIcon = { Icon(icon, null) }, onClick = { onDismiss(); onAction(a) }, destructive = a == ItemAction.Delete)
         }
         if (inSearch) entry(stringResource(R.string.show_in_folder), Icons.Outlined.FolderOpen, ItemAction.OpenLocation)
         if (!e.isDir) {

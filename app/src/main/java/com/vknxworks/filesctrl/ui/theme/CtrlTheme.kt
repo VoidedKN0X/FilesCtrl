@@ -154,6 +154,7 @@ object CtrlShapes {
     val Badge = RoundedCornerShape(10.dp)
     val Dot = RoundedCornerShape(2.dp)
     val Dialog = RoundedCornerShape(26.dp)
+    val Menu = RoundedCornerShape(16.dp)
 }
 
 /** Material colours for [p], so stock Material pieces (menus, radio buttons, text buttons) match the palette. */

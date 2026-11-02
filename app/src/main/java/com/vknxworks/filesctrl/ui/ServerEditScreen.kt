@@ -35,8 +35,6 @@ import androidx.compose.material.icons.outlined.VisibilityOff
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -74,6 +72,8 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import androidx.compose.ui.res.stringResource
 import com.vknxworks.filesctrl.R
+import com.vknxworks.filesctrl.ui.components.CtrlDropdownMenu
+import com.vknxworks.filesctrl.ui.components.CtrlDropdownMenuItem
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.material3.FilterChipDefaults
@@ -362,8 +362,8 @@ fun ServerEditScreen(serverId: String?, onDone: (openId: String?) -> Unit) {
                         trailingIcon = hostTrailing,
                         modifier = Modifier.fillMaxWidth(),
                     )
-                    DropdownMenu(expanded = scanMenu, onDismissRequest = { scanMenu = false }) {
-                        found.orEmpty().forEach { a -> DropdownMenuItem(text = { Text(a) }, onClick = { host = a; scanMenu = false }) }
+                    CtrlDropdownMenu(expanded = scanMenu, onDismissRequest = { scanMenu = false }) {
+                        found.orEmpty().forEach { a -> CtrlDropdownMenuItem(text = { Text(a) }, onClick = { host = a; scanMenu = false }) }
                     }
                 }
                 CtrlTextField(
@@ -409,9 +409,9 @@ fun ServerEditScreen(serverId: String?, onDone: (openId: String?) -> Unit) {
                     trailingIcon = exportTrailing,
                     modifier = Modifier.fillMaxWidth(),
                 )
-                DropdownMenu(expanded = exportsMenu, onDismissRequest = { exportsMenu = false }) {
+                CtrlDropdownMenu(expanded = exportsMenu, onDismissRequest = { exportsMenu = false }) {
                     exports.orEmpty().forEach { e ->
-                        DropdownMenuItem(text = { Text(e, fontFamily = FontFamily.Monospace) }, onClick = {
+                        CtrlDropdownMenuItem(text = { Text(e, fontFamily = FontFamily.Monospace) }, onClick = {
                             path = e; exportsMenu = false
                             if (name.isBlank()) name = e.trimEnd('/').substringAfterLast('/')
                         })

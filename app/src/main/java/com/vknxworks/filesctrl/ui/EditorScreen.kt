@@ -24,8 +24,6 @@ import androidx.compose.material.icons.outlined.MoreVert
 import androidx.compose.material.icons.outlined.Save
 import androidx.compose.material.icons.outlined.SaveAs
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconToggleButton
@@ -67,6 +65,8 @@ import java.nio.charset.Charset
 import java.nio.charset.CodingErrorAction
 import androidx.compose.ui.res.stringResource
 import com.vknxworks.filesctrl.R
+import com.vknxworks.filesctrl.ui.components.CtrlDropdownMenu
+import com.vknxworks.filesctrl.ui.components.CtrlDropdownMenuItem
 import androidx.compose.foundation.layout.size
 import com.vknxworks.filesctrl.ui.components.CtrlBackBar
 import com.vknxworks.filesctrl.ui.theme.CtrlColors
@@ -254,8 +254,8 @@ fun EditorScreen(source: TextSource, onBack: () -> Unit) {
                     else IconButton(onClick = { run { com.vknxworks.filesctrl.ui.lock.AppLockState.expectReturn(); saveCopy.launch(source.name) } }, enabled = text != null) { Icon(Icons.Outlined.SaveAs, stringResource(R.string.save_a_copy)) }
                     Box {
                         IconButton(onClick = { menu = true }) { Icon(Icons.Outlined.MoreVert, stringResource(R.string.more)) }
-                        DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
-                            DropdownMenuItem(
+                        CtrlDropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
+                            CtrlDropdownMenuItem(
                                 text = { Text(stringResource(R.string.save_a_copy)) },
                                 leadingIcon = { Icon(Icons.Outlined.SaveAs, null) },
                                 enabled = text != null,
