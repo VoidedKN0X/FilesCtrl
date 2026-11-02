@@ -4,6 +4,19 @@ What changed in each FilesCtrl version. Every release on the [Releases page](htt
 
 To publish a new version: bump `versionCode` and `versionName` in `app/build.gradle.kts`, add a section here, and push to `main`. Pushes without a version bump only build; they don't make a release.
 
+## Project updates (2026-11-02)
+
+No app changes, so no new release. The repo is easier to trust and to find your way around.
+
+### Project
+
+- **SECURITY.md**: how to report a security problem privately through GitHub's Security tab, which versions get fixes, what counts as a security problem in FilesCtrl, and the release key's SHA-256 fingerprint.
+- **Issue forms**: bug reports and feature requests now use short forms that ask for the FilesCtrl version, Android version, server type and where you installed from, with a reminder to remove passwords and server addresses. Blank issues are off, and security problems point to the private report instead.
+- **README, Install**: step 1 now says exactly what to tap on the Releases page (the `.apk` file under **Assets**, not the "Source code" files).
+- **README, Is it safe to install?**: new section on how releases are built and signed, the signing certificate fingerprint to check with AppVerifier, and every Android permission FilesCtrl asks for in plain words.
+- **README, How FilesCtrl is made**: new section explaining that FilesCtrl is a one-person project written with the help of AI.
+- **README, other**: the empty Screenshots section is gone, Support now points to the issue forms and SECURITY.md, and the Ctrl series table lists every current app (RideCtrl, SynapseCtrl and WrtCtrl added).
+
 ## 1.8.2 (2026-11-02)
 
 Bottom sheets no longer show a stray grey box or outline.

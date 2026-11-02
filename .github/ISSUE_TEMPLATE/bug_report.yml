@@ -1,0 +1,63 @@
+name: Bug report
+description: Something in FilesCtrl doesn't work as it should
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting a bug. Before you send it, please remove server addresses, usernames, passwords, SSH keys, file names you'd rather keep private and other personal info from the text and screenshots.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: Describe the problem.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Open the Places tab
+        2. Tap ...
+        3. See ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect?
+  - type: input
+    id: app-version
+    attributes:
+      label: FilesCtrl version
+      placeholder: "Profile picture > bottom of the You page, e.g. 1.8.2"
+    validations:
+      required: true
+  - type: input
+    id: android
+    attributes:
+      label: Android version and phone
+      placeholder: "Android 15, Pixel 8"
+    validations:
+      required: true
+  - type: input
+    id: server
+    attributes:
+      label: Server type and software version
+      description: Only if the problem is with a network location.
+      placeholder: "SMB on Samba 4.19, WebDAV on Nextcloud 30, NFSv4 on TrueNAS ..."
+  - type: dropdown
+    id: installed-from
+    attributes:
+      label: Installed from
+      options:
+        - GitHub Releases
+        - Obtainium
+        - CtrlF-Droid
+        - Built it myself
+  - type: textarea
+    id: logs
+    attributes:
+      label: Screenshots or logs
+      description: Drag images in here, or paste the error message FilesCtrl showed.

@@ -32,10 +32,6 @@ Part of the [Ctrl series](#the-ctrl-series) by VKNXWorks.
 - Passwords and keys are stored encrypted; **app lock** with its own PIN and optional fingerprint unlock, which keeps saved passwords and keys encrypted while the app is locked
 - The Ctrl / Signal look shared by every Ctrl app: dark and light modes that follow your phone's dark theme, one violet accent, Space Grotesk and JetBrains Mono, and a tablet layout
 
-## Screenshots
-
-Coming soon.
-
 ## Requirements
 
 - Android 13 or newer, on a 64-bit ARM phone (nearly every phone from the last several years)
@@ -44,7 +40,7 @@ Coming soon.
 
 ## Install
 
-1. Download the latest `.apk` file from the [Releases page](https://github.com/VoidedKN0X/FilesCtrl/releases/latest).
+1. Open the [Releases page](https://github.com/VoidedKN0X/FilesCtrl/releases/latest) on your phone, scroll down to **Assets** and tap the file that ends in `.apk` (for example `FilesCtrl-v1.8.2.apk`). The "Source code" zip and tar.gz files are not the app.
 2. Open it on your phone. Android may ask you to allow installing apps from your browser or file manager.
 3. Updates install over the old version. Your settings and login are kept.
 
@@ -64,6 +60,33 @@ If the Obtainium button doesn't open the app, add `https://github.com/VoidedKN0X
 3. Your server now appears next to your phone's storage.
 
 Settings and About are behind your profile picture at the top right of the Files and Places tabs: tap it to open the You page, then **Settings**.
+
+## Is it safe to install?
+
+- **Open source.** All the code is in this repo, under the GPL-3.0 licence.
+- **Built by GitHub Actions from this code, not on a personal computer.** Every release on the Releases page comes from [the build workflow](.github/workflows/build.yml).
+- **Always signed with the same release key.** Android refuses an update signed with a different key, and the CtrlF-Droid repo only accepts APKs signed with this key. Its SHA-256 certificate fingerprint is:
+
+  ```
+  28:D8:D6:5B:3C:D6:BE:DB:A3:EB:E7:F8:52:21:C8:CE:AB:9B:07:24:02:43:86:35:76:4D:54:CD:E9:EA:70:07
+  ```
+
+  Advanced users can compare it with [AppVerifier](https://github.com/soupslurpr/AppVerifier).
+
+**Permissions** and what FilesCtrl uses them for:
+
+| Permission | What it's for |
+| --- | --- |
+| Internet | Connecting to the NFS, SMB, SFTP, FTP and WebDAV servers you add. Nothing else |
+| View network connections | Seeing whether the phone has a network connection. It doesn't give access to your Wi-Fi name or your location |
+| Prevent phone from sleeping | Keeps the phone and Wi-Fi awake while a long copy or move runs with the screen off |
+| Ask to ignore battery optimisations | Only when you tap the battery option in Settings, so big transfers aren't stopped in the background |
+| All files access | Browsing your phone's own storage, SD cards and USB drives. Network shares work without it |
+| Notifications | Showing the progress of copies and moves, and when they finish |
+| Foreground service (data sync) | Keeping copies, moves and extractions running when you leave the app |
+| Install apps | Handing an APK file you tap to Android's installer. Android still asks you before anything is installed |
+
+See [Privacy](#privacy) for what FilesCtrl sends and to whom.
 
 ## Tips and troubleshooting
 
@@ -98,6 +121,10 @@ Turn it on under **Settings > Privacy and security > App lock** (tap your profil
 - WebDAV uses HTTPS by default. Plain HTTP is only used for your own server after you accept a warning that your password and files then travel unencrypted, and FilesCtrl never switches a server from HTTPS to HTTP or follows a redirect to HTTP.
 - The Support, Report a bug, Source code and Licence links on the You page (tap your profile picture) open in your browser, only when you tap them.
 
+## How FilesCtrl is made
+
+FilesCtrl is a one-person project by VoidedKN0X (VKNXWorks). Much of the code is written with the help of AI (Claude, by Anthropic). I decide what the app does, review the changes and use the app myself. Every change is listed in the [changelog](CHANGELOG.md), and you can read every line of code here.
+
 ## Build from source
 
 You need [Android Studio](https://developer.android.com/studio), or JDK 17 and the Android SDK.
@@ -120,7 +147,11 @@ Gradle downloads the Android NDK and CMake it needs automatically on the first b
 
 ## Support the project
 
-FilesCtrl is free and open source. If it's useful to you, you can support development on [GitHub Sponsors](https://github.com/sponsors/VoidedKN0X). In the app, tap your profile picture: the You page has **Report a bug** under **About** and a **Support FilesCtrl** button at the bottom, which opens the [issue tracker](https://github.com/VoidedKN0X/FilesCtrl/issues). Starring the repo helps too.
+FilesCtrl is free and open source. If it's useful to you, you can support development on [GitHub Sponsors](https://github.com/sponsors/VoidedKN0X). In the app, tap your profile picture: the You page has a **Support FilesCtrl** button at the bottom, and **Report a bug** under **About**, which opens the [issue tracker](https://github.com/VoidedKN0X/FilesCtrl/issues). Starring the repo helps too.
+
+Found a bug or have an idea? [Open an issue](https://github.com/VoidedKN0X/FilesCtrl/issues/new/choose) and pick **Bug report** or **Feature request**; the form asks for what's needed.
+
+Found a security problem? Please don't open a public issue; see [SECURITY.md](SECURITY.md).
 
 ## The Ctrl series
 
@@ -142,8 +173,11 @@ Native Android apps for self-hosted services and everyday tools, all with the sa
 | [PaperCtrl](https://github.com/VoidedKN0X/PaperCtrl) | Scan and browse documents on Paperless-ngx |
 | [PrintCtrl](https://github.com/VoidedKN0X/PrintCtrl) | Bambu Lab printers through Bambuddy, and Spoolman spools |
 | [ProxCtrl](https://github.com/VoidedKN0X/ProxCtrl) | Manage your Proxmox VE server |
+| [RideCtrl](https://github.com/VoidedKN0X/RideCtrl) | Offline maintenance, fuel and mod log for your vehicles |
 | [SeerrCtrl](https://github.com/VoidedKN0X/SeerrCtrl) | Request movies and shows on Seerr / Jellyseerr |
+| [SynapseCtrl](https://github.com/VoidedKN0X/SynapseCtrl) | Administer your Matrix Synapse server |
 | [TrueCtrl](https://github.com/VoidedKN0X/TrueCtrl) | Monitor and manage your TrueNAS server |
+| [WrtCtrl](https://github.com/VoidedKN0X/WrtCtrl) | Manage your OpenWrt router |
 
 ## License
 
