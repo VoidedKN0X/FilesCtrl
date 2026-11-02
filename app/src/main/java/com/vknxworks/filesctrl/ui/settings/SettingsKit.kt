@@ -197,7 +197,6 @@ fun <T> ChoiceSheet(
         shape = RoundedCornerShape(topStart = 26.dp, topEnd = 26.dp),
         tonalElevation = 0.dp,
         dragHandle = { Box(Modifier.padding(top = 10.dp, bottom = 6.dp).size(width = 36.dp, height = 4.dp).clip(RoundedCornerShape(2.dp)).background(CtrlColors.ControlBorder)) },
-        modifier = Modifier.border(1.dp, CtrlColors.CardBorder, RoundedCornerShape(topStart = 26.dp, topEnd = 26.dp)),
     ) {
         CtrlSectionLabel(title, Modifier.padding(horizontal = 24.dp, vertical = 8.dp))
         LazyColumn(Modifier.navigationBarsPadding(), contentPadding = PaddingValues(bottom = 16.dp)) {

@@ -4,6 +4,16 @@ What changed in each FilesCtrl version. Every release on the [Releases page](htt
 
 To publish a new version: bump `versionCode` and `versionName` in `app/build.gradle.kts`, add a section here, and push to `main`. Pushes without a version bump only build; they don't make a release.
 
+## 1.8.2 (2026-11-02)
+
+Bottom sheets no longer show a stray grey box or outline.
+
+### Fixed
+
+- **No more stray grey box in bottom sheets**: The sheet that opens when you tap a setting with choices had a thin outline that was drawn in the wrong place. It showed up as a grey rectangle partway down the open sheet, cutting across the first rows, plus a loose rounded outline near the top of the screen. Settings that open this sheet include **Lock again** and the other choice rows in Settings. The outline is gone: the sheet is now a plain dark grey (or white, in light mode) surface with rounded top corners. The dimmed background behind it already sets it apart.
+- **Unchanged**: The sheet's colours, rounded corners, drag handle and dimmed background, and what each option does.
+- **Other sheets checked**: The details sheet in the picture viewer never had the outline and looks as before. Dialogs keep their thin border, which was always drawn in the right place. Popup menus keep the look from 1.8.1.
+
 ## 1.8.1 (2026-11-02)
 
 Popup menus no longer show a grey box around them.
