@@ -140,8 +140,13 @@ jobs:
           echo "::notice title=Signed APK::$APK signed by $CERT (SHA-256 $SHA)"
 
       - name: Google-free dependency audit
+        env:
+          SIGNING_STORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          SIGNING_KEY_ALIAS: ${{ vars.KEY_ALIAS }}
+          SIGNING_KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: |
           # Nothing from Google Play services, Firebase, ML Kit, Play Core or Tink may end up in the app.
+          # Same signing env as the build: on CI the release build refuses to configure without it.
           if ! ./gradlew --no-daemon -q :app:dependencies --configuration releaseRuntimeClasspath > deps.txt 2> deps-err.txt; then
             grep -E 'What went wrong|Exception|error' -A 3 deps-err.txt | head -20 | while IFS= read -r line; do echo "::error title=Dependency audit::${line}"; done
             exit 1
