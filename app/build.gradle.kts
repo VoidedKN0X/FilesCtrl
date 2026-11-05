@@ -10,12 +10,12 @@ android {
 
     defaultConfig {
         applicationId = "com.vknxworks.filesctrl"
-        minSdk = 33
+        minSdk = 35
         targetSdk = 36
         // CI passes the run number so every build installs over the previous one.
         // Bump both to publish a new release (see CHANGELOG.md).
-        versionCode = 56
-        versionName = "1.9.4"
+        versionCode = 57
+        versionName = "1.9.5"
 
         // 64-bit ARM phones only (arm64-v8a), like every Ctrl app. The NFS client (libnfs) is native.
         ndk { abiFilters += listOf("arm64-v8a") }

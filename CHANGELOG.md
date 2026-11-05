@@ -4,6 +4,14 @@ What changed in each FilesCtrl version. Every release on the [Releases page](htt
 
 To publish a new version: bump `versionCode` and `versionName` in `app/build.gradle.kts`, add a section here, and push to `main`. Pushes without a version bump only build; they don't make a release.
 
+## 1.9.5 (2026-11-05)
+
+FilesCtrl now needs Android 15 or newer.
+
+### Changed
+
+- **Needs Android 15 or newer.** Android 13 no longer gets security updates and Android 14's end early 2027, so FilesCtrl now supports Android 15, 16 and 17 only. On older phones the version you have keeps working, but it won't get updates.
+
 ## 1.9.4 (2026-11-05)
 
 Password managers work on server and archive passwords again.

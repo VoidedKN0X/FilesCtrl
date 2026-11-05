@@ -3,7 +3,6 @@ package com.vknxworks.filesctrl
 import android.app.Activity
 import android.content.Intent
 import android.net.Uri
-import android.os.Build
 import android.os.Process
 import com.vknxworks.filesctrl.provider.NetDocumentsProvider
 
@@ -31,10 +30,8 @@ object OwnUris {
      * starts the chosen app as FilesCtrl). Only uses what Android sets, never what the sender can put in the intent.
      */
     fun launchedByUs(activity: Activity): Boolean {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-            val uid = runCatching { activity.launchedFromUid }.getOrDefault(Process.INVALID_UID)
-            if (uid == Process.myUid()) return true
-        }
+        val uid = runCatching { activity.launchedFromUid }.getOrDefault(Process.INVALID_UID)
+        if (uid == Process.myUid()) return true
         // Without referrer extras, the referrer is the package Android saw starting the activity.
         val intent = activity.intent ?: return false
         val spoofable = runCatching {

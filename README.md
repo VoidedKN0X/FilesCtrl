@@ -2,7 +2,7 @@
 
 **A file manager that opens your network shares.**
 
-[![Latest release](https://img.shields.io/github/v/release/VoidedKN0X/FilesCtrl?label=download)](https://github.com/VoidedKN0X/FilesCtrl/releases/latest) ![Android 13+](https://img.shields.io/badge/Android-13%2B-3DDC84?logo=android&logoColor=white) [![License: GPL-3.0](https://img.shields.io/badge/license-GPL--3.0-blue)](LICENSE) ![Telemetry-free](https://img.shields.io/badge/telemetry-none-brightgreen) [![Sponsor](https://img.shields.io/badge/sponsor-GitHub-ea4aaa?logo=githubsponsors&logoColor=white)](https://github.com/sponsors/VoidedKN0X)
+[![Latest release](https://img.shields.io/github/v/release/VoidedKN0X/FilesCtrl?label=download)](https://github.com/VoidedKN0X/FilesCtrl/releases/latest) ![Android 15+](https://img.shields.io/badge/Android-15%2B-3DDC84?logo=android&logoColor=white) [![License: GPL-3.0](https://img.shields.io/badge/license-GPL--3.0-blue)](LICENSE) ![Telemetry-free](https://img.shields.io/badge/telemetry-none-brightgreen) [![Sponsor](https://img.shields.io/badge/sponsor-GitHub-ea4aaa?logo=githubsponsors&logoColor=white)](https://github.com/sponsors/VoidedKN0X)
 
 FilesCtrl is a high-contrast file manager for Android, in the spirit of [Material Files](https://github.com/zhanghai/MaterialFiles), with network storage built in: **NFS, SMB, SFTP, FTP and WebDAV**. No root needed.
 
@@ -35,7 +35,7 @@ Part of the [Ctrl series](#the-ctrl-series) by VKNXWorks.
 
 ## Requirements
 
-- Android 13 or newer, on a 64-bit ARM phone (nearly every phone from the last several years)
+- Android 15 or newer, on a 64-bit ARM phone (nearly every phone from the last several years)
 - **All files access**, to browse your phone's own storage. Network shares work without it
 - Optional: [Shizuku](https://github.com/RikkaApps/Shizuku), only for Android/data and Android/obb
 - **Google-free and de-Googled:** no Google Play services, Firebase or other Google services, and the app never contacts Google. It works the same on de-Googled phones (GrapheneOS, CalyxOS, /e/OS, LineageOS without Google apps).
@@ -132,7 +132,7 @@ Turn it on under **Settings > Privacy and security > App lock** (tap your profil
 - Credentials only go to the server they belong to: WebDAV never follows a redirect, and SFTP host keys and self-signed HTTPS/FTPS certificates are checked against the ones you confirmed.
 - **Shizuku** is optional and off by default. When you turn it on, FilesCtrl's helper runs through the Shizuku app on your phone, only for Android/data and Android/obb; nothing goes online.
 - Other apps can hand FilesCtrl files to save ("Save to FilesCtrl") or to open in the text editor. Both are behind the app lock, and neither accepts a link that points into FilesCtrl's own private files, or a link to FilesCtrl's own files and servers unless it came from FilesCtrl itself (for example *Open with* in FilesCtrl), so another app can't use FilesCtrl to reach files it has no access to.
-- Copied paths and checksums are marked as sensitive, so Android 13+ doesn't show them in the clipboard preview.
+- Copied paths and checksums are marked as sensitive, so Android doesn't show them in the clipboard preview.
 - FilesCtrl is left out of Android's cloud backup and its phone-to-phone transfer.
 - The Support, Report a bug, Source code and Licence links on the You page (tap your profile picture), and the Shizuku download link in Settings (GitHub), open in your browser, only when you tap them.
 
