@@ -7,12 +7,14 @@ on:
       - "**.md"
   workflow_dispatch:
 
-permissions:
-  contents: read
+# Nothing by default; the job only reads the code.
+permissions: {}
 
 jobs:
   protocols:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
