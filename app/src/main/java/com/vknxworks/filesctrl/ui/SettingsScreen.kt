@@ -19,7 +19,10 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.outlined.Sort
+import androidx.compose.material.icons.outlined.Adb
 import androidx.compose.material.icons.outlined.BatteryChargingFull
+import androidx.compose.material.icons.outlined.CheckCircle
+import androidx.compose.material.icons.outlined.ErrorOutline
 import androidx.compose.material.icons.outlined.Bookmarks
 import androidx.compose.material.icons.outlined.Contrast
 import androidx.compose.material.icons.outlined.DarkMode
@@ -78,6 +81,7 @@ import com.vknxworks.filesctrl.ui.lock.PinRequest
 import com.vknxworks.filesctrl.ui.lock.PinRequests
 import com.vknxworks.filesctrl.ui.lock.lockActivity
 import com.vknxworks.filesctrl.data.lock.LockVault
+import com.vknxworks.filesctrl.shizuku.ShellFiles
 import com.vknxworks.filesctrl.ui.lock.showBiometricPrompt
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -94,6 +98,8 @@ fun SettingsScreen() {
     val pm = remember { ctx.getSystemService(PowerManager::class.java) }
     var unrestricted by remember { mutableStateOf(pm.isIgnoringBatteryOptimizations(ctx.packageName)) }
     var allFiles by remember { mutableStateOf(Environment.isExternalStorageManager()) }
+    // Bumped on every return to the app, so Shizuku's state is read again after starting it.
+    var resumed by remember { mutableStateOf(0) }
     // Checked again whenever the app comes back, so allowing (or blocking) them in Android's settings shows here.
     val notifications = rememberNotificationAccess()
 
@@ -104,6 +110,7 @@ fun SettingsScreen() {
             if (e == Lifecycle.Event.ON_RESUME) {
                 unrestricted = pm.isIgnoringBatteryOptimizations(ctx.packageName)
                 allFiles = Environment.isExternalStorageManager()
+                resumed++
             }
         }
         owner.lifecycle.addObserver(obs)
@@ -256,6 +263,12 @@ fun SettingsScreen() {
         }
 
         item {
+            SettingsSection(stringResource(R.string.shizuku_group), footer = stringResource(R.string.shizuku_footer)) {
+                ShizukuSettings(resumed)
+            }
+        }
+
+        item {
             SettingsSection(stringResource(R.string.other_apps)) {
                 NavItem(
                     Icons.Outlined.Share, stringResource(R.string.network_locations_in_other_apps),
@@ -267,3 +280,57 @@ fun SettingsScreen() {
     }
 }
 
+
+/** Optional Shizuku support: the switch, and while it's on, what Shizuku needs next (with a tap to do it). */
+@Composable
+private fun ShizukuSettings(resumed: Int) {
+    val ctx = LocalContext.current
+    val s = App.settings
+    val changes = ShellFiles.changes.intValue
+    val status = remember(s.shizuku, changes, resumed) { if (s.shizuku) ShellFiles.status(ctx) else null }
+
+    ToggleItem(
+        Icons.Outlined.Adb, stringResource(R.string.shizuku_toggle),
+        stringResource(R.string.shizuku_toggle_subtitle), s.shizuku,
+    ) { on ->
+        s.shizuku = on
+        if (on) {
+            ShellFiles.listen()
+            if (ShellFiles.status(ctx) == ShellFiles.Status.NeedsPermission) ShellFiles.requestPermission()
+        } else {
+            Thread { ShellFiles.stop() }.start()
+        }
+    }
+    if (status == null) return
+    ItemDivider()
+    val (title, summary) = when (status) {
+        ShellFiles.Status.Ready -> R.string.shizuku_status_ready to R.string.shizuku_status_ready_summary
+        ShellFiles.Status.NeedsPermission -> R.string.shizuku_status_permission to R.string.shizuku_status_permission_summary
+        ShellFiles.Status.NotRunning -> R.string.shizuku_status_not_running to R.string.shizuku_status_not_running_summary
+        ShellFiles.Status.NotInstalled -> R.string.shizuku_status_not_installed to R.string.shizuku_status_not_installed_summary
+        ShellFiles.Status.TooOld -> R.string.shizuku_status_too_old to R.string.shizuku_status_too_old_summary
+    }
+    val arrow: (@Composable () -> Unit)? =
+        if (status == ShellFiles.Status.Ready) null
+        else ({ Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null, tint = MaterialTheme.colorScheme.onSurfaceVariant) })
+    NavItem(
+        if (status == ShellFiles.Status.Ready) Icons.Outlined.CheckCircle else Icons.Outlined.ErrorOutline,
+        stringResource(title), stringResource(summary),
+        trailing = arrow,
+    ) {
+        when (status) {
+            ShellFiles.Status.Ready -> {}
+            ShellFiles.Status.NeedsPermission -> ShellFiles.requestPermission()
+            ShellFiles.Status.NotRunning -> if (!ShellFiles.openShizuku(ctx)) openShizukuDownload(ctx)
+            ShellFiles.Status.NotInstalled, ShellFiles.Status.TooOld -> openShizukuDownload(ctx)
+        }
+    }
+}
+
+private fun openShizukuDownload(ctx: android.content.Context) {
+    val i = Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/RikkaApps/Shizuku/releases")).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+    com.vknxworks.filesctrl.ui.lock.AppLockState.expectReturn()
+    try { ctx.startActivity(i) } catch (_: Exception) {
+        Toast.makeText(ctx, R.string.shizuku_no_browser, Toast.LENGTH_SHORT).show()
+    }
+}

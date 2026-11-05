@@ -659,4 +659,28 @@
     <string name="viewer_exposure">Exposure</string>
     <string name="open_pictures_in_filesctrl">Open pictures in FilesCtrl</string>
     <string name="open_pictures_in_filesctrl_subtitle">Show photos in the built-in viewer. Off: they open in the app you choose</string>
+
+    <!-- Shizuku (optional): Android/data and Android/obb -->
+    <string name="shizuku_group">Shizuku</string>
+    <string name="shizuku_footer">Android hides Android/data and Android/obb from file managers. Shizuku is a separate app that gives FilesCtrl the same access as a computer connected over USB debugging, only for those two folders. After restarting your phone, start Shizuku again in its app.</string>
+    <string name="shizuku_toggle">Open Android/data and Android/obb</string>
+    <string name="shizuku_toggle_subtitle">Through Shizuku. Off: those folders stay closed, everything else works as usual</string>
+    <string name="shizuku_status_ready">Shizuku is ready</string>
+    <string name="shizuku_status_ready_summary">Android/data and Android/obb open normally</string>
+    <string name="shizuku_status_permission">Allow FilesCtrl in Shizuku</string>
+    <string name="shizuku_status_permission_summary">Tap to answer Shizuku\'s prompt</string>
+    <string name="shizuku_status_not_running">Shizuku isn\'t running</string>
+    <string name="shizuku_status_not_running_summary">Tap to open Shizuku and start it (needed again after every restart)</string>
+    <string name="shizuku_status_not_installed">Shizuku isn\'t installed</string>
+    <string name="shizuku_status_not_installed_summary">Tap to open Shizuku\'s download page on GitHub</string>
+    <string name="shizuku_status_too_old">Shizuku is too old</string>
+    <string name="shizuku_status_too_old_summary">Tap to get the latest Shizuku from GitHub</string>
+    <string name="shizuku_no_browser">No app can open the Shizuku download page</string>
+    <string name="shizuku_settings_button">Shizuku settings</string>
+    <string name="shizuku_needed_here">Android hides this folder from file managers. Turn on Shizuku in Settings to open it.</string>
+    <string name="shizuku_error_not_installed">This folder needs Shizuku, which isn\'t installed. See Settings, Shizuku.</string>
+    <string name="shizuku_error_not_running">Shizuku isn\'t running. Start it in the Shizuku app, then try again.</string>
+    <string name="shizuku_error_too_old">This version of Shizuku is too old. Update Shizuku, then try again.</string>
+    <string name="shizuku_error_no_permission">FilesCtrl isn\'t allowed in Shizuku yet. Allow it in Settings, Shizuku.</string>
+    <string name="shizuku_error_timeout">Shizuku didn\'t answer. Restart Shizuku, then try again.</string>
 </resources>

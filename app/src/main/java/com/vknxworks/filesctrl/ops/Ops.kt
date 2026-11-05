@@ -362,7 +362,7 @@ object Ops {
             try {
                 if (format == ArchiveFormat.SEVENZ) {
                     // 7z is written with random access: straight into the target on the phone, else via a temporary file.
-                    val out = if (dst is LocalVfs) File(target) else File.createTempFile("pack", ".7z", appContext.cacheDir).also { tmp = it }
+                    val out = if (dst is LocalVfs && dst.direct(target)) File(target) else File.createTempFile("pack", ".7z", appContext.cacheDir).also { tmp = it }
                     SevenZOutputFile(out, password).use { z ->
                         z.setContentCompression(SevenZMethod.LZMA2)
                         val sink = SevenZSink(z)
@@ -458,7 +458,7 @@ object Ops {
      */
     private fun checkInside(dst: Vfs, target: String, dir: String, allowRoot: Boolean = false) {
         if (!Paths.isWithin(target, dir) || (!allowRoot && target.trimEnd('/') == dir.trimEnd('/'))) throw IOException(App.str(R.string.refused_to_write_outside_the, Paths.name(target)))
-        if (dst.id != LocalVfs.ID) return
+        if (dst.id != LocalVfs.ID || !App.vfs.local.direct(target)) return
         val base = File(dir).canonicalPath
         val real = File(target).canonicalPath
         if (!real.startsWith(base + File.separator)) throw IOException(App.str(R.string.refused_to_write_outside_the, Paths.name(target)))

@@ -13,6 +13,7 @@ Part of the [Ctrl series](#the-ctrl-series) by VKNXWorks.
 ## Features
 
 - **Local storage**: internal storage, SD cards and USB drives
+- **Android/data and Android/obb** (optional): open the folders Android hides from file managers through [Shizuku](https://github.com/RikkaApps/Shizuku). Off by default, and nothing else needs it
 - **Network storage** from one *Add network* button: NFS (v3 and v4), SMB (2/3), SFTP, FTP/FTPS and WebDAV (Nextcloud, ownCloud and others)
 - **Open network files in any app**: videos stream and can be skipped through without downloading first; *Edit with* lets an app save changes back
 - **Your servers in the system file picker**, so other apps can open and save files on them
@@ -36,6 +37,7 @@ Part of the [Ctrl series](#the-ctrl-series) by VKNXWorks.
 
 - Android 13 or newer, on a 64-bit ARM phone (nearly every phone from the last several years)
 - **All files access**, to browse your phone's own storage. Network shares work without it
+- Optional: [Shizuku](https://github.com/RikkaApps/Shizuku), only for Android/data and Android/obb
 - **Google-free and de-Googled:** no Google Play services, Firebase or other Google services, and the app never contacts Google. It works the same on de-Googled phones (GrapheneOS, CalyxOS, /e/OS, LineageOS without Google apps).
 
 ## Install
@@ -85,10 +87,13 @@ Settings and About are behind your profile picture at the top right of the Files
 | Notifications | Showing the progress of copies and moves, and when they finish |
 | Foreground service (data sync) | Keeping copies, moves and extractions running when you leave the app |
 | Install apps | Handing an APK file you tap to Android's installer. Android still asks you before anything is installed |
+| Shizuku | Only if you turn on Shizuku in Settings, and only to open Android/data and Android/obb. Shizuku asks you before FilesCtrl gets access |
 
 See [Privacy](#privacy) for what FilesCtrl sends and to whom.
 
 ## Tips and troubleshooting
+
+**Android/data and Android/obb.** Android hides these folders from file managers, even with All files access. To open them, install [Shizuku](https://github.com/RikkaApps/Shizuku), start it in its app (over wireless debugging, or with root), then turn on *Settings → Shizuku → Open Android/data and Android/obb* in FilesCtrl and allow FilesCtrl when Shizuku asks. Without root, Shizuku has to be started again after every restart of your phone.
 
 **NFS server setup.** Android apps can't use privileged ports, so your NFS export must allow them:
 

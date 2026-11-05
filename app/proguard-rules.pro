@@ -47,3 +47,12 @@
 -dontwarn org.apache.commons.io.**
 -dontwarn org.apache.commons.lang3.**
 -dontwarn org.apache.commons.codec.**
+
+# Shizuku starts the helper process by class name and talks to it over this AIDL interface.
+-keep class com.vknxworks.filesctrl.shizuku.ShellFilesService { *; }
+-keep class com.vknxworks.filesctrl.shizuku.IShellFiles { *; }
+-keep class com.vknxworks.filesctrl.shizuku.IShellFiles$* { *; }
+-keep class rikka.shizuku.** { *; }
+-keep class moe.shizuku.** { *; }
+-dontwarn rikka.**
+-dontwarn moe.shizuku.**

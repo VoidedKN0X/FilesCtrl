@@ -1046,6 +1046,10 @@ private fun ErrorState(message: String, vm: BrowserViewModel, nav: androidx.navi
             if (vm.location.vfsId.startsWith(RemoteVfs.PREFIX)) {
                 CtrlSecondaryButton(onClick = { nav.go("server/" + vm.location.vfsId.removePrefix(RemoteVfs.PREFIX)) }) { Text(stringResource(R.string.edit_server)) }
             }
+            // Android/data and Android/obb: the Shizuku setting is what opens them.
+            if (vm.isLocal && App.vfs.local.isProtected(vm.location.path)) {
+                CtrlSecondaryButton(onClick = { nav.go("settings") }) { Text(stringResource(R.string.shizuku_settings_button)) }
+            }
         }
     }
 }

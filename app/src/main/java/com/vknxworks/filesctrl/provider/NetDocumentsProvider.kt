@@ -20,6 +20,7 @@ import com.vknxworks.filesctrl.R
 import com.vknxworks.filesctrl.ui.lock.AppLockState
 import com.vknxworks.filesctrl.fs.ArchiveVfs
 import com.vknxworks.filesctrl.fs.FileEntry
+import com.vknxworks.filesctrl.fs.LocalVfs
 import com.vknxworks.filesctrl.fs.Mime
 import com.vknxworks.filesctrl.fs.RandomFile
 import com.vknxworks.filesctrl.fs.RemoteVfs
@@ -27,6 +28,7 @@ import com.vknxworks.filesctrl.fs.SeekingReader
 import com.vknxworks.filesctrl.fs.TempCopyFile
 import com.vknxworks.filesctrl.fs.Paths
 import com.vknxworks.filesctrl.nfs.NfsException
+import com.vknxworks.filesctrl.shizuku.ShellFiles
 import java.io.FileNotFoundException
 import java.io.IOException
 
@@ -106,6 +108,18 @@ class NetDocumentsProvider : DocumentsProvider() {
         return vfs to path
     }
 
+    /**
+     * A file in Android/data or Android/obb ("loc.:<path>"), reached through Shizuku and opened from FilesCtrl in
+     * another app. Only those folders, only while Shizuku is turned on, and never listed in the file picker.
+     */
+    private fun splitLocal(docId: String): String? {
+        if (!docId.startsWith(LOC)) return null
+        if (locked()) throw FileNotFoundException(App.str(R.string.filesctrl_is_locked_open_it_and))
+        val path = Paths.normalize(docId.substring(LOC.length).ifEmpty { "/" }) ?: throw FileNotFoundException(App.str(R.string.bad_document_id))
+        if (!App.vfs.local.viaShell(path)) throw FileNotFoundException(App.str(R.string.bad_document_id))
+        return path
+    }
+
     /** Uncompressed size; for single compressed files whose size isn't stored, counted by reading through once. */
     private fun archiveSize(vfs: ArchiveVfs, path: String, listed: Long): Long {
         if (listed > 0) return listed
@@ -118,6 +132,19 @@ class NetDocumentsProvider : DocumentsProvider() {
     }
 
     override fun queryDocument(documentId: String, projection: Array<out String>?): Cursor {
+        splitLocal(documentId)?.let { path ->
+            val c = MatrixCursor(projection ?: DOC_COLUMNS)
+            val e = io { App.vfs.local.stat(path) }
+            c.newRow().apply {
+                add(Document.COLUMN_DOCUMENT_ID, documentId)
+                add(Document.COLUMN_DISPLAY_NAME, e.name)
+                add(Document.COLUMN_MIME_TYPE, if (e.isDir) Document.MIME_TYPE_DIR else Mime.ofName(e.name))
+                add(Document.COLUMN_SIZE, if (e.isDir) null else e.size)
+                add(Document.COLUMN_LAST_MODIFIED, e.modified)
+                add(Document.COLUMN_FLAGS, if (e.isDir) 0 else Document.FLAG_SUPPORTS_WRITE)
+            }
+            return c
+        }
         splitArchive(documentId)?.let { (vfs, path) ->
             val c = MatrixCursor(projection ?: DOC_COLUMNS)
             val e = io { vfs.stat(path) }
@@ -158,6 +185,10 @@ class NetDocumentsProvider : DocumentsProvider() {
     }
 
     override fun getDocumentType(documentId: String): String {
+        splitLocal(documentId)?.let { path ->
+            val e = io { App.vfs.local.stat(path) }
+            return if (e.isDir) Document.MIME_TYPE_DIR else Mime.ofName(e.name)
+        }
         splitArchive(documentId)?.let { (vfs, path) ->
             val e = io { vfs.stat(path) }
             return if (e.isDir) Document.MIME_TYPE_DIR else Mime.ofName(e.name)
@@ -204,6 +235,18 @@ class NetDocumentsProvider : DocumentsProvider() {
     }
 
     override fun openDocument(documentId: String, mode: String, signal: CancellationSignal?): ParcelFileDescriptor {
+        splitLocal(documentId)?.let { path ->
+            // A real file descriptor from the Shizuku helper: other apps can seek and write in it directly.
+            val flags = when (mode) {
+                "r" -> OsConstants.O_RDONLY
+                "w", "wt" -> OsConstants.O_WRONLY or OsConstants.O_CREAT or OsConstants.O_TRUNC
+                "wa" -> OsConstants.O_WRONLY or OsConstants.O_CREAT or OsConstants.O_APPEND
+                "rw" -> OsConstants.O_RDWR or OsConstants.O_CREAT
+                "rwt" -> OsConstants.O_RDWR or OsConstants.O_CREAT or OsConstants.O_TRUNC
+                else -> throw IllegalArgumentException("Bad mode: $mode")
+            }
+            return io { ShellFiles.open(path, flags) }
+        }
         splitArchive(documentId)?.let { (vfs, path) ->
             if (mode.contains('w')) throw FileNotFoundException(App.str(R.string.files_inside_archives_are_read_only))
             val rf = io {
@@ -293,9 +336,12 @@ class NetDocumentsProvider : DocumentsProvider() {
         fun docId(serverId: String, path: String) = "$serverId:$path"
 
         private const val ARC = "arc."
+        /** Android/data and Android/obb through Shizuku. */
+        private const val LOC = "loc.:"
 
         /** Content URI another app can open for a file on a server, or inside an archive. */
         fun uriFor(e: FileEntry): Uri {
+            if (e.vfsId == LocalVfs.ID) return DocumentsContract.buildDocumentUri(AUTHORITY, LOC + e.path)
             val owner = if (e.vfsId.startsWith(ArchiveVfs.PREFIX)) ARC + e.vfsId.removePrefix(ArchiveVfs.PREFIX)
             else e.vfsId.removePrefix(RemoteVfs.PREFIX)
             return DocumentsContract.buildDocumentUri(AUTHORITY, docId(owner, e.path))

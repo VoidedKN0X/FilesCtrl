@@ -47,7 +47,7 @@ object ImageCache {
 
     /** The picture as a file on the phone: the file itself when it's local, else a cached copy (downloaded once). */
     suspend fun file(e: FileEntry): File {
-        if (e.vfsId == LocalVfs.ID) return File(e.path)
+        if (e.vfsId == LocalVfs.ID && App.vfs.local.direct(e.path)) return File(e.path)
         val k = key(e)
         val f = File(dir, k)
         return locks.getOrPut(k) { Mutex() }.withLock {

@@ -69,6 +69,7 @@ object App {
         bookmarks = Bookmarks(context)
         vfs = VfsRegistry(context, servers)
         lock = com.vknxworks.filesctrl.data.LockSettings(context)
+        if (settings.shizuku) com.vknxworks.filesctrl.shizuku.ShellFiles.listen()
         bookmarks.onChange { com.vknxworks.filesctrl.shortcuts.Shortcuts.updateDynamic(context) }
         servers.onChange { id ->
             if (servers.get(id) == null) {

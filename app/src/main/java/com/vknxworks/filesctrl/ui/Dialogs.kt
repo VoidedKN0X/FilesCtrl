@@ -192,7 +192,7 @@ fun PropertiesDialog(entry: FileEntry, onDismiss: () -> Unit, onChanged: () -> U
                 space = App.str(R.string.free_of, Fmt.size(ctx, s.free), Fmt.size(ctx, s.total))
             }
             if (e.isLink && vfs is com.vknxworks.filesctrl.fs.RemoteVfs) linkTarget = try { vfs.readlink(e.path) } catch (_: Exception) { null }
-            if (e.isLink && vfs is com.vknxworks.filesctrl.fs.LocalVfs) linkTarget = try { android.system.Os.readlink(e.path) } catch (_: Exception) { null }
+            if (e.isLink && vfs is com.vknxworks.filesctrl.fs.LocalVfs) linkTarget = vfs.readlink(e.path)
         }
     }
 

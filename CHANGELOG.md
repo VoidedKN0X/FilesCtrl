@@ -4,6 +4,26 @@ What changed in each FilesCtrl version. Every release on the [Releases page](htt
 
 To publish a new version: bump `versionCode` and `versionName` in `app/build.gradle.kts`, add a section here, and push to `main`. Pushes without a version bump only build; they don't make a release.
 
+## 1.9.0 (2026-11-05)
+
+Optional Shizuku support: open Android/data and Android/obb, the folders Android hides from file managers.
+
+### New
+
+- **Android/data and Android/obb through Shizuku**: Android hides these two folders from every file manager, even with All files access, so game data, app downloads and OBB files couldn't be reached. With [Shizuku](https://github.com/RikkaApps/Shizuku) installed and running, turn on **Settings → Shizuku → Open Android/data and Android/obb**, allow FilesCtrl when Shizuku asks, and both folders open like any other on every storage volume (internal storage, SD cards, USB drives). You can browse, copy, move, rename, delete, create files and folders, extract and create archives, see properties and free space there, as everywhere else.
+- **Optional and off by default**: nothing changes until you turn it on, and Shizuku is only used for these two folders; the rest of your storage is opened exactly as before. Turning the switch off again stops FilesCtrl's Shizuku helper straight away.
+- **Shizuku status in Settings**: while the switch is on, a row below it shows what Shizuku needs next, and tapping it does that step: *Shizuku isn't installed* (opens Shizuku's download page on GitHub), *Shizuku isn't running* (opens the Shizuku app to start it), *Allow FilesCtrl in Shizuku* (shows Shizuku's prompt), *Shizuku is too old*, or *Shizuku is ready*. The footer explains that Shizuku has to be started again after every restart of your phone (unless it runs with root).
+- **Open and share files from these folders**: tapping a file in Android/data or Android/obb opens it in the right app, *Open with*, *Edit with* (the other app can save back) and *Share* work, and APK files there go to Android's installer. Pictures get thumbnails and open in the built-in viewer.
+
+### Changed
+
+- **Clear message instead of an almost empty folder**: with Shizuku off, opening Android/data or Android/obb used to show only FilesCtrl's own folder (or nothing). It now says that Android hides the folder from file managers and that turning on Shizuku in Settings opens it, with a **Shizuku settings** button next to **Retry**.
+- **Readable Shizuku errors**: if Shizuku stopped, isn't allowed or doesn't answer, the folder says so in plain words (for example *Shizuku isn't running. Start it in the Shizuku app, then try again.*) instead of a technical error.
+
+### Project
+
+- **README**: Shizuku added to Features, Requirements (optional) and the permissions table, and a new tip on setting it up for Android/data and Android/obb.
+
 ## Project updates (2026-11-03)
 
 ### Project

@@ -99,6 +99,10 @@ class Settings(context: Context) {
     private val _launcherBookmarks = bool("launcher_bookmarks", true)
     var launcherBookmarks by _launcherBookmarks
 
+    /** Reach Android/data and Android/obb through Shizuku (optional; off by default). */
+    private val _shizuku = bool("shizuku", false)
+    var shizuku by _shizuku
+
 
     private operator fun <T> Pref<T>.getValue(thisRef: Any?, p: kotlin.reflect.KProperty<*>): T = value
     private operator fun <T> Pref<T>.setValue(thisRef: Any?, p: kotlin.reflect.KProperty<*>, v: T) { value = v }

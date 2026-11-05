@@ -155,12 +155,18 @@ fun hasThumbnail(e: FileEntry): Boolean {
     if (e.vfsId.startsWith(ArchiveVfs.PREFIX)) return false
     val k = Mime.kind(e)
     if (k != Mime.Kind.Image && k != Mime.Kind.Video) return false
-    if (e.vfsId == LocalVfs.ID) return true
+    if (e.vfsId == LocalVfs.ID) {
+        // Android/data and Android/obb through Shizuku: pictures only, read through the helper.
+        return App.vfs.local.direct(e.path) || (k == Mime.Kind.Image && e.size in 1..25L * 1024 * 1024)
+    }
     // Remote: images only (video frames would need the whole file streamed), and not huge ones.
     return App.settings.nfsThumbnails && k == Mime.Kind.Image && e.size in 1..25L * 1024 * 1024
 }
 
-fun thumbnailModel(e: FileEntry): Any = if (e.vfsId == LocalVfs.ID) File(e.path) else NetDocumentsProvider.uriFor(e)
+fun thumbnailModel(e: FileEntry): Any = if (isDirectLocal(e)) File(e.path) else NetDocumentsProvider.uriFor(e)
+
+/** A file on the phone FilesCtrl can open as a plain file (not in Android/data or Android/obb through Shizuku). */
+fun isDirectLocal(e: FileEntry): Boolean = e.vfsId == LocalVfs.ID && App.vfs.local.direct(e.path)
 
 /** A file's type icon on a tinted tile, or its thumbnail. */
 @Composable
@@ -205,7 +211,7 @@ fun FileIcon(e: FileEntry, size: Dp, modifier: Modifier = Modifier, selected: Bo
  * phone storage, SD cards and USB drives (under /storage); anything else throws IllegalArgumentException.
  */
 fun contentUri(ctx: Context, e: FileEntry): Uri =
-    if (e.vfsId == LocalVfs.ID) FileProvider.getUriForFile(ctx, "${ctx.packageName}.fileprovider", File(e.path))
+    if (isDirectLocal(e)) FileProvider.getUriForFile(ctx, "${ctx.packageName}.fileprovider", File(e.path))
     else NetDocumentsProvider.uriFor(e)
 
 private fun contentUriOrToast(ctx: Context, e: FileEntry): Uri? = try {

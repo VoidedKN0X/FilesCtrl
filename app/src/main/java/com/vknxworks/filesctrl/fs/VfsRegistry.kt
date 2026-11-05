@@ -88,7 +88,7 @@ class VfsArchiveSource(private val vfs: Vfs, private val path: String, private v
     @Synchronized
     override fun localFile(): File {
         local?.let { return it }
-        if (vfs is LocalVfs) return File(path).also { local = it }
+        if (vfs is LocalVfs && vfs.direct(path)) return File(path).also { local = it }
         cacheDir.mkdirs()
         // Old copies go after a day, so the cache doesn't grow without end.
         cacheDir.listFiles()?.forEach { if (System.currentTimeMillis() - it.lastModified() > 24 * 3600_000L) it.delete() }

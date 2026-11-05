@@ -14,8 +14,8 @@ android {
         targetSdk = 35
         // CI passes the run number so every build installs over the previous one.
         // Bump both to publish a new release (see CHANGELOG.md).
-        versionCode = 51
-        versionName = "1.8.2"
+        versionCode = 52
+        versionName = "1.9.0"
 
         // 64-bit ARM phones only (arm64-v8a), like every Ctrl app. The NFS client (libnfs) is native.
         ndk { abiFilters += listOf("arm64-v8a") }
@@ -76,6 +76,7 @@ android {
     buildFeatures {
         compose = true
         buildConfig = true
+        aidl = true // The Shizuku helper's interface (IShellFiles)
     }
     packaging {
         jniLibs { useLegacyPackaging = false }
@@ -134,6 +135,11 @@ dependencies {
     implementation("org.brotli:dec:0.1.2") // Brotli (.br)
     implementation("net.lingala.zip4j:zip4j:2.11.5") // zip with ZipCrypto/AES passwords
     implementation("com.github.junrar:junrar:7.5.5") // RAR (RAR4)
+
+    // Optional Shizuku support: Android/data and Android/obb.
+    val shizuku = "13.1.5"
+    implementation("dev.rikka.shizuku:api:$shizuku")
+    implementation("dev.rikka.shizuku:provider:$shizuku")
 
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.slf4j:slf4j-simple:2.0.13")
