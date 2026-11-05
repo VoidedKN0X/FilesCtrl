@@ -127,6 +127,7 @@ fun LockScreenButtons(onForgot: () -> Unit) {
 @Composable
 fun ForgotPinDialog(body: String, confirm: String, onDismiss: () -> Unit, onConfirm: () -> Unit) {
     CtrlAlertDialog(
+        sensitive = true,
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.lock_forgot_title)) },
         text = { Text(body) },

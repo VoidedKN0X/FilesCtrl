@@ -532,10 +532,16 @@ fun CtrlAlertDialog(
     icon: (@Composable () -> Unit)? = null,
     title: (@Composable () -> Unit)? = null,
     text: (@Composable () -> Unit)? = null,
+    // A destructive or secret dialog (delete, Forgot PIN?, passwords, trusting a server): other apps' floating
+    // windows are hidden over it and it is hidden from apps that misuse accessibility, while it shows.
+    sensitive: Boolean = false,
 ) {
     AlertDialog(
         onDismissRequest = onDismissRequest,
-        confirmButton = confirmButton,
+        confirmButton = {
+            if (sensitive) com.vknxworks.filesctrl.ui.lock.SensitiveWindowEffect()
+            confirmButton()
+        },
         modifier = modifier.border(1.dp, CtrlColors.CardBorder, CtrlShapes.Dialog),
         dismissButton = dismissButton,
         icon = icon,

@@ -557,6 +557,12 @@ fun SecureWindow() {
     }
 }
 
-/** The lock and PIN screens are always kept out of screenshots, recordings and casting. */
+/**
+ * The lock and PIN screens are always kept out of screenshots, recordings and casting. Other apps' floating
+ * windows are hidden over them and they are hidden from apps that misuse accessibility (screen readers still work).
+ */
 @Composable
-internal fun KeepOutOfScreenshots() = SecureWindow()
+internal fun KeepOutOfScreenshots() {
+    SecureWindow()
+    SensitiveWindowEffect()
+}

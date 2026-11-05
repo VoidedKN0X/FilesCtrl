@@ -4,6 +4,27 @@ What changed in each FilesCtrl version. Every release on the [Releases page](htt
 
 To publish a new version: bump `versionCode` and `versionName` in `app/build.gradle.kts`, add a section here, and push to `main`. Pushes without a version bump only build; they don't make a release.
 
+## 1.9.3 (2026-11-05)
+
+A security update for the app lock, passwords and links from other apps. Browsing, servers, transfers and sharing work as before.
+
+### Security
+
+- **No floating windows over the app lock and passwords.** While the lock screen, a PIN screen (turning the lock on or off, changing the PIN), "Forgot PIN?", a server's settings with its password, an archive password, trusting a server's key or certificate, the plain-HTTP warning, or a delete or remove confirmation is showing, other apps' floating windows (chat heads, bubbles, overlays) are hidden on top of FilesCtrl, so no app can draw over them or trick you into tapping a button. They come back as soon as that screen closes, and everywhere else in the app they keep working. This uses a new permission, "Hide other apps' floating windows", which Android grants at install without asking.
+- **Lock, PIN and password screens are hidden from apps that misuse accessibility.** On Android 14 and newer, the same screens are marked sensitive, so only real accessibility tools such as screen readers (TalkBack) can read them, not other apps that use the accessibility API to watch the screen.
+- **Files opened or shared from other apps must really belong to them.** On Android 15 and newer, when another app opens a file in FilesCtrl's text editor or shares files to "Save to FilesCtrl", Android first checks that the sending app can read those files itself, and refuses the request if it can't. FilesCtrl's own checks stay in place. *Open with* and *Share* from your other apps work as before.
+- **Stricter requests from other apps.** On Android 16 and newer, other apps can only open FilesCtrl in the ways it offers (the launcher, *Open with* or *Edit with* the text editor, and "Save to FilesCtrl" in the share sheet). A request aimed directly at a part of FilesCtrl that doesn't accept it is now refused by Android.
+
+### Changed
+
+- **Built for Android 16.** FilesCtrl now targets Android 16 (API 36). Back gestures and the edge-to-edge layout work as before; on Android 16 the back gesture also shows Android's preview of where Back goes.
+
+### Project
+
+- **Check a download:** the release notes now list the APK's SHA-256 checksum, and the APK has a signed build provenance attestation: `gh attestation verify FilesCtrl-v1.9.3.apk -R VoidedKN0X/FilesCtrl` proves it was built by this repo's build workflow from the tagged commit. The signing certificate fingerprint in the README still applies.
+- **Checked dependencies:** the build now checks every library and Gradle plugin it downloads against the SHA-256 checksums in `gradle/verification-metadata.xml`, and stops if one doesn't match.
+- README: the new permission is in the permissions table, with a "Check a download" note and how dependency verification works.
+
 ## Project updates (2026-11-05)
 
 ### Project

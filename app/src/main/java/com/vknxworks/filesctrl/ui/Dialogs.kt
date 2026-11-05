@@ -106,6 +106,7 @@ fun NameDialog(
 fun DeleteDialog(items: List<FileEntry>, remote: Boolean, onDismiss: () -> Unit, onConfirm: () -> Unit) {
     val what = if (items.size == 1) "\"${items[0].name}\"" else App.plural(R.plurals.items_count, items.size, items.size)
     CtrlAlertDialog(
+        sensitive = true,
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.delete_2, what)) },
         text = {
@@ -311,6 +312,7 @@ fun trusted(s: com.vknxworks.filesctrl.data.NetServer, e: com.vknxworks.filesctr
 fun TrustDialog(e: com.vknxworks.filesctrl.fs.UntrustedIdentityException, host: String, onDismiss: () -> Unit, onTrust: () -> Unit) {
     val ssh = e is com.vknxworks.filesctrl.fs.HostKeyUnknownException
     CtrlAlertDialog(
+        sensitive = true,
         onDismissRequest = onDismiss,
         title = { Text(if (ssh) stringResource(R.string.trust_this_server) else stringResource(R.string.trust_this_certificate)) },
         text = {

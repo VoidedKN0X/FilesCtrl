@@ -105,6 +105,8 @@ private sealed interface TestResult {
 fun ServerEditScreen(serverId: String?, onDone: (openId: String?) -> Unit) {
     // Passwords and keys are typed here: never in screenshots, recordings or casting.
     com.vknxworks.filesctrl.ui.lock.SecureWindow()
+    // And no other apps' floating windows over the password fields, hidden from apps that misuse accessibility.
+    com.vknxworks.filesctrl.ui.lock.SensitiveWindowEffect()
     val ctx = LocalContext.current
     val existing = serverId?.let { App.servers.get(it) }
     val base = existing ?: NetServer(type = Proto.SMB, path = "")
@@ -618,6 +620,7 @@ fun ServerEditScreen(serverId: String?, onDone: (openId: String?) -> Unit) {
 
     if (confirmDelete && existing != null) {
         CtrlAlertDialog(
+            sensitive = true,
             onDismissRequest = { confirmDelete = false },
             title = { Text(stringResource(R.string.remove_2, existing.title)) },
             text = { Text(stringResource(R.string.this_only_forgets_the_server_in)) },
@@ -652,6 +655,7 @@ fun ServerEditScreen(serverId: String?, onDone: (openId: String?) -> Unit) {
 @Composable
 private fun HttpWarningDialog(host: String, onDismiss: () -> Unit, onAccept: () -> Unit) {
     CtrlAlertDialog(
+        sensitive = true,
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.http_title)) },
         text = {

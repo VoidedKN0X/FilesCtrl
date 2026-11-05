@@ -74,6 +74,8 @@ Settings and About are behind your profile picture at the top right of the Files
   ```
 
   Advanced users can compare it with [AppVerifier](https://github.com/soupslurpr/AppVerifier).
+- **Check a download.** Every release lists the APK's SHA-256 in its release notes, so you can compare it with `sha256sum FilesCtrl-vX.Y.Z.apk`. Each release APK also has a signed build provenance attestation: with the [GitHub CLI](https://cli.github.com/), `gh attestation verify FilesCtrl-vX.Y.Z.apk -R VoidedKN0X/FilesCtrl` proves it was built by this repo's build workflow from the tagged commit. The signing certificate check above still applies.
+- **Checked dependencies and workflows.** Every library and Gradle plugin the build downloads is checked against the SHA-256 in [`gradle/verification-metadata.xml`](gradle/verification-metadata.xml), so a changed download fails the build. The workflows are checked with [zizmor](https://docs.zizmor.sh/), each job gets only the permissions it needs, and every action is pinned to a commit. [CodeQL](https://codeql.github.com/) scans the code every week.
 
 **Permissions** and what FilesCtrl uses them for:
 
@@ -87,6 +89,7 @@ Settings and About are behind your profile picture at the top right of the Files
 | Foreground service (`FOREGROUND_SERVICE`, `FOREGROUND_SERVICE_DATA_SYNC`) | Keeping copies, moves and extractions running when you leave the app |
 | Install apps (`REQUEST_INSTALL_PACKAGES`) | Handing an APK file you tap to Android's installer. Android still asks you before anything is installed |
 | Use biometrics (`USE_BIOMETRIC`) | Optional fingerprint unlock for the app lock |
+| Hide other apps' floating windows (`HIDE_OVERLAY_WINDOWS`) | Hide other apps' floating windows over the PIN screen, server passwords and delete confirmations, so nothing can be drawn over them. Granted at install, no prompt |
 | Shizuku (`moe.shizuku.manager.permission.API_V23`) | Only if you turn on Shizuku in Settings, and only to open Android/data and Android/obb. Shizuku asks you before FilesCtrl gets access |
 
 Android also lists a "dynamic receiver" permission (`DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION`) that AndroidX adds to every app so only FilesCtrl itself can send it internal broadcasts; it gives the app no access to anything. FilesCtrl has no location, camera, microphone, contacts or phone permissions, and doesn't ask Android about your network or Wi-Fi.
@@ -156,6 +159,8 @@ You need [Android Studio](https://developer.android.com/studio), or JDK 17 and t
 Or open the folder in Android Studio and press **Run** with your phone connected.
 
 Gradle downloads the Android NDK and CMake it needs automatically on the first build, so the first build takes a little longer.
+
+**Dependency verification.** Gradle checks every library and plugin it downloads against the SHA-256 checksums in `gradle/verification-metadata.xml`, and the build fails if one doesn't match or is missing. When you add or update a dependency or plugin, run the **Dependency verification metadata** workflow (Actions tab, *Run workflow*), decode the file from its log (between the BEGIN and END markers: `base64 -d | gunzip`), check the diff and commit it together with the dependency change.
 
 ## Support the project
 

@@ -76,6 +76,7 @@ fun PasswordDialog(title: String, wrong: Boolean, onDismiss: () -> Unit, onConfi
     val focus = remember { FocusRequester() }
     LaunchedEffect(Unit) { focus.requestFocus() }
     CtrlAlertDialog(
+        sensitive = true,
         onDismissRequest = onDismiss,
         icon = { Icon(Icons.Outlined.Lock, null) },
         title = { Text(title) },
@@ -102,6 +103,7 @@ fun CompressDialog(baseName: String, onDismiss: () -> Unit, onConfirm: (name: St
     var pw by remember { mutableStateOf("") }
     val err = Paths.validName(name + format.ext)
     CtrlAlertDialog(
+        sensitive = true,
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.compress)) },
         text = {
