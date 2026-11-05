@@ -564,5 +564,5 @@ fun SecureWindow() {
 @Composable
 internal fun KeepOutOfScreenshots() {
     SecureWindow()
-    SensitiveWindowEffect()
+    SensitiveWindowEffect(sensitiveData = true)
 }

@@ -4,6 +4,14 @@ What changed in each FilesCtrl version. Every release on the [Releases page](htt
 
 To publish a new version: bump `versionCode` and `versionName` in `app/build.gradle.kts`, add a section here, and push to `main`. Pushes without a version bump only build; they don't make a release.
 
+## 1.9.4 (2026-11-05)
+
+Password managers work on server and archive passwords again.
+
+### Fixed
+
+- Password managers can fill the passwords when you add or edit a server (NFS, SMB, SFTP, FTP, WebDAV) and the password of an encrypted archive again. 1.9.3 hid those screens and dialogs, and confirmations such as delete or trusting a server, from every app that reads the screen through accessibility, which also blocked password managers that fill that way; now only the lock screen, the PIN screens and "Forgot PIN?" are hidden from them. Other apps' floating windows are still kept off those screens and dialogs, and screen readers such as TalkBack keep working everywhere.
+
 ## 1.9.3 (2026-11-05)
 
 A security update for the app lock, passwords and links from other apps. Browsing, servers, transfers and sharing work as before.
