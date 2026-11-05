@@ -66,7 +66,7 @@ Settings and About are behind your profile picture at the top right of the Files
 ## Is it safe to install?
 
 - **Open source.** All the code is in this repo, under the GPL-3.0 licence.
-- **Built by GitHub Actions from this code, not on a personal computer.** Every release on the Releases page comes from [the build workflow](.github/workflows/build.yml).
+- **Built by GitHub Actions from this code, not on a personal computer.** Every release on the Releases page comes from [the build workflow](.github/workflows/build.yml). Each build also checks that the Gradle wrapper is an official Gradle release and that no Google Play services, Firebase, ML Kit, Play Core or Tink library is in the app.
 - **Always signed with the same release key.** Android refuses an update signed with a different key, and the CtrlF-Droid repo only accepts APKs signed with this key. Its SHA-256 certificate fingerprint is:
 
   ```
@@ -79,15 +79,17 @@ Settings and About are behind your profile picture at the top right of the Files
 
 | Permission | What it's for |
 | --- | --- |
-| Internet | Connecting to the NFS, SMB, SFTP, FTP and WebDAV servers you add. Nothing else |
-| View network connections | Listed in the app, but FilesCtrl doesn't currently use it. It only says whether a network is available; it doesn't give access to your Wi-Fi name or your location |
-| Prevent phone from sleeping | Keeps the phone and Wi-Fi awake while a long copy or move runs with the screen off |
-| Ask to ignore battery optimisations | Only when you tap the battery option in Settings, so big transfers aren't stopped in the background |
-| All files access | Browsing your phone's own storage, SD cards and USB drives. Network shares work without it |
-| Notifications | Showing the progress of copies and moves, and when they finish |
-| Foreground service (data sync) | Keeping copies, moves and extractions running when you leave the app |
-| Install apps | Handing an APK file you tap to Android's installer. Android still asks you before anything is installed |
-| Shizuku | Only if you turn on Shizuku in Settings, and only to open Android/data and Android/obb. Shizuku asks you before FilesCtrl gets access |
+| Internet (`INTERNET`) | Connecting to the NFS, SMB, SFTP, FTP and WebDAV servers you add. Nothing else |
+| Prevent phone from sleeping (`WAKE_LOCK`) | Keeps the phone and Wi-Fi awake while a long copy or move runs with the screen off |
+| Ask to ignore battery optimisations (`REQUEST_IGNORE_BATTERY_OPTIMIZATIONS`) | Only when you tap the battery option in Settings, so big transfers aren't stopped in the background |
+| All files access (`MANAGE_EXTERNAL_STORAGE`) | Browsing your phone's own storage, SD cards and USB drives. Network shares work without it |
+| Notifications (`POST_NOTIFICATIONS`) | Showing the progress of copies and moves, and when they finish |
+| Foreground service (`FOREGROUND_SERVICE`, `FOREGROUND_SERVICE_DATA_SYNC`) | Keeping copies, moves and extractions running when you leave the app |
+| Install apps (`REQUEST_INSTALL_PACKAGES`) | Handing an APK file you tap to Android's installer. Android still asks you before anything is installed |
+| Use biometrics (`USE_BIOMETRIC`) | Optional fingerprint unlock for the app lock |
+| Shizuku (`moe.shizuku.manager.permission.API_V23`) | Only if you turn on Shizuku in Settings, and only to open Android/data and Android/obb. Shizuku asks you before FilesCtrl gets access |
+
+Android also lists a "dynamic receiver" permission (`DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION`) that AndroidX adds to every app so only FilesCtrl itself can send it internal broadcasts; it gives the app no access to anything. FilesCtrl has no location, camera, microphone, contacts or phone permissions, and doesn't ask Android about your network or Wi-Fi.
 
 See [Privacy](#privacy) for what FilesCtrl sends and to whom.
 
@@ -124,7 +126,12 @@ Turn it on under **Settings > Privacy and security > App lock** (tap your profil
 
 - Files on your phone never leave it unless you copy, move or share them yourself.
 - WebDAV uses HTTPS by default. Plain HTTP is only used for your own server after you accept a warning that your password and files then travel unencrypted, and FilesCtrl never switches a server from HTTPS to HTTP or follows a redirect to HTTP.
-- The Support, Report a bug, Source code and Licence links on the You page (tap your profile picture) open in your browser, only when you tap them.
+- Credentials only go to the server they belong to: WebDAV never follows a redirect, and SFTP host keys and self-signed HTTPS/FTPS certificates are checked against the ones you confirmed.
+- **Shizuku** is optional and off by default. When you turn it on, FilesCtrl's helper runs through the Shizuku app on your phone, only for Android/data and Android/obb; nothing goes online.
+- Other apps can hand FilesCtrl files to save ("Save to FilesCtrl") or to open in the text editor. Both are behind the app lock, and neither accepts a link that points into FilesCtrl's own private files.
+- Copied paths and checksums are marked as sensitive, so Android 13+ doesn't show them in the clipboard preview.
+- FilesCtrl is left out of Android's cloud backup and its phone-to-phone transfer.
+- The Support, Report a bug, Source code and Licence links on the You page (tap your profile picture), and the Shizuku download link in Settings (GitHub), open in your browser, only when you tap them.
 
 ## How FilesCtrl is made
 
@@ -167,21 +174,29 @@ Native Android apps for self-hosted services and everyday tools, all with the sa
 | [AdCtrl](https://github.com/VoidedKN0X/AdCtrl) | Control your AdGuard Home DNS server |
 | [ArrCtrl](https://github.com/VoidedKN0X/ArrCtrl) | Radarr, Sonarr, Prowlarr, Bazarr, qBittorrent, autobrr and Cleanuparr in one app |
 | [BeamCtrl](https://github.com/VoidedKN0X/BeamCtrl) | TV remote for phones with an IR blaster |
+| [CallCtrl](https://github.com/VoidedKN0X/CallCtrl) | Phone app: dialer, call history and in-call screen |
 | [ChatCtrl](https://github.com/VoidedKN0X/ChatCtrl) | Matrix chat client for matrix.org and self-hosted Synapse |
+| [ClockCtrl](https://github.com/VoidedKN0X/ClockCtrl) | Alarms, timers, stopwatch and world clock |
+| [ContactCtrl](https://github.com/VoidedKN0X/ContactCtrl) | Contacts: browse, edit, import and export |
 | [CraftyCtrl](https://github.com/VoidedKN0X/CraftyCtrl) | Manage Minecraft servers on Crafty Controller |
+| [DateCtrl](https://github.com/VoidedKN0X/DateCtrl) | Calendar for the calendars on your phone and your accounts |
 | **FilesCtrl** (this app) | File manager with NFS, SMB, SFTP, FTP and WebDAV |
 | [FrigateCtrl](https://github.com/VoidedKN0X/FrigateCtrl) | Watch and review your Frigate NVR cameras |
 | [ImmichCtrl](https://github.com/VoidedKN0X/ImmichCtrl) | Photos and backup for your Immich server |
 | [JellyCtrl](https://github.com/VoidedKN0X/JellyCtrl) | Movies, shows, music and Live TV from Jellyfin |
+| [LijnCtrl](https://github.com/VoidedKN0X/LijnCtrl) | Live De Lijn bus and tram departures |
+| [MailCtrl](https://github.com/VoidedKN0X/MailCtrl) | Email for Gmail and Proton Mail |
 | [MemoCtrl](https://github.com/VoidedKN0X/MemoCtrl) | Notes on your Memos server |
 | [NaviCtrl](https://github.com/VoidedKN0X/NaviCtrl) | Music player for Navidrome servers |
 | [PaperCtrl](https://github.com/VoidedKN0X/PaperCtrl) | Scan and browse documents on Paperless-ngx |
 | [PrintCtrl](https://github.com/VoidedKN0X/PrintCtrl) | Bambu Lab printers through Bambuddy, and Spoolman spools |
 | [ProxCtrl](https://github.com/VoidedKN0X/ProxCtrl) | Manage your Proxmox VE server |
+| [RecorderCtrl](https://github.com/VoidedKN0X/RecorderCtrl) | Private, offline voice recorder |
 | [RideCtrl](https://github.com/VoidedKN0X/RideCtrl) | Offline maintenance, fuel and mod log for your vehicles |
 | [SeerrCtrl](https://github.com/VoidedKN0X/SeerrCtrl) | Request movies and shows on Seerr / Jellyseerr |
 | [SumCtrl](https://github.com/VoidedKN0X/SumCtrl) | Offline calculator, unit converter and work tools |
 | [SynapseCtrl](https://github.com/VoidedKN0X/SynapseCtrl) | Administer your Matrix Synapse server |
+| [TextCtrl](https://github.com/VoidedKN0X/TextCtrl) | Private SMS and MMS messaging |
 | [TrueCtrl](https://github.com/VoidedKN0X/TrueCtrl) | Monitor and manage your TrueNAS server |
 | [WrtCtrl](https://github.com/VoidedKN0X/WrtCtrl) | Manage your OpenWrt router |
 

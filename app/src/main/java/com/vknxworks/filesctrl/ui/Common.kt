@@ -279,5 +279,10 @@ fun displayPath(e: FileEntry): String {
 }
 
 fun copyText(ctx: Context, label: String, text: String) {
-    ctx.getSystemService(ClipboardManager::class.java).setPrimaryClip(ClipData.newPlainText(label, text))
+    val clip = ClipData.newPlainText(label, text)
+    // File paths and server addresses are personal: keep them out of the clipboard preview on Android 13+.
+    clip.description.extras = android.os.PersistableBundle().apply {
+        putBoolean(android.content.ClipDescription.EXTRA_IS_SENSITIVE, true)
+    }
+    ctx.getSystemService(ClipboardManager::class.java).setPrimaryClip(clip)
 }

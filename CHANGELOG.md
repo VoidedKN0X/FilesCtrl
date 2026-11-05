@@ -4,6 +4,22 @@ What changed in each FilesCtrl version. Every release on the [Releases page](htt
 
 To publish a new version: bump `versionCode` and `versionName` in `app/build.gradle.kts`, add a section here, and push to `main`. Pushes without a version bump only build; they don't make a release.
 
+## 1.9.1 (2026-11-05)
+
+A privacy update. Browsing, servers, transfers and the app lock work as before.
+
+### Privacy
+
+- **Two unused permissions removed.** "View network connections" (`ACCESS_NETWORK_STATE`) is gone: FilesCtrl never checked the network state with it. The old Android 8 fingerprint permission (`USE_FINGERPRINT`) is gone too: fingerprint unlock for the app lock already uses the current biometrics permission, so nothing changes there.
+- **Copied paths stay out of the clipboard preview.** Copying a path, several paths or a checksum now marks the text as sensitive, so Android 13 and newer don't show it in the clipboard preview pop-up or offer it as a suggestion. Paste works as before.
+- **No debug logging in release builds.** Debug, verbose and info messages from the libraries FilesCtrl uses (such as the SMB, SSH and FTP clients) are now stripped from the app, so nothing about your servers or files can end up in the phone's system log. FilesCtrl's own code already logged nothing.
+
+### Project
+
+- The build now checks that the Gradle wrapper is an official Gradle release, and fails if any Google Play services, Firebase, ML Kit, Play Core or Tink library ever ends up in the app.
+- `.gitignore` also covers signing-key property files, `.p12` keys and `google-services.json`, so they can't be committed by accident.
+- README: every permission in the app is listed with its Android name and what it's for (including Shizuku's), Privacy lists the Shizuku download link and how other apps can hand FilesCtrl files, and the Ctrl series list now has all 28 apps.
+
 ## 1.9.0 (2026-11-05)
 
 Optional Shizuku support: open Android/data and Android/obb, the folders Android hides from file managers.

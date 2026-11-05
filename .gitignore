@@ -9,3 +9,9 @@ captures/
 .DS_Store
 .cxx/
 *.log
+
+# Signing keys and machine-specific or secret config: never commit these.
+keystore.properties
+*.p12
+*.jks.b64
+google-services.json

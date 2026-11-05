@@ -54,6 +54,10 @@ jobs:
           distribution: temurin
           java-version: 17
 
+      - name: Validate Gradle wrapper
+        # Refuses a gradle-wrapper.jar that isn't an official Gradle release.
+        uses: gradle/actions/wrapper-validation@ed408507eac070d1f99cc633dbcf757c94c7933a # v4
+
       - uses: gradle/actions/setup-gradle@ed408507eac070d1f99cc633dbcf757c94c7933a # v4
 
       - name: Decode signing key
@@ -134,6 +138,19 @@ jobs:
           fi
           echo "signed=1" >> "$GITHUB_OUTPUT"
           echo "::notice title=Signed APK::$APK signed by $CERT (SHA-256 $SHA)"
+
+      - name: Google-free dependency audit
+        run: |
+          # Nothing from Google Play services, Firebase, ML Kit, Play Core or Tink may end up in the app.
+          if ! ./gradlew --no-daemon -q :app:dependencies --configuration releaseRuntimeClasspath > deps.txt 2> deps-err.txt; then
+            grep -E 'What went wrong|Exception|error' -A 3 deps-err.txt | head -20 | while IFS= read -r line; do echo "::error title=Dependency audit::${line}"; done
+            exit 1
+          fi
+          if grep -nE 'com\.google\.(android\.gms|firebase|mlkit|android\.play|crypto\.tink)' deps.txt; then
+            grep -nE 'com\.google\.(android\.gms|firebase|mlkit|android\.play|crypto\.tink)' deps.txt | head -20 | while IFS= read -r line; do echo "::error title=Google dependency::${line}"; done
+            exit 1
+          fi
+          echo "::notice title=Google-free::No Google Play services, Firebase, ML Kit, Play Core or Tink in the release dependencies"
 
       - name: Remove signing key
         if: always()

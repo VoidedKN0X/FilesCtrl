@@ -56,3 +56,11 @@
 -keep class moe.shizuku.** { *; }
 -dontwarn rikka.**
 -dontwarn moe.shizuku.**
+
+# No debug, verbose or info logging in release builds (FilesCtrl's own code doesn't log; this also
+# silences libraries such as the SMB, SSH and FTP clients).
+-assumenosideeffects class android.util.Log {
+    public static int v(...);
+    public static int d(...);
+    public static int i(...);
+}
