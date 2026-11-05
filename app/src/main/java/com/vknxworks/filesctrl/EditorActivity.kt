@@ -48,7 +48,8 @@ class EditorActivity : FragmentActivity() {
             return
         }
         // Any app can start the editor. FilesCtrl may read (and write) more than the sender can, so only accept
-        // content:// URIs, and file:// paths in shared storage, never FilesCtrl's own private files.
+        // content:// URIs (FilesCtrl's own only from FilesCtrl), and file:// paths in shared storage, never
+        // FilesCtrl's own private files.
         if (!acceptable(uri)) {
             Toast.makeText(this, App.str(R.string.filesctrl_can_t_open_this_file), Toast.LENGTH_SHORT).show()
             finish()
@@ -107,7 +108,9 @@ class EditorActivity : FragmentActivity() {
     }
 
     private fun acceptable(uri: android.net.Uri): Boolean = when (uri.scheme?.lowercase()) {
-        "content" -> true
+        // FilesCtrl's own links only from FilesCtrl itself ("Open with" in FilesCtrl): another app could otherwise
+        // have FilesCtrl open, and save to, a file or server that app has no access to.
+        "content" -> !OwnUris.isOwn(this, uri) || OwnUris.launchedByUs(this)
         "file" -> {
             val path = uri.path
             val canonical = try { path?.let { java.io.File(it).canonicalPath } } catch (_: Exception) { null }

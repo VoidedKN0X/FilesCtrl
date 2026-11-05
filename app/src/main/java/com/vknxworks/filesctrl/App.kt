@@ -93,8 +93,9 @@ object App {
     }
 
     /**
-     * Locked: the vault key and every saved password leave memory, and connections close. File operations that
-     * are already running keep their connection until they finish; nothing new can connect until you unlock.
+     * Locked: the vault key and every saved password leave memory, and connections close right away, each with
+     * the password it holds. File operations that are already running keep only the connections they use, each
+     * until its last operation finishes; nothing new can connect until you unlock.
      */
     fun onLocked() {
         servers.lockSecrets()
@@ -105,8 +106,14 @@ object App {
         vault.close()
         notifyRoots()
         Thread {
-            while (Ops.active.isNotEmpty() && !AppLockState.unlocked) Thread.sleep(2_000)
-            if (!AppLockState.unlocked) vfs.closeAll()
+            // Unused connections close now; the rest as the operations using them finish.
+            while (!AppLockState.unlocked) {
+                val busy = Ops.inUse()
+                if (AppLockState.unlocked) break
+                if (busy.isEmpty()) { vfs.closeAll(); break }
+                vfs.closeUnused(busy)
+                Thread.sleep(2_000)
+            }
         }.start()
     }
 

@@ -62,8 +62,28 @@ class VfsRegistry(context: Context, private val servers: ServerStore) {
     /** The server's file system only if it's connected now (doesn't start a connection). */
     fun connected(serverId: String): RemoteVfs? = remotes[serverId]?.takeIf { it.connected }
 
+    /**
+     * The app locked: closes and forgets every connection (and open archive) that none of [inUse] (vfs ids of
+     * running operations) needs, so their saved passwords leave memory now. The ones still in use stay until
+     * their operations finish.
+     */
+    fun closeUnused(inUse: Set<String>) {
+        // An archive on a server needs that server too, through every archive it's inside.
+        val needed = HashSet<String>()
+        fun need(id: String) {
+            if (!needed.add(id)) return
+            if (id.startsWith(ArchiveVfs.PREFIX)) ArchiveVfs.archiveOf(id)?.let { need(it.vfsId) }
+        }
+        inUse.forEach(::need)
+        synchronized(archives) { archives.keys.retainAll(needed) }
+        val unused = remotes.keys.filter { RemoteVfs.idFor(it) !in needed }
+        val closing = unused.mapNotNull { id -> remotes.remove(id) }
+        closing.forEach { try { it.close() } catch (_: Exception) {} }
+    }
+
     /** Closes and forgets every connection (the app locked). They connect again after unlocking. */
     fun closeAll() {
+        synchronized(archives) { archives.clear() }
         val all = remotes.values.toList()
         remotes.clear()
         all.forEach { try { it.close() } catch (_: Exception) {} }

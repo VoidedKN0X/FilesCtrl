@@ -39,8 +39,11 @@ enum class Conflict { Replace, KeepBoth, Skip }
 
 enum class TaskState { Running, Done, Failed, Cancelled }
 
-/** One running or finished operation, observable from Compose. */
-class OpTask(val id: Int, val title: String) {
+/**
+ * One running or finished operation, observable from Compose. [uses] are the file systems (vfs ids) it reads or
+ * writes, so locking the app can close every other server connection straight away.
+ */
+class OpTask(val id: Int, val title: String, internal val uses: Set<String> = emptySet()) {
     var state by mutableStateOf(TaskState.Running)
     var detail by mutableStateOf(App.str(R.string.preparing))
     var bytesTotal by mutableLongStateOf(0L)
@@ -74,6 +77,9 @@ object Ops {
 
     val active: List<OpTask> get() = tasks.filter { it.state == TaskState.Running }
 
+    /** The file systems (vfs ids) that running operations still use. */
+    fun inUse(): Set<String> = active.flatMapTo(HashSet()) { it.uses }
+
     fun init(ctx: Context) { appContext = ctx.applicationContext }
 
     /** Lets open screens know a folder changed outside an operation (e.g. a file saved in the editor). */
@@ -81,8 +87,8 @@ object Ops {
 
     fun clearFinished() { tasks.removeAll { it.state != TaskState.Running } }
 
-    private fun launch(title: String, touched: List<Location>, work: suspend (OpTask) -> Unit): OpTask {
-        val t = OpTask(nextId++, title)
+    private fun launch(title: String, touched: List<Location>, uses: Set<String>, work: suspend (OpTask) -> Unit): OpTask {
+        val t = OpTask(nextId++, title, uses)
         tasks.add(0, t)
         // Keep only a few finished ones around (the notification is where results are shown now).
         tasks.filter { it.state != TaskState.Running }.drop(10).forEach { tasks.remove(it) }
@@ -125,7 +131,7 @@ object Ops {
     fun paste(items: List<FileEntry>, dest: Location, move: Boolean, conflict: Conflict): OpTask {
         val title = App.plural(if (move) R.plurals.moving_items else R.plurals.copying_items, items.size, items.size)
         val touched = listOf(dest) + if (move) items.map { it.parentLocation } else emptyList()
-        return launch(title, touched) { t ->
+        return launch(title, touched, items.mapTo(HashSet()) { it.vfsId } + dest.vfsId) { t ->
             val dst = App.vfs.get(dest.vfsId)
             for (src in items) {
                 if (src.isDir && src.vfsId == dest.vfsId && Paths.isWithin(dest.path, src.path))
@@ -269,7 +275,7 @@ object Ops {
      * Nothing already in the folder is ever replaced.
      */
     fun saveIncoming(items: List<IncomingItem>, dest: Location): OpTask =
-        launch(App.plural(R.plurals.saving_items, items.size, items.size), listOf(dest)) { t ->
+        launch(App.plural(R.plurals.saving_items, items.size, items.size), listOf(dest), setOf(dest.vfsId)) { t ->
             val dst = App.vfs.get(dest.vfsId)
             t.filesTotal = items.size
             // Only count bytes when every size is known, so the bar doesn't jump.
@@ -306,7 +312,7 @@ object Ops {
     }
 
     private fun deleteTask(items: List<FileEntry>): OpTask =
-        launch(App.plural(R.plurals.deleting_items, items.size, items.size), items.map { it.parentLocation }.distinct()) { t ->
+        launch(App.plural(R.plurals.deleting_items, items.size, items.size), items.map { it.parentLocation }.distinct(), items.mapTo(HashSet()) { it.vfsId }) { t ->
             t.filesTotal = items.size
             for (e in items) {
                 coroutineContext.ensureActive()
@@ -350,7 +356,7 @@ object Ops {
     }
 
     private fun compressTask(items: List<FileEntry>, dest: Location, name: String, format: ArchiveFormat, password: CharArray?): OpTask =
-        launch(App.str(R.string.compressing_to, name), listOf(dest)) { t ->
+        launch(App.str(R.string.compressing_to, name), listOf(dest), items.mapTo(HashSet()) { it.vfsId } + dest.vfsId) { t ->
             val dst = App.vfs.get(dest.vfsId)
             for (e in items) {
                 val (b, f) = measure(App.vfs.get(e.vfsId), e)
@@ -398,7 +404,7 @@ object Ops {
     }
 
     private fun extractTask(archive: FileEntry, dest: Location, password: CharArray?): OpTask =
-        launch(App.str(R.string.extracting, archive.name), listOf(dest)) { t ->
+        launch(App.str(R.string.extracting, archive.name), listOf(dest), setOf(archive.vfsId, ArchiveVfs.idFor(archive.location), dest.vfsId)) { t ->
             val arc = App.vfs.archive(ArchiveVfs.idFor(archive.location)) ?: throw IOException(App.str(R.string.couldn_t_open, archive.name))
             if (password != null) arc.password = password
             val dst = App.vfs.get(dest.vfsId)

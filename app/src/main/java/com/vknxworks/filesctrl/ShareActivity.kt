@@ -186,8 +186,11 @@ class ShareActivity : FragmentActivity() {
             else -> return emptyList()
         }
         if (uris.isEmpty()) intent.clipData?.let { c -> for (i in 0 until c.itemCount) c.getItemAt(i).uri?.let { uris += it } }
-        // Only content:// links: a file:// path could point into FilesCtrl's own private files.
-        val streams = uris.filter { it.scheme.equals("content", ignoreCase = true) }.map { describe(it) }
+        // Only content:// links: a file:// path could point into FilesCtrl's own private files. FilesCtrl's own
+        // links (its files and servers) are only taken from FilesCtrl itself: from another app they would let
+        // that app copy files it has no access to.
+        val fromUs = OwnUris.launchedByUs(this)
+        val streams = uris.filter { it.scheme.equals("content", ignoreCase = true) && (fromUs || !OwnUris.isOwn(this, it)) }.map { describe(it) }
         if (streams.isNotEmpty()) return streams
         val text = intent.getCharSequenceExtra(Intent.EXTRA_TEXT)?.toString()
         if (!text.isNullOrEmpty()) {

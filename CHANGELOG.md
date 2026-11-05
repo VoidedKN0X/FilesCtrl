@@ -4,6 +4,21 @@ What changed in each FilesCtrl version. Every release on the [Releases page](htt
 
 To publish a new version: bump `versionCode` and `versionName` in `app/build.gradle.kts`, add a section here, and push to `main`. Pushes without a version bump only build; they don't make a release.
 
+## 1.9.2 (2026-11-05)
+
+A security update. Browsing, servers, transfers, sharing and the app lock work as before.
+
+### Security
+
+- **Other apps can't use FilesCtrl to reach your files and servers.** Another app could hand the text editor or "Save to FilesCtrl" a link to one of FilesCtrl's own files or server files (links that only FilesCtrl itself can read and write), and FilesCtrl would open, save or copy it for that app, even though the app had no access to it. FilesCtrl now refuses its own links unless they come from FilesCtrl itself, so *Open with* and *Share* from FilesCtrl into its own editor or "Save to FilesCtrl" keep working. Files that other apps share or open with FilesCtrl from their own storage work as before.
+- **Locking closes unused server connections straight away.** Before, when you locked FilesCtrl while a copy or move was running, every server connection stayed open, each holding its saved password in memory, until all running operations had finished. Now locking closes every connection that no running operation needs right away; the ones still in use close as soon as the last copy or move using them finishes. Background copies and moves carry on as before.
+- **Archive passwords are forgotten on lock.** Archives you had open (and the password you typed for an encrypted one) are closed when FilesCtrl locks, unless a running extract or copy is still using them. After unlocking, an encrypted archive asks for its password again when you open it.
+- **One less way in for other apps.** A component from AndroidX's profile installer let any other app on the phone ask FilesCtrl to rewrite or skip its app-start performance profile. FilesCtrl never needed it, so it's removed; start-up works as before.
+
+### Project
+
+- The network tests' SMB, SFTP, FTP and WebDAV test servers are pinned to exact image versions (by digest), so a changed image can't run in CI unnoticed.
+
 ## 1.9.1 (2026-11-05)
 
 A privacy update. Browsing, servers, transfers and the app lock work as before.

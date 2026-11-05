@@ -19,11 +19,12 @@ jobs:
           persist-credentials: false
 
       - name: Start test servers
+        # Images pinned by digest (each was :latest on 2026-11-05), so a changed image can't run in CI unnoticed.
         run: |
-          docker run -d --name smb -p 445:445 dperson/samba -p -u "test;test" -s "share;/share;yes;no;no;test"
-          docker run -d --name sftp -p 2222:22 atmoz/sftp test:test:::upload
-          docker run -d --name ftp -p 21:21 -p 21000-21010:21000-21010 -e USERS="test|test" -e ADDRESS=127.0.0.1 delfer/alpine-ftp-server
-          docker run -d --name webdav -p 8080:80 -e AUTH_TYPE=Basic -e USERNAME=test -e PASSWORD=test bytemark/webdav
+          docker run -d --name smb -p 445:445 dperson/samba@sha256:66088b78a19810dd1457a8f39340e95e663c728083efa5fe7dc0d40b2478e869 -p -u "test;test" -s "share;/share;yes;no;no;test"
+          docker run -d --name sftp -p 2222:22 atmoz/sftp@sha256:0960390462a4441dbb63698d7c185b76a41ffcee7b78ff4adf275f3e66f9c475 test:test:::upload
+          docker run -d --name ftp -p 21:21 -p 21000-21010:21000-21010 -e USERS="test|test" -e ADDRESS=127.0.0.1 delfer/alpine-ftp-server@sha256:60bb774d8408d9d4d5c74d05d1c086a34ce192c6c1a142ffac268cac0dbc6fac
+          docker run -d --name webdav -p 8080:80 -e AUTH_TYPE=Basic -e USERNAME=test -e PASSWORD=test bytemark/webdav@sha256:21eed0df1238d17766080425f9ef46da2c1130e3e3aa9eaf36794d2a72e7c616
           for p in 445 2222 21 8080; do
             for i in $(seq 1 30); do nc -z 127.0.0.1 $p && break; sleep 1; done
           done
