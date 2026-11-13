@@ -172,10 +172,15 @@ class ServerStore(context: Context, private val vault: LockVault) {
         val raw = sp.getString("list", "[]") ?: "[]"
         sealed.clear()
         val list = ArrayList<NetServer>()
+        // Very old versions saved passwords and keys as plain text; they're encrypted again below.
+        var plainSecrets = false
         try {
             val arr = JSONArray(raw)
             for (i in 0 until arr.length()) {
                 val o = arr.getJSONObject(i)
+                if (listOf("password", "privateKey").any { k -> o.optString(k).let { it.isNotEmpty() && !it.startsWith("v1:") } }) {
+                    plainSecrets = true
+                }
                 val pw = decrypt(o.optString("password"))
                 val key = decrypt(o.optString("privateKey"))
                 val s = NetServer.fromJson(o) { "" }
@@ -194,6 +199,11 @@ class ServerStore(context: Context, private val vault: LockVault) {
         locked = sealed.isNotEmpty() || (vault.enabled && !vault.isOpen)
         all.clear()
         all.addAll(list)
+        // Re-save plain-text secrets encrypted straight away, without asking to sign in again. While locked
+        // they're left as they are until the next unlock.
+        if (plainSecrets && !locked) {
+            try { persist() } catch (_: java.io.IOException) {}
+        }
     }
 
     /** The app locked (call before the vault closes): drop every password and key from memory. */

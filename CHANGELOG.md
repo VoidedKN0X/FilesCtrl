@@ -4,6 +4,20 @@ What changed in each FilesCtrl version. Every release on the [Releases page](htt
 
 To publish a new version: bump `versionCode` and `versionName` in `app/build.gradle.kts`, add a section here, and push to `main`. Pushes without a version bump only build; they don't make a release.
 
+## 1.9.7 (2026-11-13)
+
+A security and performance update. Every server type, archive and setting works as before.
+
+### Security
+
+- **Old saved passwords are encrypted straight away.** Passwords and SFTP keys saved by very old versions of FilesCtrl, before they were encrypted with the phone's secure hardware, are now encrypted the first time FilesCtrl starts (or the next time you unlock it), instead of only when you next edit that server. You don't have to sign in again.
+- **Stricter check for Google libraries.** The build now fails if any Google library other than the known open-source helpers appears in the app, not only Play services, Firebase, ML Kit, Play Core or Tink.
+- **Checked build tools.** The build now checks the Gradle download against its published checksum, so a tampered build tool can't slip into a release.
+
+### Performance
+
+- **WebDAV servers share one connection pool.** All WebDAV servers now use one set of network threads and connections instead of one per server, which saves memory and threads when you use several servers. Each server still gets its own connections and its own certificate checks.
+
 ## 1.9.6 (2026-11-12)
 
 ### Changed

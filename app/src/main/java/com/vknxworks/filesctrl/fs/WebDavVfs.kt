@@ -45,7 +45,9 @@ class WebDavVfs(override val server: NetServer) : RemoteVfs {
 
     private val client: OkHttpClient by lazy {
         val t = server.timeoutSec.coerceIn(2, 120).toLong()
-        val b = OkHttpClient.Builder()
+        // Every WebDAV server shares one connection pool and dispatcher (OkHttp keys pooled connections by
+        // address, TLS settings and certificate checks, so servers never share a connection).
+        val b = sharedHttp.newBuilder()
             .connectTimeout(t, TimeUnit.SECONDS)
             .readTimeout(t * 3, TimeUnit.SECONDS)
             .writeTimeout(t * 3, TimeUnit.SECONDS)
@@ -130,6 +132,9 @@ class WebDavVfs(override val server: NetServer) : RemoteVfs {
     }
 
     private companion object {
+        /** The base client: one connection pool and thread pool for all WebDAV servers. */
+        val sharedHttp: OkHttpClient by lazy { OkHttpClient() }
+
         const val MAX_PROPFIND_BYTES = 64 * 1024 * 1024
         private val DOCTYPE = "<!doctype".toByteArray(Charsets.US_ASCII)
 

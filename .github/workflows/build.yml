@@ -159,7 +159,16 @@ jobs:
             grep -nE 'com\.google\.(android\.gms|firebase|mlkit|android\.play|crypto\.tink)' deps.txt | head -20 | while IFS= read -r line; do echo "::error title=Google dependency::${line}"; done
             exit 1
           fi
-          echo "::notice title=Google-free::No Google Play services, Firebase, ML Kit, Play Core or Tink in the release dependencies"
+          # Any other library from Google needs a reason. Known and accepted: Guava (and its annotation jars),
+          # which the SMB share listing (rapid7 dcerpc) needs, and accompanist-drawablepainter, which Coil's
+          # Compose support needs. Anything new (Gson, Protobuf, Play libraries...) fails the build.
+          others=$(grep -nE 'com\.google\.|firebase|play-services|gms' deps.txt \
+            | grep -vE 'com\.google\.(guava:(guava|failureaccess|listenablefuture):|code\.findbugs:jsr305:|errorprone:error_prone_annotations:|j2objc:j2objc-annotations:|accompanist:accompanist-drawablepainter:)' || true)
+          if [ -n "$others" ]; then
+            echo "$others" | head -20 | while IFS= read -r line; do echo "::error title=Google dependency::${line}"; done
+            exit 1
+          fi
+          echo "::notice title=Google-free::No Google Play services, Firebase, ML Kit, Play Core or Tink, and no Google library beyond the known ones, in the release dependencies"
 
       - name: Remove signing key
         if: always()
