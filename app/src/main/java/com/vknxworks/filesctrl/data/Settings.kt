@@ -103,6 +103,9 @@ class Settings(context: Context) {
     private val _shizuku = bool("shizuku", false)
     var shizuku by _shizuku
 
+    /** Cryptomator vaults lock after FilesCtrl has been in the background this long (0 = as soon as you leave). */
+    private val _vaultLock = int("vault_lock_seconds", 300)
+    var vaultLockSeconds by _vaultLock
 
     private operator fun <T> Pref<T>.getValue(thisRef: Any?, p: kotlin.reflect.KProperty<*>): T = value
     private operator fun <T> Pref<T>.setValue(thisRef: Any?, p: kotlin.reflect.KProperty<*>, v: T) { value = v }

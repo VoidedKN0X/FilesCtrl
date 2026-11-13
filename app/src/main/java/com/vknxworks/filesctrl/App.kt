@@ -42,6 +42,9 @@ object App {
     /** The app lock's PIN, fingerprint key and the key that encrypts saved passwords while locked. */
     lateinit var vault: LockVault
         private set
+    /** Cryptomator vault passwords the user chose to remember. */
+    lateinit var vaultPasswords: com.vknxworks.filesctrl.data.VaultPasswords
+        private set
 
     /** For work that outlives a screen (file operations). */
     val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -66,6 +69,7 @@ object App {
         settings = Settings(context)
         vault = LockVault(context, "filesctrl")
         servers = ServerStore(context, vault)
+        vaultPasswords = com.vknxworks.filesctrl.data.VaultPasswords(context, vault)
         bookmarks = Bookmarks(context)
         vfs = VfsRegistry(context, servers)
         lock = com.vknxworks.filesctrl.data.LockSettings(context)
@@ -117,10 +121,62 @@ object App {
         }.start()
     }
 
+    /** Drops decoded pictures held in memory (after a vault locks, so none of its photos stay on screen caches). */
+    fun clearImageMemory() {
+        runCatching { SingletonImageLoader.get(context).memoryCache?.clear() }
+    }
+
     fun onUnlocked() {
         servers.unlockSecrets()
         notifyRoots()
     }
+}
+
+/**
+ * Locks unlocked Cryptomator vaults (wiping their keys) once FilesCtrl has been in the background for the time
+ * chosen in Settings. A trip FilesCtrl started itself (opening a vault file in another app) gets at least 5 minutes,
+ * like the app lock. Vaults a running copy or move still uses lock as soon as it finishes.
+ */
+object VaultLocker {
+    private val handler = android.os.Handler(android.os.Looper.getMainLooper())
+    private val task = Runnable { lockAll() }
+    private var backgroundAt = 0L
+    private var limitMs = 0L
+    @Volatile private var foreground = true
+
+    fun onBackground(exemptTrip: Boolean) {
+        handler.removeCallbacks(task)
+        foreground = false
+        backgroundAt = android.os.SystemClock.elapsedRealtime()
+        if (App.vfs.unlockedVaults().isEmpty()) { limitMs = -1; return }
+        val s = App.settings.vaultLockSeconds.toLong()
+        limitMs = (if (exemptTrip) maxOf(s, EXEMPT_TRIP_SECONDS) else s) * 1000L
+        if (limitMs == 0L) lockAll() else handler.postDelayed(task, limitMs)
+    }
+
+    fun onForeground() {
+        handler.removeCallbacks(task)
+        foreground = true
+        val since = backgroundAt
+        backgroundAt = 0L
+        // The handler doesn't run while the phone sleeps, so check the real time away too.
+        if (since > 0 && limitMs >= 0 && android.os.SystemClock.elapsedRealtime() - since >= limitMs) lockAll()
+    }
+
+    /** Locks every vault now, except those a running operation uses, which lock when it finishes. */
+    fun lockAll() {
+        if (App.vfs.unlockedVaults().isEmpty()) return
+        Thread {
+            while (true) {
+                val left = App.vfs.lockVaults(Ops.inUse())
+                App.clearImageMemory()
+                if (left == 0 || foreground) break
+                Thread.sleep(2_000)
+            }
+        }.start()
+    }
+
+    private const val EXEMPT_TRIP_SECONDS = 300L
 }
 
 class FilesApplication : Application(), SingletonImageLoader.Factory {

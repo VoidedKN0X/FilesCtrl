@@ -52,7 +52,7 @@ import com.vknxworks.filesctrl.ui.components.CtrlAlertDialog
 import com.vknxworks.filesctrl.ui.components.CtrlTextField
 
 @Composable
-private fun PasswordField(value: String, label: String, onChange: (String) -> Unit, onDone: (() -> Unit)? = null, modifier: Modifier = Modifier) {
+internal fun PasswordField(value: String, label: String, onChange: (String) -> Unit, onDone: (() -> Unit)? = null, modifier: Modifier = Modifier) {
     var show by remember { mutableStateOf(false) }
     CtrlTextField(
         value = value, onValueChange = onChange,

@@ -8,7 +8,7 @@ import java.util.concurrent.ConcurrentHashMap
 import com.vknxworks.filesctrl.App
 import com.vknxworks.filesctrl.R
 
-/** Hands out the file system for an id: "local", "net:<server id>" or "arc:<archive file>". */
+/** Hands out the file system for an id: "local", "net:<server id>", "arc:<archive file>" or "crypt:<vault folder>". */
 class VfsRegistry(context: Context, private val servers: ServerStore) {
     val local = LocalVfs(context.applicationContext)
     private val remotes = ConcurrentHashMap<String, RemoteVfs>()
@@ -17,6 +17,9 @@ class VfsRegistry(context: Context, private val servers: ServerStore) {
     private val archives = object : LinkedHashMap<String, ArchiveVfs>(8, 0.75f, true) {
         override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, ArchiveVfs>?) = size > 6
     }
+
+    /** Cryptomator vaults that were opened, locked or unlocked. Never evicted: an unlocked one holds its keys. */
+    private val vaults = ConcurrentHashMap<String, CryptoVfs>()
 
     init {
         // A changed or removed server drops its connection; the next use reconnects with the new settings.
@@ -33,7 +36,47 @@ class VfsRegistry(context: Context, private val servers: ServerStore) {
         id == LocalVfs.ID -> local
         id.startsWith(RemoteVfs.PREFIX) -> remote(id.removePrefix(RemoteVfs.PREFIX))
         id.startsWith(ArchiveVfs.PREFIX) -> archive(id)
+        id.startsWith(CryptoVfs.PREFIX) -> vault(id)
         else -> null
+    }
+
+    /** The vault whose folder [id] points at (locked until [CryptoVfs.unlock]); null if that place is gone. */
+    fun vault(id: String): CryptoVfs? {
+        vaults[id]?.let { return it }
+        val loc = CryptoVfs.folderOf(id) ?: return null
+        if (find(loc.vfsId) == null) return null
+        val path = Paths.normalize(loc.path) ?: return null
+        return vaults.getOrPut(id) { CryptoVfs(id, { get(loc.vfsId) }, path) }
+    }
+
+    /** Vaults that are unlocked right now. */
+    fun unlockedVaults(): List<CryptoVfs> = vaults.values.filter { it.unlocked }
+
+    /**
+     * Locks every vault none of [inUse] (vfs ids of running operations) needs, wiping its keys; returns how many
+     * are still unlocked because an operation is using them.
+     */
+    fun lockVaults(inUse: Set<String> = emptySet()): Int {
+        val needed = needed(inUse)
+        var left = 0
+        for (v in vaults.values) {
+            if (!v.unlocked) continue
+            if (v.id in needed) left++ else v.lock()
+        }
+        // Locked vaults stay listed (they hold nothing secret), so a vault inside one keeps pointing at the same object.
+        return left
+    }
+
+    /** Ids of [inUse] and every file system they sit inside (an archive or vault on a server needs that server). */
+    private fun needed(inUse: Set<String>): Set<String> {
+        val needed = HashSet<String>()
+        fun need(id: String) {
+            if (!needed.add(id)) return
+            if (id.startsWith(ArchiveVfs.PREFIX)) ArchiveVfs.archiveOf(id)?.let { need(it.vfsId) }
+            if (id.startsWith(CryptoVfs.PREFIX)) CryptoVfs.folderOf(id)?.let { need(it.vfsId) }
+        }
+        inUse.forEach(::need)
+        return needed
     }
 
     /** The archive file [id] points at, as a folder; null if the place it's in no longer exists. */
@@ -68,13 +111,9 @@ class VfsRegistry(context: Context, private val servers: ServerStore) {
      * their operations finish.
      */
     fun closeUnused(inUse: Set<String>) {
-        // An archive on a server needs that server too, through every archive it's inside.
-        val needed = HashSet<String>()
-        fun need(id: String) {
-            if (!needed.add(id)) return
-            if (id.startsWith(ArchiveVfs.PREFIX)) ArchiveVfs.archiveOf(id)?.let { need(it.vfsId) }
-        }
-        inUse.forEach(::need)
+        // An archive or vault on a server needs that server too, through every archive or vault it's inside.
+        val needed = needed(inUse)
+        lockVaults(inUse)
         synchronized(archives) { archives.keys.retainAll(needed) }
         val unused = remotes.keys.filter { RemoteVfs.idFor(it) !in needed }
         val closing = unused.mapNotNull { id -> remotes.remove(id) }
@@ -83,6 +122,7 @@ class VfsRegistry(context: Context, private val servers: ServerStore) {
 
     /** Closes and forgets every connection (the app locked). They connect again after unlocking. */
     fun closeAll() {
+        lockVaults()
         synchronized(archives) { archives.clear() }
         val all = remotes.values.toList()
         remotes.clear()

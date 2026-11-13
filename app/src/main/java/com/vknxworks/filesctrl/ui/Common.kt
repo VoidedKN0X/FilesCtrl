@@ -153,6 +153,8 @@ fun kindColor(kind: Mime.Kind): Color {
 fun hasThumbnail(e: FileEntry): Boolean {
     // Inside an archive each thumbnail would mean reading through the archive again.
     if (e.vfsId.startsWith(ArchiveVfs.PREFIX)) return false
+    // Nor inside a vault: no decrypted previews are made in the background.
+    if (e.vfsId.startsWith(com.vknxworks.filesctrl.fs.CryptoVfs.PREFIX)) return false
     val k = Mime.kind(e)
     if (k != Mime.Kind.Image && k != Mime.Kind.Video) return false
     if (e.vfsId == LocalVfs.ID) {
@@ -230,6 +232,10 @@ fun isReadOnly(e: FileEntry): Boolean =
  * with write access so the other app can save back, and is refused for read-only servers.
  */
 fun openFile(ctx: Context, e: FileEntry, chooser: Boolean = false, mimeOverride: String? = null, edit: Boolean = false) {
+    // Other apps only get to read files inside a vault; they're edited in FilesCtrl itself.
+    if (edit && e.vfsId.startsWith(com.vknxworks.filesctrl.fs.CryptoVfs.PREFIX)) {
+        Toast.makeText(ctx, App.str(R.string.vault_files_read_only_elsewhere), Toast.LENGTH_SHORT).show(); return
+    }
     val canWrite = edit && !isReadOnly(e)
     if (edit && !canWrite) { Toast.makeText(ctx, App.str(R.string.this_server_is_read_only), Toast.LENGTH_SHORT).show(); return }
     var flags = Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK
@@ -272,6 +278,12 @@ fun displayPath(e: FileEntry): String {
         // A file inside an archive: the archive's own path, then the path inside it.
         val arc = ArchiveVfs.archiveOf(e.vfsId) ?: return e.path
         val outer = displayPath(FileEntry(arc.vfsId, arc.path, Paths.name(arc.path), false, 0, 0))
+        return if (e.path == "/") outer else outer + e.path
+    }
+    if (e.vfsId.startsWith(com.vknxworks.filesctrl.fs.CryptoVfs.PREFIX)) {
+        // Inside a vault: the vault folder's own path, then the (decrypted) path inside it.
+        val f = com.vknxworks.filesctrl.fs.CryptoVfs.folderOf(e.vfsId) ?: return e.path
+        val outer = displayPath(FileEntry(f.vfsId, f.path, Paths.name(f.path), true, 0, 0))
         return if (e.path == "/") outer else outer + e.path
     }
     val s = App.servers.get(e.vfsId.removePrefix(RemoteVfs.PREFIX)) ?: return e.path

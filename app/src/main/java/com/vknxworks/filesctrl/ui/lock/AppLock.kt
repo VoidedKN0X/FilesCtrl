@@ -227,6 +227,7 @@ object AppLockState {
         exemptTrip = expectReturnAt > 0 && now - expectReturnAt < 5_000
         expectReturnAt = 0L
         backgroundAt = now
+        com.vknxworks.filesctrl.VaultLocker.onBackground(exemptTrip)
         if (!enabled || !unlocked) return
         val timeout = App.lock.lockTimeoutSeconds
         if (exemptTrip || timeout < 0) return
@@ -236,6 +237,7 @@ object AppLockState {
 
     fun onForeground() {
         handler.removeCallbacks(lockTask)
+        com.vknxworks.filesctrl.VaultLocker.onForeground()
         val since = backgroundAt
         backgroundAt = 0L
         if (since > 0) returns++
@@ -360,6 +362,7 @@ class AppLockViewModel : ViewModel() {
 fun migrate(pin: String) {
     App.vault.setUp(pin)
     App.servers.sealAll()
+    App.vaultPasswords.sealAll()
     if (App.lock.pinSet) App.lock.clearPin()
     clearLegacyBiometricKey()
 }
@@ -367,6 +370,7 @@ fun migrate(pin: String) {
 /** Turns the lock off (the PIN was just confirmed): saved passwords go back to Keystore-only encryption. */
 fun disableLock() {
     App.servers.unsealAll()
+    App.vaultPasswords.unsealAll()
     App.vault.disable()
     if (App.lock.pinSet) App.lock.clearPin()
     clearLegacyBiometricKey()
@@ -375,6 +379,7 @@ fun disableLock() {
 /** "Forgot PIN?": the saved passwords and keys can't be decrypted any more, so they're forgotten with the PIN. */
 fun resetLock() {
     App.servers.forgetSecrets()
+    App.vaultPasswords.forgetAll()
     App.vault.disable()
     if (App.lock.pinSet) App.lock.clearPin()
     clearLegacyBiometricKey()

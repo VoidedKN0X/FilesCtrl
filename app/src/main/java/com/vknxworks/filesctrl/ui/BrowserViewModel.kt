@@ -10,6 +10,10 @@ import com.vknxworks.filesctrl.App
 import com.vknxworks.filesctrl.data.SortBy
 import com.vknxworks.filesctrl.fs.ArchivePasswordException
 import com.vknxworks.filesctrl.fs.ArchiveVfs
+import com.vknxworks.filesctrl.fs.CryptoVfs
+import com.vknxworks.filesctrl.fs.VaultLockedException
+import com.vknxworks.filesctrl.fs.VaultPasswordException
+import com.vknxworks.filesctrl.R
 import com.vknxworks.filesctrl.fs.FileEntry
 import com.vknxworks.filesctrl.fs.LocalVfs
 import com.vknxworks.filesctrl.fs.Location
@@ -119,9 +123,95 @@ class BrowserViewModel(start: Location? = null) : ViewModel() {
 
     val vfsTitle: String get() = findVfs(location.vfsId)?.title ?: ""
     val isLocal: Boolean get() = location.vfsId == LocalVfs.ID
-    val readOnly: Boolean
-        get() = isArchive || (location.vfsId.startsWith(RemoteVfs.PREFIX) &&
-            App.servers.get(location.vfsId.removePrefix(RemoteVfs.PREFIX))?.readOnly == true)
+    val readOnly: Boolean get() = isReadOnlyVfs(location.vfsId)
+
+    /** Archives, read-only servers, and vaults inside either. */
+    private fun isReadOnlyVfs(id: String, depth: Int = 0): Boolean = when {
+        id.startsWith(ArchiveVfs.PREFIX) -> true
+        id.startsWith(RemoteVfs.PREFIX) -> App.servers.get(id.removePrefix(RemoteVfs.PREFIX))?.readOnly == true
+        id.startsWith(CryptoVfs.PREFIX) && depth < 8 -> CryptoVfs.folderOf(id)?.let { isReadOnlyVfs(it.vfsId, depth + 1) } ?: true
+        else -> false
+    }
+
+    // ---------- Cryptomator vaults ----------
+
+    /** Browsing inside an unlocked Cryptomator vault. */
+    val isVault: Boolean get() = location.vfsId.startsWith(CryptoVfs.PREFIX)
+
+    /** The folder the vault being browsed is stored in (its encrypted files). */
+    val vaultFolder: Location? get() = if (isVault) CryptoVfs.folderOf(location.vfsId) else null
+
+    /** The folder on screen holds a Cryptomator vault's files (vault.cryptomator and masterkey.cryptomator). */
+    val vaultHere: Boolean get() = error == null && CryptoVfs.looksLikeVault(entries)
+
+    /** Asking for a vault's password: which vault, its name, and why the last try failed (if it did). */
+    data class VaultPrompt(val vaultId: String, val title: String, val wrong: Boolean = false, val message: String? = null)
+
+    var vaultPrompt by mutableStateOf<VaultPrompt?>(null)
+    /** scrypt is running (it takes a moment on purpose). */
+    var unlocking by mutableStateOf(false)
+        private set
+    /** Set by a forward navigation, so arriving at a vault's folder asks for its password right away. */
+    private var openVaultOnLoad = false
+
+    private fun vaultTitle(id: String) = CryptoVfs.folderOf(id)?.let { Paths.name(it.path) } ?: ""
+
+    /** Opens the vault stored in [folder]: straight in if it's unlocked, with the saved password if there is one, else asks. */
+    fun openVault(folder: Location) {
+        val id = CryptoVfs.idFor(folder)
+        val v = try { App.vfs.vault(id) } catch (_: Exception) { null } ?: return
+        if (v.unlocked) { navigate(Location(id, "/")); return }
+        val saved = App.vaultPasswords.get(id)
+        if (saved != null) unlockVault(id, saved, remember = false, fromSaved = true)
+        else vaultPrompt = VaultPrompt(id, vaultTitle(id))
+    }
+
+    /** Unlocks off the main thread; on success opens the vault (or reloads, when already in it). */
+    fun unlockVault(id: String, password: CharArray, remember: Boolean, fromSaved: Boolean = false) {
+        if (unlocking) return
+        unlocking = true
+        viewModelScope.launch {
+            val err = withContext(Dispatchers.IO) {
+                try {
+                    val v = App.vfs.vault(id) ?: throw java.io.IOException(App.str(R.string.vault_locked))
+                    v.unlock(password)
+                    if (remember) try { App.vaultPasswords.save(id, password) } catch (_: java.io.IOException) {}
+                    null
+                } catch (e: Exception) {
+                    e
+                } finally {
+                    password.fill('\u0000')
+                }
+            }
+            unlocking = false
+            when {
+                err == null -> {
+                    vaultPrompt = null
+                    if (location.vfsId == id) load() else navigate(Location(id, "/"))
+                }
+                err is VaultPasswordException && fromSaved -> {
+                    // The vault's password changed: forget the saved one and ask.
+                    App.vaultPasswords.forget(id)
+                    vaultPrompt = VaultPrompt(id, vaultTitle(id), message = App.str(R.string.vault_saved_password_failed))
+                }
+                err is VaultPasswordException -> vaultPrompt = VaultPrompt(id, vaultTitle(id), wrong = true)
+                else -> vaultPrompt = VaultPrompt(id, vaultTitle(id), message = err.message ?: err.javaClass.simpleName)
+            }
+        }
+    }
+
+    /** Asks again for the password of the vault being browsed (after the prompt was cancelled). */
+    fun promptVault() {
+        if (isVault) vaultPrompt = VaultPrompt(location.vfsId, vaultTitle(location.vfsId))
+    }
+
+    /** Locks the vault being browsed (its keys are wiped) and goes back to the folder it's in. */
+    fun lockVault(currentIndex: Int = 0) {
+        val folder = vaultFolder ?: return
+        App.vfs.vault(location.vfsId)?.lock()
+        App.clearImageMemory()
+        navigate(Location(folder.vfsId, Paths.parent(folder.path)), currentIndex)
+    }
 
     /** Browsing inside an archive (read-only). */
     val isArchive: Boolean get() = location.vfsId.startsWith(ArchiveVfs.PREFIX)
@@ -158,6 +248,10 @@ class BrowserViewModel(start: Location? = null) : ViewModel() {
         if (vfs is ArchiveVfs && depth < 8) ArchiveVfs.archiveOf(loc.vfsId)?.let { arc ->
             out += crumbsFor(Location(arc.vfsId, Paths.parent(arc.path)), depth + 1)
         }
+        // A vault: the folders it's in, then the vault by its folder's name.
+        if (vfs is CryptoVfs && depth < 8) CryptoVfs.folderOf(loc.vfsId)?.let { f ->
+            out += crumbsFor(Location(f.vfsId, Paths.parent(f.path)), depth + 1)
+        }
         out += label to Location(loc.vfsId, root)
         val rest = loc.path.removePrefix(root).trim('/')
         if (rest.isNotEmpty()) {
@@ -176,6 +270,7 @@ class BrowserViewModel(start: Location? = null) : ViewModel() {
         if (to == location) { load(); return }
         if (addToHistory) history.addLast(location to currentIndex)
         if (history.size > 200) history.removeFirst()
+        openVaultOnLoad = addToHistory && !to.vfsId.startsWith(ArchiveVfs.PREFIX)
         location = to
         restoreIndex = 0
         selection.clear()
@@ -193,8 +288,9 @@ class BrowserViewModel(start: Location? = null) : ViewModel() {
         val vfs = findVfs(location.vfsId) ?: return
         val (root, _) = vfs.rootOf(location.path)
         if (location.path == root) {
-            // Up from the top of an archive goes to the folder the archive is in.
-            archiveFile?.let { navigate(Location(it.vfsId, Paths.parent(it.path)), currentIndex, addToHistory) }
+            // Up from the top of an archive goes to the folder the archive is in; from a vault, to the folder
+            // its encrypted folder is in.
+            (archiveFile ?: vaultFolder)?.let { navigate(Location(it.vfsId, Paths.parent(it.path)), currentIndex, addToHistory) }
             return
         }
         navigate(Location(location.vfsId, Paths.parent(location.path)), currentIndex, addToHistory)
@@ -203,7 +299,7 @@ class BrowserViewModel(start: Location? = null) : ViewModel() {
     val canGoUp: Boolean
         get() {
             val vfs = findVfs(location.vfsId) ?: return false
-            return isArchive || location.path != vfs.rootOf(location.path).first
+            return isArchive || isVault || location.path != vfs.rootOf(location.path).first
         }
 
     /**
@@ -237,6 +333,8 @@ class BrowserViewModel(start: Location? = null) : ViewModel() {
     fun load(quiet: Boolean = false) {
         loadJob?.cancel()
         val loc = location
+        val openVault = openVaultOnLoad
+        openVaultOnLoad = false
         if (spaceFor != loc.vfsId) { space = null; spaceFor = null }
         loadJob = viewModelScope.launch {
             if (!quiet) loading = true
@@ -248,6 +346,8 @@ class BrowserViewModel(start: Location? = null) : ViewModel() {
                     // Forget selected items that are gone.
                     val names = list.mapTo(HashSet()) { it.path }
                     selection.retainAll { it in names }
+                    // Arrived at a vault's folder: open the vault (asks for the password unless it's unlocked).
+                    if (openVault && CryptoVfs.looksLikeVault(list)) openVault(loc)
                 }
                 if (loc.vfsId.startsWith(RemoteVfs.PREFIX)) {
                     val sp = withContext(Dispatchers.IO) { try { App.vfs.get(loc.vfsId).space(loc.path) } catch (_: Exception) { null } }
@@ -261,6 +361,7 @@ class BrowserViewModel(start: Location? = null) : ViewModel() {
                     error = e.message ?: e.javaClass.simpleName
                     if (e is com.vknxworks.filesctrl.fs.UntrustedIdentityException) untrusted = e
                     if (e is ArchivePasswordException) { lockedArchive = e; passwordPromptHidden = false }
+                    if (e is VaultLockedException && !unlocking) vaultPrompt = VaultPrompt(e.vaultId, vaultTitle(e.vaultId))
                 }
             } finally {
                 if (loc == location) { loading = false; loadCount++ }

@@ -4,6 +4,23 @@ What changed in each FilesCtrl version. Every release on the [Releases page](htt
 
 To publish a new version: bump `versionCode` and `versionName` in `app/build.gradle.kts`, add a section here, and push to `main`. Pushes without a version bump only build; they don't make a release.
 
+## 1.10.0 (2026-11-13)
+
+FilesCtrl now opens Cryptomator vaults, on your phone and on your servers.
+
+### New
+
+- **Open Cryptomator vaults.** Open the folder of a Cryptomator vault (the one with `vault.cryptomator` and `masterkey.cryptomator` in it) and FilesCtrl asks for the vault's password, then shows what's inside like any other folder. It works wherever the vault is: phone storage, an SD card, or an NFS, SMB, SFTP, FTP or WebDAV server. Tapping `vault.cryptomator`, or *Unlock* on the card above the vault's files, asks too.
+- **Work inside the vault as usual:** open files in other apps, look at pictures in FilesCtrl's viewer, edit text files, copy and move files in and out, make folders, rename, delete and search. Everything is encrypted and decrypted on the fly; names longer than Cryptomator's limit are handled the way Cryptomator does, so the vault stays fully compatible with Cryptomator on your computer and other phones.
+- **Vaults lock themselves.** Tap the lock at the top to lock a vault. Vaults also lock when FilesCtrl's app lock locks, and after FilesCtrl has been in the background for 5 minutes (choose right away, 1, 5 or 15 minutes or 1 hour in *Settings > Cryptomator vaults*). Locking wipes the vault's keys from memory. A copy or move that's still running from a vault finishes first.
+- **Remember a vault's password (optional).** Passwords are never saved unless you switch on *Remember the password on this phone* when unlocking. A remembered password is encrypted with the phone's secure hardware like your server passwords, and with the app lock's PIN while the lock is on. Forget it from the vault's menu, or all of them in Settings.
+- Supports vault format 8 (vaults made with Cryptomator 1.6 or newer). Older vaults that still use Cryptomator's SIV_CTRMAC encryption, and Cryptomator Hub vaults, show a message instead.
+
+### Privacy
+
+- Nothing decrypted from a vault is written anywhere else on the phone: pictures are decrypted in memory only, vault files get no thumbnails, a tab inside a vault is remembered as the folder the vault is in, and folders inside a vault can't be bookmarked or added to the home screen.
+- Other apps can only read a vault file you open from FilesCtrl, and only while the vault is unlocked.
+
 ## 1.9.7 (2026-11-13)
 
 A security and performance update. Every server type, archive and setting works as before.

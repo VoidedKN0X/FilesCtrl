@@ -345,12 +345,13 @@ private data class ImageInfo(
     val exposure: String?, val size: Long,
 )
 
-private fun readInfo(e: FileEntry, file: java.io.File): ImageInfo {
+/** From [file] on the phone, or from [bytes] in memory (pictures inside a vault). */
+private fun readInfo(e: FileEntry, file: java.io.File?, bytes: ByteArray?): ImageInfo {
     var w: Int? = null
     var h: Int? = null
     try {
         val o = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-        BitmapFactory.decodeFile(file.path, o)
+        if (bytes != null) BitmapFactory.decodeByteArray(bytes, 0, bytes.size, o) else BitmapFactory.decodeFile(file!!.path, o)
         if (o.outWidth > 0 && o.outHeight > 0) { w = o.outWidth; h = o.outHeight }
     } catch (_: Exception) {}
     var taken: String? = null
@@ -358,7 +359,7 @@ private fun readInfo(e: FileEntry, file: java.io.File): ImageInfo {
     var lens: String? = null
     var exposure: String? = null
     try {
-        val x = ExifInterface(file.path)
+        val x = if (bytes != null) ExifInterface(java.io.ByteArrayInputStream(bytes)) else ExifInterface(file!!.path)
         if (w == null) {
             val ew = x.getAttributeInt(ExifInterface.TAG_IMAGE_WIDTH, 0)
             val eh = x.getAttributeInt(ExifInterface.TAG_IMAGE_LENGTH, 0)
@@ -396,7 +397,7 @@ private fun readInfo(e: FileEntry, file: java.io.File): ImageInfo {
         x.getAttribute(ExifInterface.TAG_PHOTOGRAPHIC_SENSITIVITY)?.let { parts += "ISO $it" }
         exposure = parts.joinToString("  ").ifEmpty { null }
     } catch (_: Exception) {}
-    return ImageInfo(w, h, taken, camera, lens, exposure, if (e.size > 0) e.size else file.length())
+    return ImageInfo(w, h, taken, camera, lens, exposure, if (e.size > 0) e.size else bytes?.size?.toLong() ?: file?.length() ?: 0)
 }
 
 @Composable
@@ -406,7 +407,9 @@ private fun InfoSheet(e: FileEntry, onDismiss: () -> Unit) {
     var err by remember(e.path) { mutableStateOf<String?>(null) }
     LaunchedEffect(e.path) {
         try {
-            info = withContext(Dispatchers.IO) { readInfo(e, ImageCache.file(e)) }
+            info = withContext(Dispatchers.IO) {
+                if (ImageCache.inMemoryOnly(e)) readInfo(e, null, ImageCache.bytes(e)) else readInfo(e, ImageCache.file(e), null)
+            }
         } catch (ex: kotlinx.coroutines.CancellationException) {
             throw ex
         } catch (ex: Exception) {

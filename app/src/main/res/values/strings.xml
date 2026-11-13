@@ -683,4 +683,34 @@
     <string name="shizuku_error_too_old">This version of Shizuku is too old. Update Shizuku, then try again.</string>
     <string name="shizuku_error_no_permission">FilesCtrl isn\'t allowed in Shizuku yet. Allow it in Settings, Shizuku.</string>
     <string name="shizuku_error_timeout">Shizuku didn\'t answer. Restart Shizuku, then try again.</string>
-</resources>
+    <!-- Cryptomator vaults -->
+    <string name="vault_label">Cryptomator vault</string>
+    <string name="vault_locked">This vault is locked.</string>
+    <string name="vault_damaged">This vault\'s settings files are damaged or weren\'t made by Cryptomator.</string>
+    <string name="vault_unsupported_format">This vault uses a Cryptomator vault format FilesCtrl can\'t open. FilesCtrl opens format 8 vaults (Cryptomator 1.6 and newer).</string>
+    <string name="vault_unsupported_cipher">This vault uses Cryptomator\'s older SIV_CTRMAC encryption, which FilesCtrl can\'t open yet. Vaults created with Cryptomator 1.6 or newer use SIV_GCM and open here.</string>
+    <string name="vault_too_much_memory">This vault\'s password settings need more memory than FilesCtrl can use on a phone.</string>
+    <string name="vault_folder_missing">The encrypted files of this folder are missing from the vault. Cryptomator\'s health check can repair it.</string>
+    <string name="vault_folder_not_empty">The folder isn\'t empty.</string>
+    <string name="vault_banner_body">This folder is an encrypted Cryptomator vault.</string>
+    <string name="vault_unlock">Unlock</string>
+    <string name="vault_unlock_title">Unlock %1$s</string>
+    <string name="vault_unlock_body">Enter the vault\'s password. It\'s checked on this phone and never sent anywhere.</string>
+    <string name="vault_unlocking">Unlocking…</string>
+    <string name="vault_remember_password">Remember the password on this phone</string>
+    <string name="vault_remember_hint">Saved encrypted with the phone\'s secure hardware, and with your app lock PIN while the lock is on.</string>
+    <string name="vault_saved_password_failed">The saved password didn\'t work any more, so it was forgotten. Enter the password.</string>
+    <string name="vault_lock">Lock vault</string>
+    <string name="vault_locked_toast">Vault locked</string>
+    <string name="vault_forget_password">Forget saved password</string>
+    <string name="vault_password_forgotten">Saved password forgotten</string>
+    <string name="vault_group">Cryptomator vaults</string>
+    <string name="vault_group_footer">Vaults open in FilesCtrl wherever they are: on this phone or on a server. Their keys stay in memory only while a vault is unlocked and are wiped when you lock it, when FilesCtrl locks, or after the time below.</string>
+    <string name="vault_timeout">Lock vaults</string>
+    <string name="vault_forget_all">Forget saved vault passwords</string>
+    <plurals name="vault_forget_all_subtitle">
+        <item quantity="one">A password is saved for %1$d vault</item>
+        <item quantity="other">Passwords are saved for %1$d vaults</item>
+    </plurals>
+    <string name="vault_forget_all_none">No vault passwords are saved</string>
+    <string name="vault_files_read_only_elsewhere">Other apps can only read files in a vault. Edit them in FilesCtrl.</string></resources>

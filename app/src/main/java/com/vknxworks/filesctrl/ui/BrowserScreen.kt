@@ -72,6 +72,8 @@ import androidx.compose.material.icons.outlined.FolderZip
 import androidx.compose.material.icons.outlined.GridView
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Link
+import androidx.compose.material.icons.outlined.Lock
+import androidx.compose.material.icons.outlined.Password
 import androidx.compose.material.icons.outlined.Menu
 import androidx.compose.material.icons.outlined.MoreVert
 import androidx.compose.material.icons.outlined.NoteAdd
@@ -139,6 +141,8 @@ import com.vknxworks.filesctrl.App
 import com.vknxworks.filesctrl.data.Bookmark
 import com.vknxworks.filesctrl.data.SortBy
 import com.vknxworks.filesctrl.fs.ArchiveVfs
+import com.vknxworks.filesctrl.fs.CryptoVfs
+import com.vknxworks.filesctrl.crypt.Cryptomator
 import com.vknxworks.filesctrl.fs.FileEntry
 import com.vknxworks.filesctrl.fs.Location
 import com.vknxworks.filesctrl.fs.Mime
@@ -249,6 +253,7 @@ fun BrowserScreen(vm: BrowserViewModel, islandSpace: Dp, pane: Pane? = null, dua
 
     fun openEntry(e: FileEntry) {
         if (e.isDir) vm.navigate(e.location, currentIndex())
+        else if (e.name == Cryptomator.VAULT_FILE && vm.vaultHere) vm.openVault(e.parentLocation)
         else if (Mime.isArchive(e)) vm.openArchive(e, currentIndex())
         else if (s.builtInViewer && com.vknxworks.filesctrl.viewer.Viewable.isImage(e)) {
             com.vknxworks.filesctrl.viewer.ViewerSession.set(items)
@@ -321,6 +326,7 @@ fun BrowserScreen(vm: BrowserViewModel, islandSpace: Dp, pane: Pane? = null, dua
                     color = CtrlColors.Accent, trackColor = CtrlColors.ProgressTrack,
                 )
             }
+            if (vm.vaultHere && vm.deepQuery == null && !(vm.isLocal && !hasAllFiles)) VaultBanner { vm.openVault(vm.location) }
             when {
                 vm.isLocal && !hasAllFiles -> PermissionGate()
                 vm.deepQuery != null -> SearchResults(vm, onOpen = ::openEntry, onMenu = { e, a -> handleItemAction(ctx, vm, e, a, nav) { dlg = it } })
@@ -360,6 +366,15 @@ fun BrowserScreen(vm: BrowserViewModel, islandSpace: Dp, pane: Pane? = null, dua
                 onDismiss = { vm.passwordPromptHidden = true },
             ) { pw -> vm.unlockArchive(pw) }
         }
+    }
+    vm.vaultPrompt?.let { p ->
+        VaultUnlockDialog(
+            title = p.title,
+            wrong = p.wrong,
+            message = p.message,
+            busy = vm.unlocking,
+            onDismiss = { if (!vm.unlocking) vm.vaultPrompt = null },
+        ) { pw, remember -> vm.unlockVault(p.vaultId, pw, remember) }
     }
     when (val d = dlg) {
         null -> {}
@@ -466,6 +481,10 @@ private fun MainBar(vm: BrowserViewModel, pane: Pane?, compact: Boolean, onDialo
         profile = if (compact) null else { { ProfileButton(connected = vm.location.vfsId.startsWith(RemoteVfs.PREFIX) && vm.error == null) } },
         showWordmark = !compact,
         actions = {
+            if (vm.isVault) CtrlIconButton(Icons.Outlined.Lock, stringResource(R.string.vault_lock), onClick = {
+                vm.lockVault()
+                Toast.makeText(ctx, App.str(R.string.vault_locked_toast), Toast.LENGTH_SHORT).show()
+            })
             CtrlIconButton(Icons.Outlined.Search, stringResource(R.string.search), onClick = { vm.searchOpen = true })
             Box {
                 CtrlIconButton(Icons.AutoMirrored.Outlined.Sort, stringResource(R.string.sort), onClick = { sortMenu = true })
@@ -528,8 +547,18 @@ private fun MainBar(vm: BrowserViewModel, pane: Pane?, compact: Boolean, onDialo
                         leadingIcon = { Icon(Icons.Outlined.Refresh, null) },
                         onClick = { vm.load(); menu = false },
                     )
+                    if (vm.isVault && App.vaultPasswords.has(vm.location.vfsId)) CtrlDropdownMenuItem(
+                        text = { Text(stringResource(R.string.vault_forget_password)) },
+                        leadingIcon = { Icon(Icons.Outlined.Password, null) },
+                        onClick = {
+                            menu = false
+                            App.vaultPasswords.forget(vm.location.vfsId)
+                            Toast.makeText(ctx, App.str(R.string.vault_password_forgotten), Toast.LENGTH_SHORT).show()
+                        },
+                    )
                     val marked = App.bookmarks.contains(vm.location)
-                    CtrlDropdownMenuItem(
+                    // Bookmarks and shortcuts are saved in plain text: none for places inside a vault.
+                    if (!vm.isVault) CtrlDropdownMenuItem(
                         text = { Text(if (marked) stringResource(R.string.remove_bookmark) else stringResource(R.string.bookmark_this_folder)) },
                         leadingIcon = { Icon(if (marked) Icons.Outlined.BookmarkRemove else Icons.Outlined.BookmarkAdd, null) },
                         onClick = {
@@ -538,7 +567,7 @@ private fun MainBar(vm: BrowserViewModel, pane: Pane?, compact: Boolean, onDialo
                             menu = false
                         },
                     )
-                    if (com.vknxworks.filesctrl.shortcuts.Shortcuts.canPin(vm.location)) CtrlDropdownMenuItem(
+                    if (!vm.isVault && com.vknxworks.filesctrl.shortcuts.Shortcuts.canPin(vm.location)) CtrlDropdownMenuItem(
                         text = { Text(stringResource(R.string.add_to_home_screen)) },
                         leadingIcon = { Icon(Icons.Outlined.Home, null) },
                         onClick = {
@@ -600,6 +629,7 @@ private fun subtitle(vm: BrowserViewModel): String {
         val label = (runCatching { App.vfs.find(vm.location.vfsId) }.getOrNull() as? ArchiveVfs)?.loadedFormatLabel
         return App.str(R.string.subtitle_read_only, label?.let { App.str(R.string.archive_2, it) } ?: App.str(R.string.archive))
     }
+    if (vm.isVault) return App.str(R.string.vault_label)
     val sp = vm.space
     if (sp != null && sp.total > 0) return App.str(R.string.of_used, Fmt.size(ctx, sp.total - sp.free), Fmt.size(ctx, sp.total))
     return App.servers.get(vm.location.vfsId.removePrefix(RemoteVfs.PREFIX))?.host ?: vm.vfsTitle
@@ -720,7 +750,7 @@ private fun ItemMenu(e: FileEntry, readOnly: Boolean, inSearch: Boolean, expande
         if (inSearch) entry(stringResource(R.string.show_in_folder), Icons.Outlined.FolderOpen, ItemAction.OpenLocation)
         if (!e.isDir) {
             entry(stringResource(R.string.open_with), Icons.AutoMirrored.Outlined.OpenInNew, ItemAction.OpenWith)
-            if (!readOnly) entry(stringResource(R.string.edit_with), Icons.Outlined.Edit, ItemAction.EditWith)
+            if (!readOnly && !e.vfsId.startsWith(CryptoVfs.PREFIX)) entry(stringResource(R.string.edit_with), Icons.Outlined.Edit, ItemAction.EditWith)
             if (e.size < MAX_EDIT_BYTES) entry(stringResource(R.string.edit_as_text), Icons.Outlined.Edit, ItemAction.EditText)
             entry(stringResource(R.string.share), Icons.Outlined.Share, ItemAction.Share)
         }
@@ -738,12 +768,13 @@ private fun ItemMenu(e: FileEntry, readOnly: Boolean, inSearch: Boolean, expande
             entry(stringResource(R.string.open_in_new_tab), Icons.Outlined.Tab, ItemAction.NewTab)
             if (BrowserTabs.dualPane) entry(stringResource(R.string.open_in_other_pane), Icons.Outlined.VerticalSplit, ItemAction.OtherPane)
         }
-        if (e.isDir) entry(
+        val inVault = e.vfsId.startsWith(CryptoVfs.PREFIX)
+        if (e.isDir && !inVault) entry(
             if (App.bookmarks.contains(e.location)) stringResource(R.string.remove_bookmark) else stringResource(R.string.bookmark),
             if (App.bookmarks.contains(e.location)) Icons.Outlined.BookmarkRemove else Icons.Outlined.BookmarkAdd,
             ItemAction.Bookmark,
         )
-        if (e.isDir && com.vknxworks.filesctrl.shortcuts.Shortcuts.canPin(e.location)) entry(stringResource(R.string.add_to_home_screen), Icons.Outlined.Home, ItemAction.HomeScreen)
+        if (e.isDir && !inVault && com.vknxworks.filesctrl.shortcuts.Shortcuts.canPin(e.location)) entry(stringResource(R.string.add_to_home_screen), Icons.Outlined.Home, ItemAction.HomeScreen)
         if (!e.isDir) entry(stringResource(R.string.checksums), Icons.Outlined.Tag, ItemAction.Checksum)
         entry(stringResource(R.string.copy_path), Icons.Outlined.Link, ItemAction.CopyPath)
         entry(stringResource(R.string.properties), Icons.Outlined.Info, ItemAction.Properties)
@@ -1042,6 +1073,9 @@ private fun ErrorState(message: String, vm: BrowserViewModel, nav: androidx.navi
     CenteredMessage(Icons.Outlined.CloudOff, stringResource(R.string.couldn_t_open_this_folder), message) {
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             if (vm.lockedArchive != null) CtrlButton(onClick = { vm.passwordPromptHidden = false }) { Text(stringResource(R.string.enter_password)) }
+            else if (vm.isVault && runCatching { (App.vfs.find(vm.location.vfsId) as? CryptoVfs)?.unlocked != true }.getOrDefault(true)) {
+                CtrlButton(onClick = { vm.promptVault() }) { Text(stringResource(R.string.vault_unlock)) }
+            }
             else CtrlButton(onClick = { vm.load() }) { Text(stringResource(R.string.retry)) }
             if (vm.location.vfsId.startsWith(RemoteVfs.PREFIX)) {
                 CtrlSecondaryButton(onClick = { nav.go("server/" + vm.location.vfsId.removePrefix(RemoteVfs.PREFIX)) }) { Text(stringResource(R.string.edit_server)) }

@@ -129,10 +129,16 @@ object BrowserTabs {
         } catch (_: Exception) {}
     }
 
-    /** Inside an archive, the tab is saved as the folder the archive is in (archives are opened afresh). */
-    private fun savable(loc: Location): Location =
-        if (loc.vfsId.startsWith(ArchiveVfs.PREFIX)) ArchiveVfs.archiveOf(loc.vfsId)?.let { Location(it.vfsId, Paths.parent(it.path)) }?.let { savable(it) } ?: loc
-        else loc
+    /**
+     * Inside an archive, the tab is saved as the folder the archive is in (archives are opened afresh). Inside a
+     * vault it's saved as the folder the vault is in, so no decrypted folder name is ever written to the phone.
+     */
+    private fun savable(loc: Location): Location = when {
+        loc.vfsId.startsWith(ArchiveVfs.PREFIX) -> ArchiveVfs.archiveOf(loc.vfsId)?.let { Location(it.vfsId, Paths.parent(it.path)) }?.let { savable(it) } ?: loc
+        loc.vfsId.startsWith(com.vknxworks.filesctrl.fs.CryptoVfs.PREFIX) ->
+            com.vknxworks.filesctrl.fs.CryptoVfs.folderOf(loc.vfsId)?.let { Location(it.vfsId, Paths.parent(it.path)) }?.let { savable(it) } ?: loc
+        else -> loc
+    }
 
     /** Only places that still exist: this phone's volumes, or a server that's still saved. */
     private fun valid(loc: Location): Location? {

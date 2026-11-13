@@ -193,6 +193,31 @@ fun SettingsScreen() {
         }
 
         item {
+            SettingsSection(stringResource(R.string.vault_group), footer = stringResource(R.string.vault_group_footer)) {
+                val afters = listOf(0, 60, 300, 900, 3600)
+                ChoiceItem(
+                    Icons.Outlined.Timer, stringResource(R.string.vault_timeout),
+                    listOf(
+                        R.string.lock_again_immediately, R.string.lock_again_1m, R.string.lock_again_5m,
+                        R.string.lock_again_15m, R.string.lock_again_1h,
+                    ).map { stringResource(it) },
+                    afters.indexOf(s.vaultLockSeconds).let { if (it < 0) 2 else it },
+                ) { s.vaultLockSeconds = afters[it] }
+                ItemDivider()
+                val saved = App.vaultPasswords.count
+                NavItem(
+                    Icons.Outlined.Password, stringResource(R.string.vault_forget_all),
+                    if (saved > 0) App.plural(R.plurals.vault_forget_all_subtitle, saved, saved) else stringResource(R.string.vault_forget_all_none),
+                ) {
+                    if (saved > 0) {
+                        App.vaultPasswords.forgetAll()
+                        Toast.makeText(ctx, R.string.vault_password_forgotten, Toast.LENGTH_SHORT).show()
+                    }
+                }
+            }
+        }
+
+        item {
             SettingsSection(stringResource(R.string.files)) {
                 ToggleItem(Icons.Outlined.Visibility, stringResource(R.string.show_hidden_files), stringResource(R.string.names_starting_with_a_dot), s.showHidden) { s.showHidden = it }
                 ItemDivider()

@@ -98,6 +98,28 @@ object ImageCache {
         }
     }
 
+    /** Pictures inside a Cryptomator vault are never written to the cache folder: they're decrypted into memory. */
+    fun inMemoryOnly(e: FileEntry): Boolean = e.vfsId.startsWith(com.vknxworks.filesctrl.fs.CryptoVfs.PREFIX)
+
+    private const val MAX_MEMORY_BYTES = 64L * 1024 * 1024
+
+    /** A vault picture, decrypted into memory (up to 64 MB). */
+    suspend fun bytes(e: FileEntry): ByteArray = withContext(Dispatchers.IO) {
+        if (e.size > MAX_MEMORY_BYTES) throw IOException(App.str(R.string.viewer_too_large))
+        App.vfs.get(e.vfsId).openRead(e.path).use { input ->
+            val out = java.io.ByteArrayOutputStream(e.size.coerceIn(0, MAX_MEMORY_BYTES).toInt())
+            val buf = ByteArray(256 * 1024)
+            while (true) {
+                coroutineContext.ensureActive()
+                val n = input.read(buf)
+                if (n < 0) break
+                if (out.size() + n > MAX_MEMORY_BYTES) throw IOException(App.str(R.string.viewer_too_large))
+                out.write(buf, 0, n)
+            }
+            out.toByteArray()
+        }
+    }
+
     /** Everything the viewer cached (e.g. when the app locks, so no pictures from servers stay on the phone). */
     fun clear() { runCatching { File(App.context.cacheDir, "viewer").listFiles()?.forEach { it.delete() } } }
 }
@@ -106,6 +128,14 @@ object ImageCache {
 class VfsImageFetcher(private val data: VfsImage, private val options: Options) : Fetcher {
     override suspend fun fetch(): FetchResult {
         val e = data.entry
+        if (ImageCache.inMemoryOnly(e)) {
+            val bytes = ImageCache.bytes(e)
+            return SourceFetchResult(
+                source = ImageSource(okio.Buffer().write(bytes), options.fileSystem),
+                mimeType = Mime.ofName(e.name),
+                dataSource = DataSource.MEMORY,
+            )
+        }
         val f = ImageCache.file(e)
         return SourceFetchResult(
             source = ImageSource(f.source().buffer(), options.fileSystem),

@@ -19,6 +19,7 @@ Part of the [Ctrl series](#the-ctrl-series) by VKNXWorks.
 - **Your servers in the system file picker**, so other apps can open and save files on them
 - **Copy, move, rename and delete** between your phone and any server, in the background
 - **Archives**: open ZIP, 7z, RAR (RAR4), TAR (.tar.gz, .tar.xz, .tar.zst, .tar.bz2 and more), CPIO, AR/DEB and single compressed files (.gz, .xz, .zst, .bz2 …) like folders, extract them, and compress to ZIP, 7z or TAR.* with optional AES-256 passwords
+- **Cryptomator vaults**: open a [Cryptomator](https://cryptomator.org) vault (format 8, made with Cryptomator 1.6 or newer) wherever it is, on your phone or on any server, with its password. Browse it, open, view and edit files, copy in and out, create folders, rename and delete like in any folder; everything is encrypted and decrypted on the fly. See [Cryptomator vaults](#cryptomator-vaults)
 - **Tabs**, restored when you open the app again, and **dual pane** on tablets, foldables and in landscape: two folders side by side, with copy and move from one to the other in one tap
 - **Built-in picture viewer** for JPEG, PNG, WebP, GIF, HEIC and AVIF, also on servers and in archives: swipe through the folder, pinch to zoom, rotate, photo info (camera, date, exposure), share, delete or open in another app
 - **Save to FilesCtrl** from any app's share sheet: files of any type, and text as a .txt file, saved into any folder on your phone or a server, in the background. The last folder you used is offered first
@@ -108,6 +109,17 @@ See [Privacy](#privacy) for what FilesCtrl sends and to whom.
 
 Set the share's **uid/gid** in FilesCtrl to the owner of your files on the server (often `1000` on Linux, `1026` or higher on Synology).
 
+## Cryptomator vaults
+
+Open the folder of a Cryptomator vault (it holds `vault.cryptomator` and `masterkey.cryptomator`) and FilesCtrl asks for its password; the vault then opens like a normal folder. The folder can be anywhere FilesCtrl reaches: phone storage, an SD card, or an NFS, SMB, SFTP, FTP or WebDAV server, where the files stay encrypted on the way.
+
+- **Supported:** vault format 8 with Cryptomator's standard SIV_GCM encryption (every vault created with Cryptomator 1.6 or newer, on any platform). Older vaults that still use SIV_CTRMAC, and Cryptomator Hub vaults, can't be opened yet.
+- **The password is checked on the phone** (scrypt, then the vault's keys are unwrapped). The keys stay in memory only while the vault is unlocked and are wiped when you tap the lock, when FilesCtrl's app lock locks, and after FilesCtrl has been in the background for the time chosen in *Settings > Cryptomator vaults* (5 minutes by default). A copy or move still running from a vault finishes first.
+- **Passwords aren't saved** unless you switch on *Remember the password on this phone* when unlocking. Then it's encrypted with a key in the phone's secure hardware, like your server passwords (and with the app lock's PIN while the lock is on), and you can forget it from the vault's menu or Settings.
+- **Nothing decrypted is written outside the vault:** pictures in the viewer are decrypted in memory only, there are no thumbnails for vault files, tabs inside a vault are remembered as the folder the vault is in, and folders in a vault can't be bookmarked or pinned to the home screen. Decrypted names are checked like names from a server, so a damaged or hostile vault can't reach outside its folder.
+- Other apps can **open** a vault file you open from FilesCtrl (while the vault is unlocked), but not change it; edit files in a vault with FilesCtrl's own text editor, or copy them out.
+- FilesCtrl uses its own implementation of Cryptomator's published file format (AES-SIV, AES-GCM, scrypt and AES key wrap from the phone and Bouncy Castle). It is not made by or affiliated with Skymatic, Cryptomator's developer.
+
 ## App lock
 
 Turn it on under **Settings > Privacy and security > App lock** (tap your profile picture at the top right, then **Settings**). It's off until you turn it on.
@@ -132,6 +144,7 @@ Turn it on under **Settings > Privacy and security > App lock** (tap your profil
 - Credentials only go to the server they belong to: WebDAV never follows a redirect, and SFTP host keys and self-signed HTTPS/FTPS certificates are checked against the ones you confirmed.
 - **Shizuku** is optional and off by default. When you turn it on, FilesCtrl's helper runs through the Shizuku app on your phone, only for Android/data and Android/obb; nothing goes online.
 - Other apps can hand FilesCtrl files to save ("Save to FilesCtrl") or to open in the text editor. Both are behind the app lock, and neither accepts a link that points into FilesCtrl's own private files, or a link to FilesCtrl's own files and servers unless it came from FilesCtrl itself (for example *Open with* in FilesCtrl), so another app can't use FilesCtrl to reach files it has no access to.
+- Cryptomator vault passwords and keys never leave the phone; a vault on a server is only ever read and written encrypted.
 - Copied paths and checksums are marked as sensitive, so Android doesn't show them in the clipboard preview.
 - FilesCtrl is left out of Android's cloud backup and its phone-to-phone transfer.
 - The Support, Report a bug, Source code and Licence links on the You page (tap your profile picture), and the Shizuku download link in Settings (GitHub), open in your browser, only when you tap them.

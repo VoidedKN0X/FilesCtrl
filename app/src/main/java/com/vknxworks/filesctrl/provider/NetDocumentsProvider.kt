@@ -19,6 +19,8 @@ import com.vknxworks.filesctrl.App
 import com.vknxworks.filesctrl.R
 import com.vknxworks.filesctrl.ui.lock.AppLockState
 import com.vknxworks.filesctrl.fs.ArchiveVfs
+import com.vknxworks.filesctrl.fs.CryptoVfs
+import com.vknxworks.filesctrl.fs.VaultFileReader
 import com.vknxworks.filesctrl.fs.FileEntry
 import com.vknxworks.filesctrl.fs.LocalVfs
 import com.vknxworks.filesctrl.fs.Mime
@@ -109,6 +111,23 @@ class NetDocumentsProvider : DocumentsProvider() {
     }
 
     /**
+     * A file inside an unlocked Cryptomator vault ("cry.<vault id>:<path>"), opened from FilesCtrl in another app.
+     * Read-only, never listed in the file picker, and only while the vault is unlocked: locking it (or FilesCtrl)
+     * stops every read.
+     */
+    private fun splitVault(docId: String): Pair<CryptoVfs, String>? {
+        if (!docId.startsWith(CRY)) return null
+        if (locked()) throw FileNotFoundException(App.str(R.string.filesctrl_is_locked_open_it_and))
+        val i = docId.indexOf(':')
+        if (i <= CRY.length) throw FileNotFoundException(App.str(R.string.bad_document_id))
+        val path = Paths.normalize(docId.substring(i + 1).ifEmpty { "/" }) ?: throw FileNotFoundException(App.str(R.string.bad_document_id))
+        val vfs = try { App.vfs.vault(CryptoVfs.PREFIX + docId.substring(CRY.length, i)) } catch (e: IOException) { throw FileNotFoundException(e.message) }
+            ?: throw FileNotFoundException(App.str(R.string.vault_locked))
+        if (!vfs.unlocked) throw FileNotFoundException(App.str(R.string.vault_locked))
+        return vfs to path
+    }
+
+    /**
      * A file in Android/data or Android/obb ("loc.:<path>"), reached through Shizuku and opened from FilesCtrl in
      * another app. Only those folders, only while Shizuku is turned on, and never listed in the file picker.
      */
@@ -142,6 +161,19 @@ class NetDocumentsProvider : DocumentsProvider() {
                 add(Document.COLUMN_SIZE, if (e.isDir) null else e.size)
                 add(Document.COLUMN_LAST_MODIFIED, e.modified)
                 add(Document.COLUMN_FLAGS, if (e.isDir) 0 else Document.FLAG_SUPPORTS_WRITE)
+            }
+            return c
+        }
+        splitVault(documentId)?.let { (vfs, path) ->
+            val c = MatrixCursor(projection ?: DOC_COLUMNS)
+            val e = io { vfs.stat(path) }
+            c.newRow().apply {
+                add(Document.COLUMN_DOCUMENT_ID, documentId)
+                add(Document.COLUMN_DISPLAY_NAME, e.name)
+                add(Document.COLUMN_MIME_TYPE, if (e.isDir) Document.MIME_TYPE_DIR else Mime.ofName(e.name))
+                add(Document.COLUMN_SIZE, if (e.isDir) null else e.size)
+                add(Document.COLUMN_LAST_MODIFIED, e.modified)
+                add(Document.COLUMN_FLAGS, 0)
             }
             return c
         }
@@ -190,6 +222,10 @@ class NetDocumentsProvider : DocumentsProvider() {
             return if (e.isDir) Document.MIME_TYPE_DIR else Mime.ofName(e.name)
         }
         splitArchive(documentId)?.let { (vfs, path) ->
+            val e = io { vfs.stat(path) }
+            return if (e.isDir) Document.MIME_TYPE_DIR else Mime.ofName(e.name)
+        }
+        splitVault(documentId)?.let { (vfs, path) ->
             val e = io { vfs.stat(path) }
             return if (e.isDir) Document.MIME_TYPE_DIR else Mime.ofName(e.name)
         }
@@ -253,6 +289,15 @@ class NetDocumentsProvider : DocumentsProvider() {
                 val e = vfs.stat(path)
                 if (e.isDir) throw FileNotFoundException(App.str(R.string.that_s_a_folder))
                 ArchiveEntryReader(vfs, path, archiveSize(vfs, path, e.size))
+            }
+            return proxy(rf, mode, null)
+        }
+        splitVault(documentId)?.let { (vfs, path) ->
+            if (mode.contains('w')) throw FileNotFoundException(App.str(R.string.vault_files_read_only_elsewhere))
+            val rf = io {
+                val e = vfs.stat(path)
+                if (e.isDir) throw FileNotFoundException(App.str(R.string.that_s_a_folder))
+                VaultFileReader(vfs, path, e.size)
             }
             return proxy(rf, mode, null)
         }
@@ -336,14 +381,19 @@ class NetDocumentsProvider : DocumentsProvider() {
         fun docId(serverId: String, path: String) = "$serverId:$path"
 
         private const val ARC = "arc."
+        /** Files inside Cryptomator vaults. */
+        private const val CRY = "cry."
         /** Android/data and Android/obb through Shizuku. */
         private const val LOC = "loc.:"
 
         /** Content URI another app can open for a file on a server, or inside an archive. */
         fun uriFor(e: FileEntry): Uri {
             if (e.vfsId == LocalVfs.ID) return DocumentsContract.buildDocumentUri(AUTHORITY, LOC + e.path)
-            val owner = if (e.vfsId.startsWith(ArchiveVfs.PREFIX)) ARC + e.vfsId.removePrefix(ArchiveVfs.PREFIX)
-            else e.vfsId.removePrefix(RemoteVfs.PREFIX)
+            val owner = when {
+                e.vfsId.startsWith(ArchiveVfs.PREFIX) -> ARC + e.vfsId.removePrefix(ArchiveVfs.PREFIX)
+                e.vfsId.startsWith(CryptoVfs.PREFIX) -> CRY + e.vfsId.removePrefix(CryptoVfs.PREFIX)
+                else -> e.vfsId.removePrefix(RemoteVfs.PREFIX)
+            }
             return DocumentsContract.buildDocumentUri(AUTHORITY, docId(owner, e.path))
         }
 
