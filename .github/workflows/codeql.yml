@@ -52,7 +52,7 @@ jobs:
         # A debug build never needs the release signing key, which this job never gets.
         run: |
           chmod +x gradlew
-          ./gradlew --no-daemon assembleDebug
+          ./gradlew --no-daemon --no-build-cache assembleDebug
 
       - uses: github/codeql-action/analyze@33d7b85da1a04171e211befe2c739303b9a4c066 # v4.39.3
         with:
