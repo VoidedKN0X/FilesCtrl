@@ -4,6 +4,14 @@ What changed in each FilesCtrl version. Every release on the [Releases page](htt
 
 To publish a new version: bump `versionCode` and `versionName` in `app/build.gradle.kts`, add a section here, and push to `main`. Pushes without a version bump only build; they don't make a release.
 
+## Unreleased
+
+Built and checked by CI only: nothing here has been run on a phone.
+
+### Changed
+
+- **Selecting many files stays smooth.** FilesCtrl kept the selected files as a list, and every row on screen looked through that whole list to know whether to show itself as selected. After *Select all* in a folder with thousands of files, scrolling and tapping did that for every visible row again and again. The selection is now kept as a set that is looked up directly. What is selected, the count in the bar and what copy, move, delete, compress and the other actions work on are unchanged.
+
 ## 1.11.0 (2026-11-20)
 
 **This release encrypts some of what the app stores on the phone. An older version cannot read it afterwards, so export or back up anything you need before you update (details below).** Built and checked by CI only: nothing in this release had been run on a phone when it was published.

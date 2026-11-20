@@ -3,6 +3,7 @@ package com.vknxworks.filesctrl.ui
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
@@ -83,7 +84,7 @@ class BrowserViewModel(start: Location? = null) : ViewModel() {
     var loadCount by mutableStateOf(0)
         private set
 
-    val selection = mutableStateListOf<String>()
+    val selection = SelectionSet()
     val selecting: Boolean get() = selection.isNotEmpty()
 
     var filter by mutableStateOf("")
@@ -509,5 +510,30 @@ class BrowserViewModel(start: Location? = null) : ViewModel() {
             if (desc) c = c.reversed()
             return if (foldersFirst) compareBy<FileEntry> { !it.isDir }.then(c) else c
         }
+    }
+}
+
+/**
+ * The paths of the selected items. A set (looked up directly) instead of a list that every row on screen had to
+ * read through to know whether it's selected, which got slow after "select all" in a folder with thousands of
+ * files. Observable from Compose like the list it replaces; nothing depends on the order items were selected in.
+ */
+class SelectionSet {
+    private val paths = mutableStateMapOf<String, Unit>()
+
+    val size: Int get() = paths.size
+    fun isNotEmpty(): Boolean = paths.isNotEmpty()
+    operator fun contains(path: String): Boolean = paths.containsKey(path)
+    fun toHashSet(): HashSet<String> = HashSet(paths.keys)
+
+    fun add(path: String) { paths[path] = Unit }
+    /** True when [path] was selected (and no longer is). */
+    fun remove(path: String): Boolean = paths.remove(path) != null
+    fun addAll(all: Collection<String>) { for (p in all) paths[p] = Unit }
+    fun clear() = paths.clear()
+    /** Keeps only the paths [keep] says yes to. */
+    fun retainAll(keep: (String) -> Boolean) {
+        val gone = paths.keys.filterNot(keep)
+        for (p in gone) paths.remove(p)
     }
 }
