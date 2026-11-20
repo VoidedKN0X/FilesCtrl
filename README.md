@@ -67,7 +67,7 @@ Settings and About are behind your profile picture at the top right of the Files
 ## Is it safe to install?
 
 - **Open source.** All the code is in this repo, under the GPL-3.0 licence.
-- **Built by GitHub Actions from this code, not on a personal computer.** Every release on the Releases page comes from [the build workflow](.github/workflows/build.yml). Each build also checks that the Gradle wrapper is an official Gradle release and that no Google Play services, Firebase, ML Kit, Play Core or Tink library is in the app. The only Google-made code inside is open-source helper code other libraries need (Guava for the SMB share list, a small image helper for Coil); the build fails if any other Google library appears.
+- **Built by GitHub Actions from this code, not on a personal computer.** Every release on the Releases page comes from [the build workflow](.github/workflows/build.yml). Each build also checks that the Gradle wrapper is an official Gradle release and that no Google Play services, Firebase, ML Kit, Play Core or Tink library is in the app. The only Google-made code inside is open-source helper code other libraries need (Guava for the SMB share list, a small image helper for Coil); the build fails if any other Google library appears. The signing key is kept away from the build: one job builds the APK without any secrets, and a separate job that runs no code from this repo signs it and checks the signature against the fingerprint below.
 - **Always signed with the same release key.** Android refuses an update signed with a different key, and the CtrlF-Droid repo only accepts APKs signed with this key. Its SHA-256 certificate fingerprint is:
 
   ```
