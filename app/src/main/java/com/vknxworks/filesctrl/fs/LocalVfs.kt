@@ -72,6 +72,7 @@ class LocalVfs(private val context: Context) : Vfs {
         val isDir: Boolean
         // -1: not known from lstat, ask the file itself.
         var size = -1L
+        var modified = -1L
         var known: Boolean? = null
         try {
             val st = Os.lstat(f.path)
@@ -83,15 +84,20 @@ class LocalVfs(private val context: Context) : Vfs {
                 // A link is a folder, and has a size, if what it points to does.
                 known = try { OsConstants.S_ISDIR(Os.stat(f.path).st_mode) } catch (_: ErrnoException) { false }
             } else {
-                // Not a link: the one lstat call above already says whether it's a folder and how big it is,
-                // so the file isn't asked again (two fewer system calls per file in big folders).
+                // Not a link: the one lstat call above already says whether it's a folder, how big it is and when
+                // it was changed, so the file isn't asked again (three fewer system calls per file in big folders).
                 known = OsConstants.S_ISDIR(st.st_mode)
                 size = st.st_size
+                // The same number File.lastModified() gives on Android 15 and later (the oldest FilesCtrl runs
+                // on): whole seconds as milliseconds, plus the nanoseconds cut down to milliseconds.
+                modified = st.st_mtim.tv_sec * 1000 + st.st_mtim.tv_nsec / 1_000_000
             }
         } catch (_: ErrnoException) {}
         isDir = known ?: f.isDirectory
         val length = if (isDir) 0 else if (size >= 0) size else f.length()
-        return FileEntry(ID, f.path, f.name, isDir, length, f.lastModified(), mode, uid, gid, link)
+        // A link's date is that of what it points to, as before; so is the date of a file lstat couldn't read.
+        val changed = if (modified >= 0) modified else f.lastModified()
+        return FileEntry(ID, f.path, f.name, isDir, length, changed, mode, uid, gid, link)
     }
 
     override fun list(dir: String): List<FileEntry> {

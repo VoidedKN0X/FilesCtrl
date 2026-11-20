@@ -12,6 +12,8 @@ Built and checked by CI only: nothing here has been run on a phone.
 
 - **Selecting many files stays smooth.** FilesCtrl kept the selected files as a list, and every row on screen looked through that whole list to know whether to show itself as selected. After *Select all* in a folder with thousands of files, scrolling and tapping did that for every visible row again and again. The selection is now kept as a set that is looked up directly. What is selected, the count in the bar and what copy, move, delete, compress and the other actions work on are unchanged.
 
+- **Folders on the phone list faster again.** For every file, FilesCtrl still asked the system a second time just for the date it was last changed, although the first answer already holds it. That second question is gone for everything that is not a link: one system call per file instead of two (it was four before 1.10.1). The date is the same number as before, to the millisecond (worked out exactly the way Android 15 and later, the versions FilesCtrl runs on, work it out), so sorting by date and the dates shown are unchanged. Links still take their date from the file they point to.
+
 ## 1.11.0 (2026-11-20)
 
 **This release encrypts some of what the app stores on the phone. An older version cannot read it afterwards, so export or back up anything you need before you update (details below).** Built and checked by CI only: nothing in this release had been run on a phone when it was published.
