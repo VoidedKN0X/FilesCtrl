@@ -193,7 +193,11 @@ class FilesApplication : Application(), SingletonImageLoader.Factory {
                 started = (started - 1).coerceAtLeast(0)
                 if (started == 0 && !activity.isChangingConfigurations) AppLockState.onBackground()
             }
-            override fun onActivityCreated(activity: Activity, savedInstanceState: Bundle?) {}
+            override fun onActivityCreated(activity: Activity, savedInstanceState: Bundle?) {
+                // Saved servers are read in the background while the app starts. Wait for them here, before the
+                // screen is first drawn, so no screen ever shows the list half loaded.
+                App.servers.awaitLoaded()
+            }
             override fun onActivityResumed(activity: Activity) {}
             override fun onActivityPaused(activity: Activity) {}
             override fun onActivitySaveInstanceState(activity: Activity, outState: Bundle) {}

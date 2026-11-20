@@ -69,16 +69,29 @@ class LocalVfs(private val context: Context) : Vfs {
         var uid = -1
         var gid = -1
         var link = false
-        var isDir = f.isDirectory
+        val isDir: Boolean
+        // -1: not known from lstat, ask the file itself.
+        var size = -1L
+        var known: Boolean? = null
         try {
             val st = Os.lstat(f.path)
             mode = st.st_mode
             uid = st.st_uid
             gid = st.st_gid
             link = OsConstants.S_ISLNK(st.st_mode)
-            if (link) isDir = try { OsConstants.S_ISDIR(Os.stat(f.path).st_mode) } catch (_: ErrnoException) { false }
+            if (link) {
+                // A link is a folder, and has a size, if what it points to does.
+                known = try { OsConstants.S_ISDIR(Os.stat(f.path).st_mode) } catch (_: ErrnoException) { false }
+            } else {
+                // Not a link: the one lstat call above already says whether it's a folder and how big it is,
+                // so the file isn't asked again (two fewer system calls per file in big folders).
+                known = OsConstants.S_ISDIR(st.st_mode)
+                size = st.st_size
+            }
         } catch (_: ErrnoException) {}
-        return FileEntry(ID, f.path, f.name, isDir, if (isDir) 0 else f.length(), f.lastModified(), mode, uid, gid, link)
+        isDir = known ?: f.isDirectory
+        val length = if (isDir) 0 else if (size >= 0) size else f.length()
+        return FileEntry(ID, f.path, f.name, isDir, length, f.lastModified(), mode, uid, gid, link)
     }
 
     override fun list(dir: String): List<FileEntry> {

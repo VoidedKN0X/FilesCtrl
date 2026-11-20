@@ -4,6 +4,20 @@ What changed in each FilesCtrl version. Every release on the [Releases page](htt
 
 To publish a new version: bump `versionCode` and `versionName` in `app/build.gradle.kts`, add a section here, and push to `main`. Pushes without a version bump only build; they don't make a release.
 
+## Unreleased
+
+Not in a release yet: these changes are built but FilesCtrl's version number hasn't changed. Everything works the same as in 1.10.0; this is about speed.
+
+### Changed
+
+- **FilesCtrl starts faster when you have saved servers.** Saved passwords and SSH keys are decrypted with the phone's secure hardware, one call per password. That used to happen before anything else could start, every time FilesCtrl (or Android's file picker showing your servers) was started. It now runs in the background while the rest of the app starts. Nothing can see the server list, a password or the lock state before that has finished: every part of the app that needs them waits for it, and each screen waits before it is first drawn, so servers never show up empty or without their password. The key that protects the passwords is also looked up once instead of again for every password.
+- **Big folders scroll and react more smoothly.** The list of files on screen was filtered and sorted again every time the screen was redrawn (while scrolling a selection bar in, typing in search, a progress update and so on). It's now worked out again only when the folder's contents, the search text, *Show hidden files* or the sort order actually change. The order of the files is exactly the same.
+- **Folders on the phone list a little faster.** For every file that isn't a link, FilesCtrl asked the system again whether it's a folder and how big it is, although the first answer already said so. Those two extra questions per file are gone; the date still comes from the same place as before, so sorting by date is unchanged.
+
+### Project
+
+- There were no home-screen widgets or Quick Settings tiles in FilesCtrl to remove (checked as part of the Ctrl series clean-up).
+
 ## Project updates (2026-11-19)
 
 ### Project

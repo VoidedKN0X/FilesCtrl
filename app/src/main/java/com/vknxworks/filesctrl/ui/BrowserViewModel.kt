@@ -1,5 +1,6 @@
 package com.vknxworks.filesctrl.ui
 
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
@@ -378,14 +379,21 @@ class BrowserViewModel(start: Location? = null) : ViewModel() {
         }
     }
 
-    /** Entries as shown: hidden files, quick filter and sort applied. */
-    fun visible(): List<FileEntry> {
+    /**
+     * The filtered and sorted list, worked out again only when the folder's entries, the quick filter or one of
+     * the settings it reads (hidden files, sort order, folders first) changes, instead of every time the screen
+     * is redrawn. All of those are Compose state, which is what keeps this up to date.
+     */
+    private val visibleEntries = derivedStateOf {
         val s = App.settings
         var list = entries.asSequence()
         if (!s.showHidden) list = list.filter { !it.hidden }
         if (filter.isNotBlank()) list = list.filter { it.name.contains(filter.trim(), ignoreCase = true) }
-        return list.sortedWith(comparator(s.sortBy, s.sortDescending, s.foldersFirst)).toList()
+        list.sortedWith(comparator(s.sortBy, s.sortDescending, s.foldersFirst)).toList()
     }
+
+    /** Entries as shown: hidden files, quick filter and sort applied. */
+    fun visible(): List<FileEntry> = visibleEntries.value
 
     fun toggle(e: FileEntry) {
         if (!selection.remove(e.path)) selection.add(e.path)

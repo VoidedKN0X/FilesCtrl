@@ -6,6 +6,7 @@ import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
 import android.util.Base64
 import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.snapshots.SnapshotStateList
 import org.json.JSONArray
 import org.json.JSONObject
 import java.security.KeyStore
@@ -152,20 +153,65 @@ data class NetServer(
  * Saved servers, observable from Compose. Passwords and keys are encrypted with an Android Keystore key and,
  * while the app lock is on, also with the lock's vault key: while the app is locked they aren't in memory and
  * can't be decrypted ([locked]); servers are still listed, without their secrets.
+ *
+ * The saved list is read and decrypted on a background thread when the store is created (each secret is a call
+ * into the system Keystore, which is too slow for app start). Everything that reads or changes the list waits
+ * for that first load, so nothing can ever see the list, a password or [locked] before they are ready.
  */
 class ServerStore(context: Context, private val vault: LockVault) {
     private val sp = context.getSharedPreferences("servers", Context.MODE_PRIVATE)
-    val all = mutableStateListOf<NetServer>()
+    /** The list itself. Only for code in this class that runs after, or as part of, the first load. */
+    private val items = mutableStateListOf<NetServer>()
+
+    /** Opens when the first load has finished (whether or not it could read anything). */
+    private val loaded = java.util.concurrent.CountDownLatch(1)
+
+    /** The saved servers. Waits for the first load. */
+    val all: SnapshotStateList<NetServer>
+        get() {
+            awaitLoaded()
+            return items
+        }
     private val listeners = mutableListOf<(String) -> Unit>()
 
     /** Server id -> its stored (vault-sealed) password and key, kept as they are while the app is locked. */
     private val sealed = HashMap<String, Pair<String, String>>()
 
     /** The app is locked: saved passwords and keys can't be used. */
-    @Volatile var locked = false
-        private set
+    @Volatile private var lockedNow = false
+    val locked: Boolean
+        get() {
+            awaitLoaded()
+            return lockedNow
+        }
 
-    init { load() }
+    /** The Keystore key, looked up once instead of for every password. Forgotten again if using it fails. */
+    @Volatile private var cachedKey: SecretKey? = null
+
+    init {
+        // Last of the fields above, so the loading thread never sees one that isn't set yet.
+        Thread({
+            try { load() } finally { loaded.countDown() }
+        }, "servers-load").start()
+    }
+
+    /**
+     * Blocks until the first load is done. Never call it while holding this object's lock (the load needs it),
+     * and never from [load] or anything it calls.
+     */
+    fun awaitLoaded() {
+        if (loaded.count == 0L) return
+        var interrupted = false
+        while (true) {
+            try {
+                loaded.await()
+                break
+            } catch (_: InterruptedException) {
+                interrupted = true
+            }
+        }
+        if (interrupted) Thread.currentThread().interrupt()
+    }
 
     @Synchronized
     private fun load() {
@@ -196,31 +242,37 @@ class ServerStore(context: Context, private val vault: LockVault) {
                 } else list += s.copy(password = pw, privateKey = key)
             }
         } catch (_: Exception) {}
-        locked = sealed.isNotEmpty() || (vault.enabled && !vault.isOpen)
-        all.clear()
-        all.addAll(list)
+        lockedNow = sealed.isNotEmpty() || (vault.enabled && !vault.isOpen)
+        items.clear()
+        items.addAll(list)
         // Re-save plain-text secrets encrypted straight away, without asking to sign in again. While locked
         // they're left as they are until the next unlock.
-        if (plainSecrets && !locked) {
+        if (plainSecrets && !lockedNow) {
             try { persist() } catch (_: java.io.IOException) {}
         }
     }
 
     /** The app locked (call before the vault closes): drop every password and key from memory. */
-    @Synchronized
     fun lockSecrets() {
+        awaitLoaded()
+        lockSecretsNow()
+    }
+
+    @Synchronized
+    private fun lockSecretsNow() {
         if (!vault.enabled) return
-        for (i in all.indices) {
-            val s = all[i]
+        for (i in items.indices) {
+            val s = items[i]
             if (s.password.isEmpty() && s.privateKey.isEmpty()) continue
             sealed[s.id] = seal(s.password) to seal(s.privateKey)
-            all[i] = s.copy(password = "", privateKey = "")
+            items[i] = s.copy(password = "", privateKey = "")
         }
-        locked = true
+        lockedNow = true
     }
 
     /** The app unlocked: decrypt the passwords and keys again. Open connections made without them are dropped. */
     fun unlockSecrets() {
+        awaitLoaded()
         val ids = synchronized(this) {
             val had = sealed.keys.toList()
             load()
@@ -230,10 +282,16 @@ class ServerStore(context: Context, private val vault: LockVault) {
     }
 
     /** The app lock was turned on (vault open): encrypt everything with its key too. */
-    fun sealAll() = persist()
+    fun sealAll() {
+        awaitLoaded()
+        persist()
+    }
 
     /** The app lock is being turned off (still unlocked): save with the Keystore key only. */
-    fun unsealAll() = write(serialize(all, plain = true))
+    fun unsealAll() {
+        awaitLoaded()
+        write(serialize(items, plain = true))
+    }
 
     fun get(id: String): NetServer? = all.firstOrNull { it.id == id }
 
@@ -262,13 +320,18 @@ class ServerStore(context: Context, private val vault: LockVault) {
     }
 
     /** Forgets every saved password and key (servers stay). Used when the app lock PIN is forgotten. */
-    @Synchronized
     fun forgetSecrets() {
+        awaitLoaded()
+        forgetSecretsNow()
+    }
+
+    @Synchronized
+    private fun forgetSecretsNow() {
         sealed.clear()
-        locked = false
-        for (i in all.indices) all[i] = all[i].copy(password = "", privateKey = "")
-        write(serialize(all, plain = true))
-        all.forEach { s -> listeners.forEach { it(s.id) } }
+        lockedNow = false
+        for (i in items.indices) items[i] = items[i].copy(password = "", privateKey = "")
+        write(serialize(items, plain = true))
+        items.forEach { s -> listeners.forEach { it(s.id) } }
     }
 
     fun remove(id: String) {
@@ -277,7 +340,7 @@ class ServerStore(context: Context, private val vault: LockVault) {
         listeners.forEach { it(id) }
     }
 
-    private fun persist() = write(serialize(all))
+    private fun persist() = write(serialize(items))
 
     @Synchronized
     private fun serialize(list: List<NetServer>, plain: Boolean = false): String {
@@ -303,19 +366,23 @@ class ServerStore(context: Context, private val vault: LockVault) {
     private fun write(json: String) { sp.edit().putString("list", json).apply() }
 
     // --- Keystore AES-GCM for secrets ---
-    private val alias = "filesctrl_servers"
 
+    @Synchronized
     private fun key(): SecretKey {
+        cachedKey?.let { return it }
         val ks = KeyStore.getInstance("AndroidKeyStore").apply { load(null) }
-        (ks.getKey(alias, null) as? SecretKey)?.let { return it }
+        (ks.getKey(KEY_ALIAS, null) as? SecretKey)?.let {
+            cachedKey = it
+            return it
+        }
         val gen = KeyGenerator.getInstance(KeyProperties.KEY_ALGORITHM_AES, "AndroidKeyStore")
         gen.init(
-            KeyGenParameterSpec.Builder(alias, KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT)
+            KeyGenParameterSpec.Builder(KEY_ALIAS, KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT)
                 .setBlockModes(KeyProperties.BLOCK_MODE_GCM)
                 .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
                 .build()
         )
-        return gen.generateKey()
+        return gen.generateKey().also { cachedKey = it }
     }
 
     private fun encrypt(plain: String): String {
@@ -325,6 +392,7 @@ class ServerStore(context: Context, private val vault: LockVault) {
             c.init(Cipher.ENCRYPT_MODE, key())
             "v1:" + Base64.encodeToString(c.iv + c.doFinal(plain.toByteArray()), Base64.NO_WRAP)
         } catch (e: Exception) {
+            cachedKey = null
             throw java.io.IOException(App.str(R.string.couldn_t_encrypt_the_password_with, e.javaClass.simpleName), e)
         }
     }
@@ -336,6 +404,13 @@ class ServerStore(context: Context, private val vault: LockVault) {
             val c = Cipher.getInstance("AES/GCM/NoPadding")
             c.init(Cipher.DECRYPT_MODE, key(), GCMParameterSpec(128, raw, 0, 12))
             String(c.doFinal(raw, 12, raw.size - 12))
-        } catch (_: Exception) { "" }
+        } catch (_: Exception) {
+            cachedKey = null
+            ""
+        }
+    }
+
+    private companion object {
+        const val KEY_ALIAS = "filesctrl_servers"
     }
 }
