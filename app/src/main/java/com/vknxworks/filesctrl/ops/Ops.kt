@@ -55,6 +55,12 @@ class OpTask(val id: Int, val title: String, internal val uses: Set<String> = em
     val warnings = mutableStateListOf<String>()
     internal var job: Job? = null
 
+    /**
+     * True when the operation reads from or writes to a server (also through an archive or vault that's on one),
+     * so [OpService] keeps Wi-Fi awake for it. Worked out once from [uses]; when in doubt it's true.
+     */
+    internal val onNetwork: Boolean = try { App.vfs.onNetwork(uses) } catch (_: Exception) { true }
+
     val progress: Float?
         get() = when {
             bytesTotal > 0 -> (bytesDone.toFloat() / bytesTotal).coerceIn(0f, 1f)

@@ -23,8 +23,9 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 /**
- * Keeps the app alive while file operations run, with a progress notification. Holds a wake lock and a
- * Wi-Fi lock so transfers to NFS shares keep going with the screen off. Stops itself when nothing is running.
+ * Keeps the app alive while file operations run, with a progress notification. Holds a wake lock, and a
+ * Wi-Fi lock while an operation uses a server, so transfers to NFS shares keep going with the screen off.
+ * Stops itself when nothing is running.
  */
 class OpService : Service() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
@@ -47,11 +48,8 @@ class OpService : Service() {
         }
         wake = getSystemService(PowerManager::class.java)
             .newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "FilesCtrl:ops").apply { acquire(6 * 60 * 60 * 1000L) }
-        wifi = try {
-            @Suppress("DEPRECATION")
-            getSystemService(WifiManager::class.java).createWifiLock(WifiManager.WIFI_MODE_FULL_HIGH_PERF, "FilesCtrl:ops")
-                .apply { acquire() }
-        } catch (_: Exception) { null }
+        // The Wi-Fi lock is only held while an operation that uses a server is running (see holdWifi).
+        holdWifi(Ops.active.any { it.onNetwork })
 
         scope.launch {
             // Poll rather than observe: snapshot changes made off the main thread aren't guaranteed to be
@@ -63,11 +61,33 @@ class OpService : Service() {
                     if (Ops.active.isEmpty()) { finish(); break }
                     continue
                 }
+                holdWifi(running.any { it.onNetwork })
                 val first = running.first()
                 val title = if (running.size == 1) first.title else App.plural(R.plurals.operations_running, running.size, running.size)
                 getSystemService(NotificationManager::class.java).notify(NOTIF_ID, build(title + "\n" + first.detail, first.progress))
                 delay(700)
             }
+        }
+    }
+
+    /**
+     * Takes the Wi-Fi lock when [needed] and gives it back when not: copying, deleting or extracting on the
+     * phone itself doesn't need Wi-Fi kept awake. Called again every time the running operations are looked at,
+     * so an operation on a server that starts later gets the lock within a moment.
+     */
+    private fun holdWifi(needed: Boolean) {
+        try {
+            if (needed) {
+                val lock = wifi ?: run {
+                    @Suppress("DEPRECATION")
+                    getSystemService(WifiManager::class.java).createWifiLock(WifiManager.WIFI_MODE_FULL_HIGH_PERF, "FilesCtrl:ops")
+                }.also { wifi = it }
+                if (!lock.isHeld) lock.acquire()
+            } else {
+                wifi?.let { if (it.isHeld) it.release() }
+            }
+        } catch (_: Exception) {
+            // No Wi-Fi lock on this device: operations run without it, as before.
         }
     }
 

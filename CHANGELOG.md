@@ -14,6 +14,9 @@ Built and checked by CI only: nothing here has been run on a phone.
 
 - **Folders on the phone list faster again.** For every file, FilesCtrl still asked the system a second time just for the date it was last changed, although the first answer already holds it. That second question is gone for everything that is not a link: one system call per file instead of two (it was four before 1.10.1). The date is the same number as before, to the millisecond (worked out exactly the way Android 15 and later, the versions FilesCtrl runs on, work it out), so sorting by date and the dates shown are unchanged. Links still take their date from the file they point to.
 
+- **Wi-Fi is only kept awake for operations that use a server.** While any copy, move, delete, compress or extract ran, FilesCtrl held a Wi-Fi lock (so transfers to a server keep their speed with the screen off), even when everything happened on the phone itself. The lock is now taken only while at least one running operation reads from or writes to a server. That includes an archive or a Cryptomator vault that is stored on a server, however deeply nested; when FilesCtrl cannot tell, it takes the lock as before. An operation on a server that starts while a phone-only one is running gets the lock within a second. The lock that keeps the phone itself awake during operations is unchanged, and so is everything for operations on servers.
+  - One case to know: saving files another app shares with FilesCtrl into a folder on the phone no longer holds the Wi-Fi lock, also when that other app fetches the files from the internet while FilesCtrl saves them.
+
 ## 1.11.0 (2026-11-20)
 
 **This release encrypts some of what the app stores on the phone. An older version cannot read it afterwards, so export or back up anything you need before you update (details below).** Built and checked by CI only: nothing in this release had been run on a phone when it was published.

@@ -79,6 +79,22 @@ class VfsRegistry(context: Context, private val servers: ServerStore) {
         return needed
     }
 
+    /**
+     * True when any of [ids] (vfs ids) is on a server, directly or because it's an archive or a vault that sits
+     * on one (through every archive or vault it's inside). Only phone storage, and archives and vaults that are
+     * on it all the way down, count as "not on a server": an id that can't be worked out counts as a server.
+     */
+    fun onNetwork(ids: Set<String>): Boolean {
+        fun network(id: String, depth: Int): Boolean = when {
+            id == LocalVfs.ID -> false
+            depth >= 16 -> true
+            id.startsWith(ArchiveVfs.PREFIX) -> ArchiveVfs.archiveOf(id)?.let { network(it.vfsId, depth + 1) } ?: true
+            id.startsWith(CryptoVfs.PREFIX) -> CryptoVfs.folderOf(id)?.let { network(it.vfsId, depth + 1) } ?: true
+            else -> true
+        }
+        return ids.any { network(it, 0) }
+    }
+
     /** The archive file [id] points at, as a folder; null if the place it's in no longer exists. */
     fun archive(id: String): ArchiveVfs? {
         synchronized(archives) { archives[id]?.let { return it } }
