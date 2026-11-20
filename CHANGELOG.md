@@ -4,6 +4,32 @@ What changed in each FilesCtrl version. Every release on the [Releases page](htt
 
 To publish a new version: bump `versionCode` and `versionName` in `app/build.gradle.kts`, add a section here, and push to `main`. Pushes without a version bump only build; they don't make a release.
 
+## Unreleased
+
+Not released yet: these changes are on `main` and come with the next version. Built and checked by CI only: nothing here has been run on a phone.
+
+### Security
+
+- **What FilesCtrl remembers about your servers and where you've been is now encrypted on the phone.** Passwords, SSH keys and Cryptomator vault passwords were already encrypted with a key in the phone's secure hardware (and with the app lock's key while it's on); that is unchanged. But the rest was ordinary text in FilesCtrl's private folder, protected by Android's own storage encryption and app sandbox only. These are now also encrypted with AES-256-GCM:
+  - **the saved servers**: names, addresses, ports, folders, user names, domains, the SSH host keys and certificate fingerprints you confirmed, and every option (the passwords and keys inside stay encrypted the way they were, so they are now encrypted twice);
+  - **the bookmarks**: their names and the folders they point to;
+  - **the open tabs** of both panes, and **the folder "Save to FilesCtrl" used last**.
+
+  The key is 32 random bytes kept in memory while the app runs and stored in `data.key`, itself encrypted by an AES-256-GCM key in the Android Keystore (StrongBox when the phone has it) that can't be copied off the phone. It needs no PIN or fingerprint, so Android's file picker and running copies keep working, and it works the same with the app lock on or off. This protects these lists when the app's files are copied off the phone; it does not protect against something that can already read the running app's memory. Everything in the app works as before; nothing new to set up.
+- **Deliberately not encrypted, and why:**
+  - *The switches and choices in Settings* (theme, sorting, hidden files, grid, dual pane, lock options and so on): they say nothing about your servers or files.
+  - *Temporary copies in the cache*: pictures the viewer copied from a server, archives copied from a server to look inside, files another app is editing through Android's file picker, and 7z files being packed. Other code opens these by file name (the picture decoder, the archive reader, the other app), they can be very large, and they are short-lived (the viewer's copies are also deleted when FilesCtrl locks). They are left as they are.
+  - *Launcher shortcuts*: the first bookmarks are handed to your launcher as shortcuts (Settings, on by default), and so are folders you add to the home screen. Those live in the launcher, outside FilesCtrl, with their names and folders readable there. Turn *Bookmarks on the app icon* off if you don't want that.
+  - *Your files themselves*, on the phone and on your servers: FilesCtrl is a file manager; other apps and other computers must be able to read them. Use a Cryptomator vault for files that need encryption.
+- **How the existing lists are moved over:** at the first start each list is read as before. The same text is then encrypted, opened again and compared, and only if that matches does it replace the ordinary text, in one write of Android's settings storage (which keeps the old file as a backup until the new one is safely on disk). If anything fails, or the phone has no working Keystore, the ordinary text stays in use exactly as it was and FilesCtrl tries again at the next start. Killed halfway, a list is either still the ordinary text or already the encrypted copy. Both kinds stay readable: encrypted text starts with the marker `FILESCTRL-REST1:`. The open tabs are simply saved encrypted the next time they are saved (at every start).
+- **Host keys and certificate pins can't be skipped by this.** They are part of each saved server and are read together with it, in the same background load as before. If the saved servers can't be opened, no server is listed at all, so there is no way to connect to a server without the host key or pin you confirmed for it.
+- **If the key is ever gone** (it lives in this phone's secure hardware, so that could only happen if Android's Keystore loses it, in which case the saved passwords are gone too), FilesCtrl does not show empty lists as if you never had any, and does not overwrite anything. The Places tab shows "Can't open your saved servers and bookmarks" with **Try again**; nothing is saved over them while that shows (saving a server says why, adding a bookmark too), and Android's file picker lists no servers. Files on the phone work as usual. **Start without them** (after a confirmation) keeps what couldn't be opened aside under another name in the same storage, and `data.key` as `data.key.unreadable`, instead of deleting it; you can then add your servers again. Open tabs and the last "Save to" folder that can't be opened just start fresh. Before this change, losing the Keystore key cost you the saved passwords but the server list stayed readable; now the list needs the key too.
+- **Going back to an older version:** FilesCtrl 1.10.1 and older can't read the encrypted lists. They show no saved servers and no bookmarks, and the first server or bookmark you save there (or turning the app lock on or off) replaces the encrypted list for good. FilesCtrl has no export for saved servers, so **write down your server details before installing this build if you might want to go back**. If you did go back and changed nothing, installing this build (or a newer one) again shows everything as before.
+
+### Changed
+
+- **Bookmarks are read in the background at start**, like the saved servers since 1.10.1, instead of before anything else can start. Every screen waits for them before it is first drawn, so they never show up empty. Start-up now also asks the secure hardware for the new key once, in that same background step; on phones with a StrongBox chip that one question can take a noticeable fraction of a second the first time the app starts after being closed.
+
 ## 1.10.1 (2026-11-20)
 
 Built and checked by CI only: nothing in this release had been run on a phone when it was published.

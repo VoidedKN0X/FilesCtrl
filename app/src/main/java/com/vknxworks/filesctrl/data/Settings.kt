@@ -6,6 +6,12 @@ import com.vknxworks.filesctrl.R
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshots.SnapshotStateList
+import com.vknxworks.filesctrl.App
+import com.vknxworks.filesctrl.data.crypto.SealedPrefs
+import com.vknxworks.filesctrl.data.crypto.SealedText
 import com.vknxworks.filesctrl.fs.Location
 import org.json.JSONArray
 import org.json.JSONObject
@@ -16,8 +22,12 @@ enum class ThemeMode(@StringRes val label: Int) {
 }
 enum class SortBy { Name, Size, Modified, Type }
 
-/** App preferences, backed by SharedPreferences and observable from Compose. */
-class Settings(context: Context) {
+/**
+ * App preferences, backed by SharedPreferences and observable from Compose. The two that say where you have
+ * been ([tabs] and [lastSaveTo]) are encrypted at rest with the app's data key ([SealedPrefs]); the switches
+ * and choices are ordinary values.
+ */
+class Settings(context: Context, private val sealer: SealedPrefs) {
     private val sp = context.getSharedPreferences("settings", Context.MODE_PRIVATE)
 
     init {
@@ -42,7 +52,33 @@ class Settings(context: Context) {
 
     private fun bool(key: String, def: Boolean) = Pref(key, def, { k, d -> sp.getBoolean(k, d) }, { k, v -> sp.edit().putBoolean(k, v).apply() })
     private fun int(key: String, def: Int) = Pref(key, def, { k, d -> sp.getInt(k, d) }, { k, v -> sp.edit().putInt(k, v).apply() })
-    private fun str(key: String, def: String) = Pref(key, def, { k, d -> sp.getString(k, d) ?: d }, { k, v -> sp.edit().putString(k, v).apply() })
+
+    /**
+     * A text setting that is sealed at rest. Read and written straight from the preferences (nothing in the UI
+     * observes these), and only once the app's screens are up, when the data key is in memory. A value from
+     * before encryption reads as it is; one that can't be opened reads as "" (it only remembers a place, so it
+     * simply starts fresh) and is replaced by the next write.
+     */
+    private fun sealedText(key: String): String = sealer.open(sp.getString(key, "") ?: "") ?: ""
+    private fun putSealedText(key: String, value: String) {
+        synchronized(sp) { sp.edit().putString(key, if (value.isEmpty()) "" else sealer.seal(value)).apply() }
+    }
+
+    /**
+     * Seals [lastSaveTo] if it is still ordinary text from before encryption ([tabs] are written again at every
+     * start anyway). Called from a background thread at start, after the data key was asked for.
+     */
+    fun sealStored() {
+        try {
+            synchronized(sp) {
+                val stored = sp.getString("last_save_to", "") ?: ""
+                if (stored.isEmpty() || SealedText.isSealed(stored)) return
+                val sealed = sealer.seal(stored)
+                if (sealed != stored) sp.edit().putString("last_save_to", sealed).apply()
+            }
+        } catch (_: Exception) {
+        }
+    }
 
     private val _theme = int("theme", 0)
     var theme: ThemeMode
@@ -82,14 +118,18 @@ class Settings(context: Context) {
     var askedNotifications by bool("asked_notifications", false)
 
     /** Where "Save to…" (files shared with FilesCtrl) saved last time, as a [Location.key]; empty if never. */
-    var lastSaveTo by str("last_save_to", "")
+    var lastSaveTo: String
+        get() = sealedText("last_save_to")
+        set(v) = putSealedText("last_save_to", v)
 
     /** Pictures open in FilesCtrl's own viewer (otherwise in another app, as before 1.7.0). */
     private val _viewer = bool("builtin_viewer", true)
     var builtInViewer by _viewer
 
     /** Open tabs of both panes, restored when FilesCtrl starts again ([com.vknxworks.filesctrl.ui.BrowserTabs]). */
-    var tabs by str("tabs", "")
+    var tabs: String
+        get() = sealedText("tabs")
+        set(v) = putSealedText("tabs", v)
 
     /** Two browsers side by side on wide windows (tablets, unfolded foldables, landscape). */
     private val _dualPane = bool("dual_pane", true)
@@ -113,22 +153,132 @@ class Settings(context: Context) {
 
 data class Bookmark(val name: String, val location: Location)
 
-class Bookmarks(context: Context) {
+/**
+ * The bookmarks. Encrypted at rest with the app's data key ([SealedPrefs]), like the saved servers, and read on
+ * a background thread when the app starts (the data key comes from the phone's secure hardware, which is too
+ * slow for app start). Everything that reads or changes the list waits for that first load. Bookmarks from
+ * before encryption are still read, and are then replaced by their encrypted copy; without a data key they are
+ * read and written as before. A sealed list that can't be opened is never overwritten ([unreadable]).
+ */
+class Bookmarks(context: Context, private val sealer: SealedPrefs) {
     private val sp = context.getSharedPreferences("bookmarks", Context.MODE_PRIVATE)
-    val all = mutableStateListOf<Bookmark>()
+    /** The list itself. Only for code in this class that runs after, or as part of, the first load. */
+    private val items = mutableStateListOf<Bookmark>()
+
+    /** Opens when the first load has finished (whether or not it could read anything). */
+    private val loaded = java.util.concurrent.CountDownLatch(1)
+
+    private val listeners = mutableListOf<() -> Unit>()
+
+    /** The saved list is sealed and can't be opened: it stays as it is, and nothing is written over it. */
+    @Volatile private var unreadableNow = false
+
+    /** The saved bookmarks are encrypted and can't be opened. Observable from Compose. */
+    var unreadable by mutableStateOf(false)
+        private set
+
+    /** The bookmarks. Waits for the first load. */
+    val all: SnapshotStateList<Bookmark>
+        get() {
+            awaitLoaded()
+            return items
+        }
 
     init {
+        // Last of the fields above, so the loading thread never sees one that isn't set yet.
+        Thread({
+            try {
+                // The data key first: it asks the secure hardware, and is made at the first start.
+                sealer.prepare()
+                load()
+                sealStored()
+            } catch (_: Exception) {
+            } finally {
+                loaded.countDown()
+            }
+        }, "bookmarks-load").start()
+    }
+
+    /** Blocks until the first load is done. Never call it from [load] or anything it calls. */
+    fun awaitLoaded() {
+        if (loaded.count == 0L) return
+        var interrupted = false
+        while (true) {
+            try {
+                loaded.await()
+                break
+            } catch (_: InterruptedException) {
+                interrupted = true
+            }
+        }
+        if (interrupted) Thread.currentThread().interrupt()
+    }
+
+    @Synchronized
+    private fun load() {
+        val raw = sealer.open(sp.getString("list", "[]") ?: "[]")
+        if (raw == null) {
+            // Sealed and it can't be opened: keep it exactly as it is and list nothing.
+            items.clear()
+            unreadableNow = true
+            unreadable = true
+            return
+        }
+        unreadableNow = false
+        unreadable = false
+        val list = ArrayList<Bookmark>()
         try {
-            val arr = JSONArray(sp.getString("list", "[]"))
+            val arr = JSONArray(raw)
             for (i in 0 until arr.length()) {
                 val o = arr.getJSONObject(i)
                 val loc = Location.fromKey(o.optString("loc")) ?: continue
-                all += Bookmark(o.optString("name"), loc)
+                list += Bookmark(o.optString("name"), loc)
             }
         } catch (_: Exception) {}
+        items.clear()
+        items.addAll(list)
     }
 
-    private val listeners = mutableListOf<() -> Unit>()
+    /**
+     * Replaces bookmarks from before encryption at rest by their encrypted copy: the same text, sealed, checked
+     * by opening it again and written by SharedPreferences in one step. If anything fails the ordinary text
+     * stays in use and the next start tries again. Part of the first load.
+     */
+    @Synchronized
+    private fun sealStored() {
+        if (unreadableNow) return
+        val stored = sp.getString("list", null) ?: return
+        if (SealedText.isSealed(stored)) return
+        val sealedText = sealer.seal(stored)
+        if (sealedText != stored) sp.edit().putString("list", sealedText).commit()
+    }
+
+    /** Tries to open bookmarks that couldn't be opened again ([unreadable]). Off the main thread. */
+    fun retryUnreadable() {
+        awaitLoaded()
+        if (!unreadableNow) return
+        load()
+        if (!unreadableNow) listeners.forEach { runCatching { it() } }
+    }
+
+    /**
+     * Gives up on bookmarks that can't be opened and starts with none. With [keep] the sealed text is kept in
+     * the same file under another name ("list_unreadable") instead of deleted. Does nothing unless [unreadable].
+     */
+    fun startEmpty(keep: Boolean) {
+        awaitLoaded()
+        synchronized(this) {
+            if (!unreadableNow) return
+            val stored = sp.getString("list", null)
+            val edit = sp.edit()
+            if (keep && stored != null) edit.putString("list_unreadable", stored)
+            edit.remove("list")
+            if (!edit.commit()) return
+            items.clear()
+            unreadableNow = false
+            unreadable = false
+        }
+    }
 
     /** Called after every change to the list (the launcher shortcuts follow it). */
     fun onChange(l: () -> Unit) { listeners += l }
@@ -137,6 +287,15 @@ class Bookmarks(context: Context) {
 
     fun add(b: Bookmark) {
         if (contains(b.location)) return
+        if (unreadableNow) {
+            // Nothing is saved next to (or over) bookmarks that couldn't be opened; say why nothing happened.
+            runCatching {
+                if (android.os.Looper.myLooper() == android.os.Looper.getMainLooper()) {
+                    android.widget.Toast.makeText(App.context, App.str(R.string.unreadable_cant_bookmark), android.widget.Toast.LENGTH_LONG).show()
+                }
+            }
+            return
+        }
         all += b
         persist()
     }
@@ -157,9 +316,11 @@ class Bookmarks(context: Context) {
     }
 
     private fun persist() {
+        // Never over bookmarks that couldn't be opened: they stay until they open again or are given up.
+        if (unreadableNow) return
         val arr = JSONArray()
-        all.forEach { arr.put(JSONObject().put("name", it.name).put("loc", it.location.key)) }
-        sp.edit().putString("list", arr.toString()).apply()
+        items.forEach { arr.put(JSONObject().put("name", it.name).put("loc", it.location.key)) }
+        sp.edit().putString("list", sealer.seal(arr.toString())).apply()
         listeners.forEach { runCatching { it() } }
     }
 }

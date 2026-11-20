@@ -713,4 +713,15 @@
         <item quantity="other">Passwords are saved for %1$d vaults</item>
     </plurals>
     <string name="vault_forget_all_none">No vault passwords are saved</string>
-    <string name="vault_files_read_only_elsewhere">Other apps can only read files in a vault. Edit them in FilesCtrl.</string></resources>
+    <string name="vault_files_read_only_elsewhere">Other apps can only read files in a vault. Edit them in FilesCtrl.</string>
+
+    <!-- Encryption at rest: the saved servers or bookmarks can't be opened -->
+    <string name="unreadable_title">Can\'t open your saved servers and bookmarks</string>
+    <string name="unreadable_body">They are stored encrypted on this phone, and the key that opens them is missing from the phone\'s secure storage or no longer matches. Nothing has been deleted or changed. Try again first; restarting the phone can help too. Files on this phone work as usual.</string>
+    <string name="unreadable_retry">Try again</string>
+    <string name="unreadable_start_empty">Start without them</string>
+    <string name="unreadable_start_empty_title">Start without your saved servers and bookmarks?</string>
+    <string name="unreadable_start_empty_body">Only do this if trying again doesn\'t help. What can\'t be opened is kept aside on this phone, not deleted, but FilesCtrl won\'t show it. You can then add your servers and bookmarks again.</string>
+    <string name="unreadable_cant_save_server">Your saved servers can\'t be opened right now, so nothing can be saved next to them. Go to Places and tap Try again first.</string>
+    <string name="unreadable_cant_bookmark">Your bookmarks can\'t be opened right now. Go to Places and tap Try again first.</string>
+</resources>

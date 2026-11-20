@@ -46,6 +46,10 @@ object App {
     lateinit var vaultPasswords: com.vknxworks.filesctrl.data.VaultPasswords
         private set
 
+    /** Seals what's saved about servers, bookmarks and open tabs with the app's data key (encryption at rest). */
+    lateinit var sealer: com.vknxworks.filesctrl.data.crypto.SealedPrefs
+        private set
+
     /** For work that outlives a screen (file operations). */
     val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
@@ -66,11 +70,19 @@ object App {
             java.security.Security.removeProvider("BC")
             java.security.Security.insertProviderAt(org.bouncycastle.jce.provider.BouncyCastleProvider(), 1)
         } catch (_: Throwable) {}
-        settings = Settings(context)
+        // The data key for encryption at rest. Nothing is read or asked of the Keystore here: that happens on
+        // the background threads that load the saved servers and the bookmarks.
+        sealer = com.vknxworks.filesctrl.data.crypto.SealedPrefs(
+            com.vknxworks.filesctrl.data.crypto.DataKeyStore(
+                context.filesDir,
+                com.vknxworks.filesctrl.data.crypto.KeystoreWrapper("filesctrl_data_at_rest"),
+            ),
+        )
+        settings = Settings(context, sealer)
         vault = LockVault(context, "filesctrl")
-        servers = ServerStore(context, vault)
+        servers = ServerStore(context, vault, sealer)
         vaultPasswords = com.vknxworks.filesctrl.data.VaultPasswords(context, vault)
-        bookmarks = Bookmarks(context)
+        bookmarks = Bookmarks(context, sealer)
         vfs = VfsRegistry(context, servers)
         lock = com.vknxworks.filesctrl.data.LockSettings(context)
         if (settings.shizuku) com.vknxworks.filesctrl.shizuku.ShellFiles.listen()
@@ -89,6 +101,38 @@ object App {
         if (vault.enabled || lock.pinSet) Thread { com.vknxworks.filesctrl.viewer.ImageCache.clear() }.start()
         // Launcher shortcuts follow the bookmarks (kept off the main thread: it's a call into the launcher).
         Thread { com.vknxworks.filesctrl.shortcuts.Shortcuts.updateDynamic(context) }.start()
+        // Once the data key is there (the server load asks for it), seal what's left from before encryption.
+        Thread {
+            servers.awaitLoaded()
+            settings.sealStored()
+        }.start()
+    }
+
+    /**
+     * The saved servers or bookmarks are encrypted and couldn't be opened: ask the secure hardware for the key
+     * again and read them again. Slow; call it off the main thread.
+     */
+    fun retryUnreadable() {
+        runCatching {
+            sealer.retry()
+            servers.retryUnreadable()
+            bookmarks.retryUnreadable()
+        }
+        notifyRoots()
+    }
+
+    /**
+     * Gives up on saved servers and bookmarks that can't be opened and starts without them. What couldn't be
+     * opened is kept aside (under another name in the same files, and the key file as `data.key.unreadable`),
+     * not deleted. Slow; call it off the main thread.
+     */
+    fun startEmptyUnreadable() {
+        runCatching {
+            servers.startEmpty(keep = true)
+            bookmarks.startEmpty(keep = true)
+            sealer.renewIfLost(keep = true)
+        }
+        notifyRoots()
     }
 
     /** Lets Android's file picker see the shares again, or not while FilesCtrl is locked. */
@@ -197,6 +241,8 @@ class FilesApplication : Application(), SingletonImageLoader.Factory {
                 // Saved servers are read in the background while the app starts. Wait for them here, before the
                 // screen is first drawn, so no screen ever shows the list half loaded.
                 App.servers.awaitLoaded()
+                // The bookmarks are read the same way.
+                App.bookmarks.awaitLoaded()
             }
             override fun onActivityResumed(activity: Activity) {}
             override fun onActivityPaused(activity: Activity) {}

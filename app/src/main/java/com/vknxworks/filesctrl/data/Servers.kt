@@ -1,11 +1,16 @@
 package com.vknxworks.filesctrl.data
 
 import android.content.Context
+import com.vknxworks.filesctrl.data.crypto.SealedPrefs
+import com.vknxworks.filesctrl.data.crypto.SealedText
 import com.vknxworks.filesctrl.data.lock.LockVault
 import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
 import android.util.Base64
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshots.SnapshotStateList
 import org.json.JSONArray
 import org.json.JSONObject
@@ -157,8 +162,14 @@ data class NetServer(
  * The saved list is read and decrypted on a background thread when the store is created (each secret is a call
  * into the system Keystore, which is too slow for app start). Everything that reads or changes the list waits
  * for that first load, so nothing can ever see the list, a password or [locked] before they are ready.
+ *
+ * The whole list (addresses, folders, user names, the saved host keys and certificate pins, and the already
+ * encrypted passwords) is also encrypted at rest with the app's data key ([SealedPrefs]); the same background
+ * load gets that key first. A list from before that is still read, and is then replaced by its encrypted copy.
+ * Without a data key the list is read and written as before. A sealed list that can't be opened is never
+ * overwritten ([unreadable]): no servers are listed, so nothing can connect without its saved host key or pin.
  */
-class ServerStore(context: Context, private val vault: LockVault) {
+class ServerStore(context: Context, private val vault: LockVault, private val sealer: SealedPrefs) {
     private val sp = context.getSharedPreferences("servers", Context.MODE_PRIVATE)
     /** The list itself. Only for code in this class that runs after, or as part of, the first load. */
     private val items = mutableStateListOf<NetServer>()
@@ -188,10 +199,27 @@ class ServerStore(context: Context, private val vault: LockVault) {
     /** The Keystore key, looked up once instead of for every password. Forgotten again if using it fails. */
     @Volatile private var cachedKey: SecretKey? = null
 
+    /** The saved list is sealed and can't be opened: it stays as it is, and nothing is written over it. */
+    @Volatile private var unreadableNow = false
+
+    /**
+     * The saved list is encrypted and can't be opened (the key in the phone's secure storage is gone or changed).
+     * Observable from Compose; the Places tab says so instead of showing an empty list.
+     */
+    var unreadable by mutableStateOf(false)
+        private set
+
     init {
         // Last of the fields above, so the loading thread never sees one that isn't set yet.
         Thread({
-            try { load() } finally { loaded.countDown() }
+            try {
+                // The data key first: it asks the secure hardware, and is made at the first start.
+                sealer.prepare()
+                load()
+                sealStored()
+            } finally {
+                loaded.countDown()
+            }
         }, "servers-load").start()
     }
 
@@ -215,7 +243,18 @@ class ServerStore(context: Context, private val vault: LockVault) {
 
     @Synchronized
     private fun load() {
-        val raw = sp.getString("list", "[]") ?: "[]"
+        val raw = sealer.open(sp.getString("list", "[]") ?: "[]")
+        if (raw == null) {
+            // Sealed and it can't be opened: keep it exactly as it is and list nothing.
+            sealed.clear()
+            items.clear()
+            lockedNow = vault.enabled && !vault.isOpen
+            unreadableNow = true
+            unreadable = true
+            return
+        }
+        unreadableNow = false
+        unreadable = false
         sealed.clear()
         val list = ArrayList<NetServer>()
         // Very old versions saved passwords and keys as plain text; they're encrypted again below.
@@ -249,6 +288,57 @@ class ServerStore(context: Context, private val vault: LockVault) {
         // they're left as they are until the next unlock.
         if (plainSecrets && !lockedNow) {
             try { persist() } catch (_: java.io.IOException) {}
+        }
+    }
+
+    /**
+     * Replaces a list from before encryption at rest by its encrypted copy: the same text, sealed, checked by
+     * opening it again ([SealedText.seal]) and written by SharedPreferences in one step (it keeps the old file as
+     * a backup until the new one is on disk). If anything fails, the ordinary text simply stays in use and the
+     * next start tries again. Part of the first load.
+     */
+    @Synchronized
+    private fun sealStored() {
+        try {
+            if (unreadableNow) return
+            val stored = sp.getString("list", null) ?: return
+            if (SealedText.isSealed(stored)) return
+            val sealedText = sealer.seal(stored)
+            if (sealedText != stored) sp.edit().putString("list", sealedText).commit()
+        } catch (_: Exception) {
+        }
+    }
+
+    /**
+     * Tries to open a saved list that couldn't be opened again ([unreadable]). Slow (it reads the Keystore): call
+     * it off the main thread, after the data key was asked for again ([SealedPrefs.retry]).
+     */
+    fun retryUnreadable() {
+        awaitLoaded()
+        if (!unreadableNow) return
+        synchronized(this) { load() }
+        if (!unreadableNow) items.toList().forEach { s -> listeners.forEach { it(s.id) } }
+    }
+
+    /**
+     * Gives up on a saved list that can't be opened and starts with no servers. With [keep] the sealed text is
+     * kept in the same file under another name ("list_unreadable") instead of deleted. Does nothing unless the
+     * list is [unreadable].
+     */
+    fun startEmpty(keep: Boolean) {
+        awaitLoaded()
+        synchronized(this) {
+            if (!unreadableNow) return
+            val stored = sp.getString("list", null)
+            val edit = sp.edit()
+            if (keep && stored != null) edit.putString("list_unreadable", stored)
+            edit.remove("list")
+            if (!edit.commit()) return
+            sealed.clear()
+            items.clear()
+            lockedNow = vault.enabled && !vault.isOpen
+            unreadableNow = false
+            unreadable = false
         }
     }
 
@@ -303,6 +393,9 @@ class ServerStore(context: Context, private val vault: LockVault) {
      * rather than silently saving it without them.
      */
     fun save(s: NetServer) {
+        awaitLoaded()
+        // Nothing is saved next to (or over) a list that couldn't be opened.
+        if (unreadableNow) throw java.io.IOException(App.str(R.string.unreadable_cant_save_server))
         val i = all.indexOfFirst { it.id == s.id }
         val next = all.toMutableList().apply { if (i >= 0) set(i, s) else add(s) }
         val json = serialize(next)
@@ -363,7 +456,11 @@ class ServerStore(context: Context, private val vault: LockVault) {
         return vault.seal(plain) ?: throw java.io.IOException(App.str(R.string.filesctrl_is_locked_unlock_it_to))
     }
 
-    private fun write(json: String) { sp.edit().putString("list", json).apply() }
+    private fun write(json: String) {
+        // Never over a saved list that couldn't be opened: it stays until it opens again or is given up.
+        if (unreadableNow) return
+        sp.edit().putString("list", sealer.seal(json)).apply()
+    }
 
     // --- Keystore AES-GCM for secrets ---
 

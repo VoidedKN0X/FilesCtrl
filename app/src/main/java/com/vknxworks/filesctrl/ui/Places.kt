@@ -31,6 +31,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -54,6 +55,7 @@ import com.vknxworks.filesctrl.fs.Location
 import com.vknxworks.filesctrl.fs.Paths
 import com.vknxworks.filesctrl.fs.RemoteVfs
 import com.vknxworks.filesctrl.fs.Space
+import com.vknxworks.filesctrl.ui.components.CtrlAlertDialog
 import com.vknxworks.filesctrl.ui.components.CtrlChip
 import com.vknxworks.filesctrl.ui.components.CtrlDot
 import com.vknxworks.filesctrl.ui.components.CtrlHeroCard
@@ -134,6 +136,9 @@ fun PlacesTab(current: Location, onOpen: (Location) -> Unit, onAddServer: () -> 
             }
         }
 
+        // Saved servers or bookmarks that are encrypted and can't be opened: say so instead of showing none.
+        if (App.servers.unreadable || App.bookmarks.unreadable) item { UnreadableSaved() }
+
         item {
             SectionHeader(stringResource(R.string.network), trailing = {
                 Text(App.servers.all.size.toString().padStart(2, '0'), style = CtrlType.Meta, color = CtrlColors.Muted)
@@ -200,6 +205,65 @@ fun PlacesTab(current: Location, onOpen: (Location) -> Unit, onAddServer: () -> 
                 ) { onOpen(b.location) }
             }
         }
+    }
+}
+
+/**
+ * The saved servers or bookmarks are encrypted and can't be opened (the key in the phone's secure storage is gone
+ * or changed). Nothing was deleted or changed: say so, offer to try again, and only start without them when asked
+ * to, keeping what couldn't be opened aside.
+ */
+@Composable
+private fun UnreadableSaved() {
+    var confirm by remember { mutableStateOf(false) }
+    var busy by remember { mutableStateOf(false) }
+    Column(
+        Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 10.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        Text(stringResource(R.string.unreadable_title), style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold, color = CtrlColors.Text)
+        Text(stringResource(R.string.unreadable_body), style = MaterialTheme.typography.bodyMedium, color = CtrlColors.Muted)
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            TextButton(
+                enabled = !busy,
+                onClick = {
+                    busy = true
+                    Thread {
+                        try {
+                            App.retryUnreadable()
+                        } finally {
+                            busy = false
+                        }
+                    }.start()
+                },
+            ) { Text(stringResource(R.string.unreadable_retry), color = CtrlColors.AccentText) }
+            Spacer(Modifier.width(8.dp))
+            TextButton(enabled = !busy, onClick = { confirm = true }) {
+                Text(stringResource(R.string.unreadable_start_empty), color = CtrlColors.Muted)
+            }
+        }
+    }
+    if (confirm) {
+        CtrlAlertDialog(
+            sensitive = true,
+            onDismissRequest = { confirm = false },
+            title = { Text(stringResource(R.string.unreadable_start_empty_title)) },
+            text = { Text(stringResource(R.string.unreadable_start_empty_body)) },
+            confirmButton = {
+                TextButton(onClick = {
+                    confirm = false
+                    busy = true
+                    Thread {
+                        try {
+                            App.startEmptyUnreadable()
+                        } finally {
+                            busy = false
+                        }
+                    }.start()
+                }) { Text(stringResource(R.string.unreadable_start_empty), color = CtrlColors.Error) }
+            },
+            dismissButton = { TextButton(onClick = { confirm = false }) { Text(stringResource(R.string.lock_cancel)) } },
+        )
     }
 }
 
