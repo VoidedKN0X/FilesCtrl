@@ -422,6 +422,11 @@ object Ops {
             val made = HashSet<String>().apply { add(root) }
             val buf = ByteArray(256 * 1024)
             var created: String? = null
+            // An archive made to unpack without end must not fill the phone. Only bytes really written count
+            // (see ExtractGuard). Not for a destination on a server: that would mean asking the server for its
+            // free space over and over, which extracting never did.
+            val guard = if (App.vfs.onNetwork(setOf(dest.vfsId))) null
+            else ExtractGuard({ try { dst.space(root)?.free } catch (_: Exception) { null } })
             try {
                 arc.forEachEntry { e, input ->
                     job.ensureActive()
@@ -448,6 +453,7 @@ object Ops {
                             if (n < 0) break
                             out.write(buf, 0, n)
                             t.bytesDone += n
+                            if (guard != null && guard.wrote(n)) throw IOException(App.str(R.string.failed_no_space_left, e.name))
                         }
                     }
                     created = null

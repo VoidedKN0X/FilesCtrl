@@ -11,11 +11,15 @@ Built and checked by CI only: nothing here has been run on a phone.
 ### Changed
 
 - **Selecting many files stays smooth.** FilesCtrl kept the selected files as a list, and every row on screen looked through that whole list to know whether to show itself as selected. After *Select all* in a folder with thousands of files, scrolling and tapping did that for every visible row again and again. The selection is now kept as a set that is looked up directly. What is selected, the count in the bar and what copy, move, delete, compress and the other actions work on are unchanged.
-
 - **Folders on the phone list faster again.** For every file, FilesCtrl still asked the system a second time just for the date it was last changed, although the first answer already holds it. That second question is gone for everything that is not a link: one system call per file instead of two (it was four before 1.10.1). The date is the same number as before, to the millisecond (worked out exactly the way Android 15 and later, the versions FilesCtrl runs on, work it out), so sorting by date and the dates shown are unchanged. Links still take their date from the file they point to.
-
 - **Wi-Fi is only kept awake for operations that use a server.** While any copy, move, delete, compress or extract ran, FilesCtrl held a Wi-Fi lock (so transfers to a server keep their speed with the screen off), even when everything happened on the phone itself. The lock is now taken only while at least one running operation reads from or writes to a server. That includes an archive or a Cryptomator vault that is stored on a server, however deeply nested; when FilesCtrl cannot tell, it takes the lock as before. An operation on a server that starts while a phone-only one is running gets the lock within a second. The lock that keeps the phone itself awake during operations is unchanged, and so is everything for operations on servers.
   - One case to know: saving files another app shares with FilesCtrl into a folder on the phone no longer holds the Wi-Fi lock, also when that other app fetches the files from the internet while FilesCtrl saves them.
+
+### Security
+
+- **An archive made to unpack without end can no longer fill the phone.** A few kilobytes of archive can be built to unpack into far more data than any phone holds (an "archive bomb"). Extracting one used to write until the storage was completely full, which makes other apps and Android itself misbehave. FilesCtrl now counts the bytes it really writes while extracting. What the archive claims about its sizes is ignored, because such an archive lies about them. Nothing is checked for the first 1 GiB written, so ordinary extractions are not touched at all. After that, the free space of the destination is looked at every 8 MiB written, and the extraction stops with "… failed: no space left" once less than 16 MiB is free. The file being written at that moment is removed, as with any failed extraction; files already extracted stay, as before.
+  - This applies when extracting to phone storage, an SD card or USB drive, or a Cryptomator vault stored on one of those. Extracting to a server is unchanged (no free-space questions are sent to servers during extraction).
+  - One difference for ordinary archives: an extraction of more than 1 GiB that would have ended with less than 16 MiB free now stops just before that point instead of finishing.
 
 ## 1.11.0 (2026-11-20)
 
