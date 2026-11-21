@@ -19,6 +19,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import java.io.BufferedInputStream
 import java.io.BufferedOutputStream
@@ -43,8 +44,16 @@ enum class TaskState { Running, Done, Failed, Cancelled }
  * One running or finished operation, observable from Compose. [uses] are the file systems (vfs ids) it reads or
  * writes, so locking the app can close every other server connection straight away.
  */
-class OpTask(val id: Int, val title: String, internal val uses: Set<String> = emptySet()) {
+class OpTask(val id: Int, val title: String, internal val uses: Set<String> = emptySet(), val pausable: Boolean = true) {
     var state by mutableStateOf(TaskState.Running)
+    /** Paused by the user: the work waits at its next step (a file being copied waits mid-file). */
+    var paused by mutableStateOf(false)
+        private set
+    /** Mirrors [paused] for the worker thread, which waits on it. */
+    private val pauseFlow = kotlinx.coroutines.flow.MutableStateFlow(false)
+    /** Starts the same operation again (after it failed or was cancelled); null when it can't be repeated. */
+    internal var retry: (() -> OpTask)? = null
+    val canRetry: Boolean get() = retry != null && (state == TaskState.Failed || state == TaskState.Cancelled)
     var detail by mutableStateOf(App.str(R.string.preparing))
     var bytesTotal by mutableLongStateOf(0L)
     var bytesDone by mutableLongStateOf(0L)
@@ -69,6 +78,27 @@ class OpTask(val id: Int, val title: String, internal val uses: Set<String> = em
         }
 
     fun cancel() { job?.cancel() }
+
+    fun pause() {
+        if (!pausable || state != TaskState.Running) return
+        paused = true
+        pauseFlow.value = true
+    }
+
+    fun resume() {
+        paused = false
+        pauseFlow.value = false
+    }
+
+    /** Waits here while paused (and stops if cancelled meanwhile). Called by the work between steps. */
+    internal suspend fun checkPause() {
+        if (pauseFlow.value) {
+            val before = detail
+            detail = App.str(R.string.transfer_paused)
+            pauseFlow.first { !it }
+            detail = before
+        }
+    }
 }
 
 /** Runs file operations in the background (kept alive by [OpService]) and reports progress. */
@@ -93,8 +123,24 @@ object Ops {
 
     fun clearFinished() { tasks.removeAll { it.state != TaskState.Running } }
 
-    private fun launch(title: String, touched: List<Location>, uses: Set<String>, work: suspend (OpTask) -> Unit): OpTask {
-        val t = OpTask(nextId++, title, uses)
+    /** Runs a failed or cancelled operation again; the old entry makes way for the new one. */
+    fun retry(t: OpTask): OpTask? {
+        if (!t.canRetry) return null
+        val again = t.retry ?: return null
+        tasks.remove(t)
+        return again()
+    }
+
+    private fun launch(
+        title: String,
+        touched: List<Location>,
+        uses: Set<String>,
+        pausable: Boolean = true,
+        retry: (() -> OpTask)? = null,
+        work: suspend (OpTask) -> Unit,
+    ): OpTask {
+        val t = OpTask(nextId++, title, uses, pausable)
+        t.retry = retry
         tasks.add(0, t)
         // Keep only a few finished ones around (the notification is where results are shown now).
         tasks.filter { it.state != TaskState.Running }.drop(10).forEach { tasks.remove(it) }
@@ -111,6 +157,7 @@ object Ops {
             } catch (e: CancellationException) {
                 t.state = TaskState.Cancelled
                 t.detail = App.str(R.string.cancelled)
+                t.resume()
             } catch (e: Exception) {
                 t.state = TaskState.Failed
                 t.error = e.message ?: e.javaClass.simpleName
@@ -134,10 +181,15 @@ object Ops {
 
     // ---------- Copy / move ----------
 
-    fun paste(items: List<FileEntry>, dest: Location, move: Boolean, conflict: Conflict): OpTask {
+    /**
+     * Copies or moves [items] into [dest]. With [resume] (a retry) the work carries on where it stopped: a file that is
+     * already in the destination with the same size counts as done, folders are merged, and an item a move already
+     * took away is left out. Everything else follows [conflict] as the first time.
+     */
+    fun paste(items: List<FileEntry>, dest: Location, move: Boolean, conflict: Conflict, resume: Boolean = false): OpTask {
         val title = App.plural(if (move) R.plurals.moving_items else R.plurals.copying_items, items.size, items.size)
         val touched = listOf(dest) + if (move) items.map { it.parentLocation } else emptyList()
-        return launch(title, touched, items.mapTo(HashSet()) { it.vfsId } + dest.vfsId) { t ->
+        return launch(title, touched, items.mapTo(HashSet()) { it.vfsId } + dest.vfsId, retry = { paste(items, dest, move, conflict, resume = true) }) { t ->
             val dst = App.vfs.get(dest.vfsId)
             for (src in items) {
                 if (src.isDir && src.vfsId == dest.vfsId && Paths.isWithin(dest.path, src.path))
@@ -145,15 +197,19 @@ object Ops {
             }
             // Count what needs copying (moves within one file system are just renames).
             t.detail = App.str(R.string.counting_files)
-            for (src in items) {
+            // A retried move: what was already moved isn't at its old place any more.
+            val todo = if (resume && move) items.filter { runCatching { App.vfs.get(it.vfsId).exists(it.path) }.getOrDefault(true) } else items
+            for (src in todo) {
                 coroutineContext.ensureActive()
+                t.checkPause()
                 if (move && src.vfsId == dest.vfsId) { t.filesTotal++; continue }
                 val (bytes, files) = measure(App.vfs.get(src.vfsId), src)
                 t.bytesTotal += bytes
                 t.filesTotal += files
             }
-            for (src in items) {
+            for (src in todo) {
                 coroutineContext.ensureActive()
+                t.checkPause()
                 val srcVfs = App.vfs.get(src.vfsId)
                 var name = src.name
                 if (!Paths.isSafeName(name)) { t.warnings += App.str(R.string.skipped_unsafe_name, src.name); t.filesDone++; continue }
@@ -164,6 +220,13 @@ object Ops {
                 if (src.vfsId == dest.vfsId && target != src.path && Paths.isWithin(src.path, target)) {
                     t.warnings += App.str(R.string.skipped_it_s_inside_the_item_it, src.name)
                     t.filesDone++
+                    continue
+                }
+                if (resume && !sameFolder && dst.exists(target) && alreadyThere(srcVfs, src, dst, target)) {
+                    // Retrying: a folder is merged (its files are checked one by one below), a finished file is done.
+                    if (!src.isDir) { t.bytesDone += src.size; t.filesDone++; if (move) deleteTree(srcVfs, src, null); continue }
+                    copyTree(srcVfs, src, dst, target, t, resume = true)
+                    if (move) deleteTree(srcVfs, src, null)
                     continue
                 }
                 if (dst.exists(target)) {
@@ -209,8 +272,18 @@ object Ops {
         return bytes to files
     }
 
-    private suspend fun copyTree(src: Vfs, e: FileEntry, dst: Vfs, target: String, t: OpTask) {
+    /**
+     * For a retry: [target] already holds [e] (a folder onto a folder, or a file of the same size). Only then is it
+     * left as it is; anything else goes through the usual conflict choice.
+     */
+    private fun alreadyThere(src: Vfs, e: FileEntry, dst: Vfs, target: String): Boolean {
+        val there = try { dst.stat(target) } catch (_: Exception) { return false }
+        return if (e.isDir && !e.isLink) there.isDir else !there.isDir && there.size == e.size
+    }
+
+    private suspend fun copyTree(src: Vfs, e: FileEntry, dst: Vfs, target: String, t: OpTask, resume: Boolean = false) {
         coroutineContext.ensureActive()
+        t.checkPause()
         if (e.isLink && e.isDir) {
             // Following folder links could loop or copy a whole other tree; leave them out.
             t.warnings += App.str(R.string.skipped_folder_link, e.name)
@@ -225,10 +298,15 @@ object Ops {
                 if (!Paths.isSafeName(c.name)) { t.warnings += App.str(R.string.skipped_unsafe_name, c.name); continue }
                 val childTarget = Paths.join(target, c.name)
                 checkInside(dst, childTarget, target)
-                copyTree(src, c, dst, childTarget, t)
+                copyTree(src, c, dst, childTarget, t, resume)
             }
             dst.setModified(target, e.modified)
         } else {
+            if (resume && dst.exists(target) && alreadyThere(src, e, dst, target)) {
+                t.bytesDone += e.size
+                t.filesDone++
+                return
+            }
             try {
                 copyFile(src, e, dst, target, t)
             } catch (ex: java.io.FileNotFoundException) {
@@ -257,6 +335,7 @@ object Ops {
                     var pending = 0L
                     while (true) {
                         coroutineContext.ensureActive()
+                        t.checkPause()
                         val n = input.read(buf)
                         if (n < 0) break
                         out.write(buf, 0, n)
@@ -317,18 +396,26 @@ object Ops {
         return deleteTask(items)
     }
 
-    private fun deleteTask(items: List<FileEntry>): OpTask =
-        launch(App.plural(R.plurals.deleting_items, items.size, items.size), items.map { it.parentLocation }.distinct(), items.mapTo(HashSet()) { it.vfsId }) { t ->
+    /** With [resume] (a retry) items that are already gone are left out instead of failing. */
+    private fun deleteTask(items: List<FileEntry>, resume: Boolean = false): OpTask =
+        launch(
+            App.plural(R.plurals.deleting_items, items.size, items.size), items.map { it.parentLocation }.distinct(), items.mapTo(HashSet()) { it.vfsId },
+            retry = { deleteTask(items, resume = true) },
+        ) { t ->
             t.filesTotal = items.size
             for (e in items) {
                 coroutineContext.ensureActive()
-                deleteTree(App.vfs.get(e.vfsId), e, t)
+                t.checkPause()
+                val vfs = App.vfs.get(e.vfsId)
+                if (resume && !vfs.exists(e.path)) { t.filesDone++; continue }
+                deleteTree(vfs, e, t)
                 t.filesDone++
             }
         }
 
     private suspend fun deleteTree(vfs: Vfs, e: FileEntry, t: OpTask?) {
         coroutineContext.ensureActive()
+        t?.checkPause()
         t?.detail = e.name
         if (e.isDir && !e.isLink) {
             for (c in vfs.list(e.path)) deleteTree(vfs, c, t)
@@ -353,6 +440,7 @@ object Ops {
             try {
                 for ((e, n) in list) {
                     coroutineContext.ensureActive()
+                    t.checkPause()
                     t.detail = e.name
                     if (!Paths.isSafeName(n) || Paths.validName(n) != null) { t.warnings += App.str(R.string.skipped_unsafe_name, n); t.filesDone++; continue }
                     val vfs = App.vfs.get(e.vfsId)
@@ -400,6 +488,7 @@ object Ops {
     /** Walks [e] (recursively for folders) and hands each folder and file to [sink] with its path in the archive. */
     private suspend fun walk(vfs: Vfs, e: FileEntry, name: String, t: OpTask, sink: ArchiveSink) {
         coroutineContext.ensureActive()
+        t.checkPause()
         t.detail = e.name
         if (e.isLink && e.isDir) { t.warnings += App.str(R.string.skipped_folder_link, e.name); t.filesDone++; return }
         if (e.isDir && !e.isLink) {
@@ -416,8 +505,9 @@ object Ops {
         t.filesDone++
     }
 
+    /** No retry for an archive with a password: the password isn't kept after the first try. */
     private fun compressTask(items: List<FileEntry>, dest: Location, name: String, format: ArchiveFormat, password: CharArray?): OpTask =
-        launch(App.str(R.string.compressing_to, name), listOf(dest), items.mapTo(HashSet()) { it.vfsId } + dest.vfsId) { t ->
+        launch(App.str(R.string.compressing_to, name), listOf(dest), items.mapTo(HashSet()) { it.vfsId } + dest.vfsId, retry = if (password == null) { { compressTask(items, dest, name, format, null) } } else null) { t ->
             val dst = App.vfs.get(dest.vfsId)
             for (e in items) {
                 val (b, f) = measure(App.vfs.get(e.vfsId), e)
@@ -465,7 +555,7 @@ object Ops {
     }
 
     private fun extractTask(archive: FileEntry, dest: Location, password: CharArray?): OpTask =
-        launch(App.str(R.string.extracting, archive.name), listOf(dest), setOf(archive.vfsId, ArchiveVfs.idFor(archive.location), dest.vfsId)) { t ->
+        launch(App.str(R.string.extracting, archive.name), listOf(dest), setOf(archive.vfsId, ArchiveVfs.idFor(archive.location), dest.vfsId), pausable = false) { t ->
             val arc = App.vfs.archive(ArchiveVfs.idFor(archive.location)) ?: throw IOException(App.str(R.string.couldn_t_open, archive.name))
             if (password != null) arc.password = password
             val dst = App.vfs.get(dest.vfsId)

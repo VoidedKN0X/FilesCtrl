@@ -14,6 +14,11 @@ Changes on `main` that aren't in a release yet. They ship with the next version.
   - A preview shows every old and new name. Names that aren't allowed, that two items would get, or that another file in the folder already has are marked in red, and *Rename* stays off until they're fixed, so nothing is ever replaced.
   - The renaming runs in the background like a copy. When a new name is the current name of another selected item (renumbering, for example), every item first gets a temporary name and then its new one; that second step always finishes, also after a failure or cancel. Changing only the case of a name works on SD cards and servers that ignore case, too.
   - Works on the phone and on every kind of server; not offered in read-only places.
+- **Transfers list with pause, resume and retry.** A new button with the number of running operations appears in the top bar while anything is running or has just finished; tapping the progress notification opens the same list. It shows every copy, move, delete, compress, extract, rename and save with its progress (bytes or files), and:
+  - **Pause** and **Resume** for everything except extracting an archive. A paused operation waits at its next step (a file being copied waits in the middle), the progress bar turns grey and the notification says so. While everything is paused FilesCtrl no longer keeps the phone and Wi-Fi awake for it. A server may close a connection that waits a long time; the operation then fails and can be tried again.
+  - **Cancel**, as in the notification.
+  - **Try again** for a copy, move, delete or compress (without password) that failed or was cancelled. A retried copy or move carries on where it stopped: files that are already in the destination with the same size count as done and aren't copied again, folders are merged, and items a move already took away are left out. A retried delete skips what is already gone. An archive with a password isn't kept for a retry (the password isn't stored), and extracting and renaming several are not repeated automatically.
+  - **Clear finished** removes the finished ones from the list.
 
 ### Changed
 

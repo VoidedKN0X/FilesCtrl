@@ -114,6 +114,8 @@ class MainActivity : FragmentActivity() {
         if (savedInstanceState == null) BrowserTabs.startFresh()
         // Started from a home screen shortcut: open that folder (behind the app lock, like any start).
         if (savedInstanceState == null) com.vknxworks.filesctrl.shortcuts.Shortcuts.locationFrom(intent)?.let { PendingOpen.location = it }
+        // The progress notification opens the transfers list.
+        if (savedInstanceState == null && intent?.getBooleanExtra(EXTRA_SHOW_TRANSFERS, false) == true) TransfersUi.open = true
         val nightNow = (resources.configuration.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK) == android.content.res.Configuration.UI_MODE_NIGHT_YES
         enableEdgeToEdge(signalBarStyle(nightNow), signalBarStyle(nightNow))
         setContent {
@@ -139,6 +141,7 @@ class MainActivity : FragmentActivity() {
     override fun onNewIntent(intent: android.content.Intent) {
         super.onNewIntent(intent)
         com.vknxworks.filesctrl.shortcuts.Shortcuts.locationFrom(intent)?.let { PendingOpen.location = it }
+        if (intent.getBooleanExtra(EXTRA_SHOW_TRANSFERS, false)) TransfersUi.open = true
     }
 
     override fun onStart() { super.onStart(); inForeground = true }
@@ -146,12 +149,18 @@ class MainActivity : FragmentActivity() {
 
     companion object {
         @Volatile var inForeground = false
+        const val EXTRA_SHOW_TRANSFERS = "com.vknxworks.filesctrl.SHOW_TRANSFERS"
     }
 }
 
 /** A folder to open as soon as the browser is ready (from a home screen or launcher shortcut). */
 object PendingOpen {
     var location by mutableStateOf<Location?>(null)
+}
+
+/** Whether the transfers list (running and finished operations) is open. */
+object TransfersUi {
+    var open by mutableStateOf(false)
 }
 
 /** Which tab is showing; other screens can switch it. */
@@ -243,6 +252,7 @@ private fun Root(activity: FragmentActivity, lockVm: AppLockViewModel = viewMode
 
     Box(Modifier.fillMaxSize()) {
         Box(Modifier.fillMaxSize().then(if (locked) Modifier.clearAndSetSemantics { } else Modifier)) { AppContent(nav) }
+        if (TransfersUi.open && !locked) com.vknxworks.filesctrl.ui.TransfersSheet(onDismiss = { TransfersUi.open = false })
         if (locked) {
             LockWindow {
                 LockScreen(vm = lockVm, onForgot = { confirmReset = true })

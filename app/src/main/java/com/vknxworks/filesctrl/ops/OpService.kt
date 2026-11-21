@@ -61,8 +61,11 @@ class OpService : Service() {
                     if (Ops.active.isEmpty()) { finish(); break }
                     continue
                 }
-                holdWifi(running.any { it.onNetwork })
-                val first = running.first()
+                // Paused operations don't need the phone or Wi-Fi kept awake.
+                val working = running.filter { !it.paused }
+                holdWifi(working.any { it.onNetwork })
+                holdWake(working.isNotEmpty())
+                val first = working.firstOrNull() ?: running.first()
                 val title = if (running.size == 1) first.title else App.plural(R.plurals.operations_running, running.size, running.size)
                 getSystemService(NotificationManager::class.java).notify(NOTIF_ID, build(title + "\n" + first.detail, first.progress))
                 delay(700)
@@ -91,6 +94,16 @@ class OpService : Service() {
         }
     }
 
+    /** Keeps the CPU awake only while something is actually working (not when everything is paused). */
+    private fun holdWake(needed: Boolean) {
+        try {
+            val lock = wake ?: return
+            if (needed && !lock.isHeld) lock.acquire(6 * 60 * 60 * 1000L)
+            else if (!needed && lock.isHeld) lock.release()
+        } catch (_: Exception) {
+        }
+    }
+
     /** Android 15+: the daily data-sync time budget ran out. Stop cleanly instead of being killed. */
     override fun onTimeout(startId: Int, fgsType: Int) {
         Ops.active.forEach { it.cancel() }
@@ -114,7 +127,7 @@ class OpService : Service() {
     private fun build(text: String, progress: Float?): Notification {
         val lines = text.split('\n')
         val open = PendingIntent.getActivity(
-            this, 0, Intent(this, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP),
+            this, 0, Intent(this, MainActivity::class.java).putExtra(MainActivity.EXTRA_SHOW_TRANSFERS, true).addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP),
             PendingIntent.FLAG_IMMUTABLE,
         )
         val cancel = PendingIntent.getService(

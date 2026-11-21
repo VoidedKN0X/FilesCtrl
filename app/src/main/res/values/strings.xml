@@ -747,4 +747,13 @@
         <item quantity="one">Renaming %1$d item</item>
         <item quantity="other">Renaming %1$d items</item>
     </plurals>
+
+    <!-- Transfers -->
+    <string name="transfers_title">Transfers</string>
+    <string name="transfers_clear_finished">Clear finished</string>
+    <string name="transfers_empty">Nothing running. Copies, moves and other operations show up here.</string>
+    <string name="transfer_paused">Paused</string>
+    <string name="transfer_pause">Pause</string>
+    <string name="transfer_resume">Resume</string>
+    <string name="transfer_retry">Try again</string>
 </resources>

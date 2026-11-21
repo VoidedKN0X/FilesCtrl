@@ -79,6 +79,7 @@ import androidx.compose.material.icons.outlined.MoreVert
 import androidx.compose.material.icons.outlined.NoteAdd
 import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.outlined.Search
+import androidx.compose.material.icons.outlined.SwapVert
 import androidx.compose.material.icons.outlined.SelectAll
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.Share
@@ -495,6 +496,13 @@ private fun MainBar(vm: BrowserViewModel, pane: Pane?, compact: Boolean, onDialo
                 vm.lockVault()
                 Toast.makeText(ctx, App.str(R.string.vault_locked_toast), Toast.LENGTH_SHORT).show()
             })
+            // Operations running or recently finished: open the transfers list (pause, resume, retry, cancel).
+            if (com.vknxworks.filesctrl.ops.Ops.tasks.isNotEmpty()) {
+                val running = com.vknxworks.filesctrl.ops.Ops.tasks.count { it.state == com.vknxworks.filesctrl.ops.TaskState.Running }
+                androidx.compose.material3.BadgedBox(badge = { if (running > 0) androidx.compose.material3.Badge { Text("$running") } }) {
+                    CtrlIconButton(Icons.Outlined.SwapVert, stringResource(R.string.transfers_title), onClick = { com.vknxworks.filesctrl.TransfersUi.open = true })
+                }
+            }
             CtrlIconButton(Icons.Outlined.Search, stringResource(R.string.search), onClick = { vm.searchOpen = true })
             Box {
                 CtrlIconButton(Icons.AutoMirrored.Outlined.Sort, stringResource(R.string.sort), onClick = { sortMenu = true })
