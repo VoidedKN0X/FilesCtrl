@@ -285,7 +285,7 @@ class SmbVfs(override val server: NetServer) : RemoteVfs {
             val name = path?.let { " (${Paths.name(it)})" } ?: ""
             return when (e.status) {
                 NtStatus.STATUS_OBJECT_NAME_NOT_FOUND, NtStatus.STATUS_OBJECT_PATH_NOT_FOUND, NtStatus.STATUS_NO_SUCH_FILE ->
-                    FileNotFoundException(App.str(R.string.not_found, path ?: "That"))
+                    FileNotFoundException(path?.let { App.str(R.string.not_found, it) } ?: App.str(R.string.not_found_2))
                 NtStatus.STATUS_BAD_NETWORK_NAME -> IOException(App.str(R.string.the_share_doesn_t_exist_on_this))
                 NtStatus.STATUS_ACCESS_DENIED -> IOException(App.str(R.string.failed_permission_denied, what, name))
                 NtStatus.STATUS_LOGON_FAILURE -> IOException(App.str(R.string.wrong_username_or_password))

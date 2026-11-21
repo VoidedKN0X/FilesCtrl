@@ -313,7 +313,7 @@ class SftpVfs(server: NetServer, private val onLearned: (NetServer) -> Unit = {}
         TlsPin.identityError(e)?.let { return it }
         return when (e) {
             is SFTPException -> when (e.statusCode) {
-                Response.StatusCode.NO_SUCH_FILE, Response.StatusCode.NO_SUCH_PATH -> FileNotFoundException(App.str(R.string.not_found, path ?: "That"))
+                Response.StatusCode.NO_SUCH_FILE, Response.StatusCode.NO_SUCH_PATH -> FileNotFoundException(path?.let { App.str(R.string.not_found, it) } ?: App.str(R.string.not_found_2))
                 Response.StatusCode.PERMISSION_DENIED -> IOException(App.str(R.string.failed_permission_denied, what, name))
                 Response.StatusCode.FILE_ALREADY_EXISTS -> IOException(App.str(R.string.failed_already_exists, what, name))
                 Response.StatusCode.DIR_NOT_EMPTY -> IOException(App.str(R.string.failed_folder_isn_t_empty, what, name))
