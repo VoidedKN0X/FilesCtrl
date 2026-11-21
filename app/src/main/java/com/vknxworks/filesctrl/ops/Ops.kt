@@ -423,6 +423,102 @@ object Ops {
         vfs.delete(e.path, e.isDir && !e.isLink)
     }
 
+    // ---------- One-way folder sync ----------
+
+    /** Every file and folder under [root] by relative path. Folder links and unsafe names are left out. */
+    private suspend fun listTree(vfs: Vfs, root: String, out: HashMap<String, SyncMeta> = HashMap(), rel: String = "", onFolder: () -> Unit = {}): HashMap<String, SyncMeta> {
+        coroutineContext.ensureActive()
+        onFolder()
+        for (e in vfs.list(Paths.join(root, rel).let { if (rel.isEmpty()) root else it })) {
+            if (!Paths.isSafeName(e.name)) continue
+            if (e.isDir && e.isLink) continue
+            val r = if (rel.isEmpty()) e.name else "$rel/${e.name}"
+            out[r] = SyncMeta(e.isDir, e.size, e.modified)
+            if (e.isDir) listTree(vfs, root, out, r, onFolder)
+        }
+        return out
+    }
+
+    /** Refuses a sync where one folder is inside the other (it would copy into itself or delete its own source). */
+    fun syncProblem(src: Location, dst: Location): String? = when {
+        src.vfsId == dst.vfsId && (Paths.isWithin(dst.path, src.path) || Paths.isWithin(src.path, dst.path)) -> App.str(R.string.sync_inside_itself)
+        else -> null
+    }
+
+    /** The dry run: what [sync] would do right now. [onFolder] is called for every folder read (for progress). */
+    suspend fun planSync(src: Location, dst: Location, mirror: Boolean, onFolder: () -> Unit = {}): SyncPlan {
+        syncProblem(src, dst)?.let { throw IOException(it) }
+        val from = listTree(App.vfs.get(src.vfsId), src.path, onFolder = onFolder)
+        val dstVfs = App.vfs.get(dst.vfsId)
+        val to = if (dstVfs.exists(dst.path)) listTree(dstVfs, dst.path, onFolder = onFolder) else HashMap()
+        return SyncPlan.of(from, to, mirror)
+    }
+
+    /**
+     * Makes [dst] match [src], one way: missing and changed files are copied over, and with [mirror] what's only in
+     * the destination is deleted. The plan is worked out again when it starts (the dry run is a preview). A changed
+     * file is written next to the old one first and only then put in its place, so a failed copy never loses the
+     * old file. Nothing in [src] is changed.
+     */
+    fun sync(src: Location, dst: Location, mirror: Boolean): OpTask =
+        launch(App.str(R.string.sync_task_title, Paths.name(src.path), Paths.name(dst.path)), listOf(dst), setOf(src.vfsId, dst.vfsId), retry = { sync(src, dst, mirror) }) { t ->
+            t.detail = App.str(R.string.counting_files)
+            val plan = planSync(src, dst, mirror)
+            val from = App.vfs.get(src.vfsId)
+            val to = App.vfs.get(dst.vfsId)
+            t.bytesTotal = plan.bytes
+            t.filesTotal = plan.delete.size + plan.create.size + plan.copy.size + plan.update.size
+            if (plan.conflicts.isNotEmpty() && !mirror) plan.conflicts.forEach { t.warnings += App.str(R.string.sync_conflict_skipped, it) }
+            if (!to.exists(dst.path)) to.mkdir(dst.path)
+            for (rel in plan.delete) {
+                coroutineContext.ensureActive()
+                t.checkPause()
+                val target = Paths.join(dst.path, rel)
+                checkInside(to, target, dst.path)
+                t.detail = rel
+                deleteTree(to, to.stat(target), null)
+                t.filesDone++
+            }
+            for (rel in plan.create) {
+                coroutineContext.ensureActive()
+                val target = Paths.join(dst.path, rel)
+                checkInside(to, target, dst.path)
+                if (!to.exists(target)) to.mkdir(target)
+                t.filesDone++
+            }
+            for (rel in plan.copy + plan.update) {
+                coroutineContext.ensureActive()
+                t.checkPause()
+                val source = from.stat(Paths.join(src.path, rel))
+                val target = Paths.join(dst.path, rel)
+                checkInside(to, target, dst.path)
+                t.detail = rel
+                if (!to.exists(target)) {
+                    copyFile(from, source, to, target, t)
+                } else {
+                    // Changed file: the new copy goes next to it first, so a failure leaves the old one as it was.
+                    val dir = Paths.parent(target)
+                    val tmp = Paths.join(dir, Paths.unique(dir, ".filesctrl-sync-${Paths.name(target)}") { to.exists(it) })
+                    copyFile(from, source, to, tmp, t)
+                    try {
+                        to.delete(target, false)
+                    } catch (e: Exception) {
+                        // The old file is still there: the new copy goes away again.
+                        try { to.delete(tmp, false) } catch (_: Exception) {}
+                        throw e
+                    }
+                    try {
+                        to.rename(tmp, target)
+                    } catch (e: Exception) {
+                        // The old file is gone, so the new copy stays, under its temporary name.
+                        throw IOException(App.str(R.string.sync_kept_temporary, rel, Paths.name(tmp)), e)
+                    }
+                    to.setModified(target, source.modified)
+                }
+                t.filesDone++
+            }
+        }
+
     // ---------- Rename several ----------
 
     /**

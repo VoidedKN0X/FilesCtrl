@@ -25,6 +25,11 @@ Changes on `main` that aren't in a release yet. They ship with the next version.
   - *File types*: how much each extension takes.
   - At the top: the total, the number of files and, for the folder you started in, the free space of that storage when it says.
   - Only folder listings are read, never the files themselves; folder links aren't followed, so nothing is counted twice; folders that can't be read are counted and named as such. Nothing is changed or deleted from here. On a server this takes as long as listing every folder does. To keep memory small, only the 30 biggest files of each folder are listed by name; the rest show as "smaller files".
+- **One-way folder sync with a dry run.** **⋮ > Sync to another folder…** makes another folder (on the phone or on any server you can write to) match the one you're in:
+  - Pick the destination, then tap **Dry run**: FilesCtrl compares both folders and lists what a sync would do (new folders, new files to copy, changed files to replace, and with *Mirror* on what would be deleted), with the amount of data. Tap a group to see every name. **Sync** only becomes available once a dry run for exactly these settings is on screen.
+  - One way only: nothing in the folder you sync from is ever changed. A file missing in the destination is copied; a file that has another size there, or is older there by more than 2 seconds, is replaced; a newer file of the same size in the destination is left alone. Folder links aren't followed.
+  - **Mirror: also delete** (off by default) also deletes what's in the destination but not in the source. Before a sync that deletes anything, FilesCtrl asks once more with the number of items; those deletes can't be undone. Where one side has a file and the other a folder of the same name, it's left alone (and listed), or replaced when Mirror is on.
+  - The sync runs in the background as a transfer (pause, resume, cancel, try again) and works out the plan again when it starts, so it acts on the folders as they are then. A changed file is first copied next to the old one and only then put in its place, so a failed copy never loses the old file. Syncing a folder into itself or into its own sub-folder is refused.
 
 ### Changed
 

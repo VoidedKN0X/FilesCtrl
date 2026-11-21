@@ -18,6 +18,7 @@ Part of the [Ctrl series](#the-ctrl-series) by VKNXWorks.
 - **Open network files in any app**: videos stream and can be skipped through without downloading first; *Edit with* lets an app save changes back
 - **Your servers in the system file picker**, so other apps can open and save files on them
 - **Copy, move, rename and delete** between your phone and any server, in the background
+- **One-way folder sync** between any two folders (phone or servers), with a dry run that lists every copy, replace and delete first, and an optional mirror mode
 - **Storage analyser:** what takes the space in any folder, on the phone or a server: by sub-folder, largest files and file type
 - **Transfers list:** pause, resume, cancel and retry copies, moves and other operations; a retried copy skips files that already arrived
 - **Rename several at once:** find and replace, a name template with a counter, lower or upper case, with a preview that stops anything from being replaced

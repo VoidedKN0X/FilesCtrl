@@ -81,6 +81,7 @@ import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.outlined.PieChart
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.SwapVert
+import androidx.compose.material.icons.outlined.Sync
 import androidx.compose.material.icons.outlined.SelectAll
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.Share
@@ -614,6 +615,11 @@ private fun MainBar(vm: BrowserViewModel, pane: Pane?, compact: Boolean, onDialo
                             },
                         )
                     }
+                    if (!vm.isArchive) CtrlDropdownMenuItem(
+                        text = { Text(stringResource(R.string.sync_menu)) },
+                        leadingIcon = { Icon(Icons.Outlined.Sync, null) },
+                        onClick = { menu = false; nav.go(syncRoute(vm.location)) },
+                    )
                     CtrlDropdownMenuItem(
                         text = { Text(stringResource(R.string.analyser_title)) },
                         leadingIcon = { Icon(Icons.Outlined.PieChart, null) },

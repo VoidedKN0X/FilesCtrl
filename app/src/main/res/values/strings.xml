@@ -785,4 +785,39 @@
         <item quantity="one">%1$d folder couldn\'t be read and isn\'t counted</item>
         <item quantity="other">%1$d folders couldn\'t be read and aren\'t counted</item>
     </plurals>
+
+    <!-- One-way folder sync -->
+    <string name="sync_menu">Sync to another folder…</string>
+    <string name="sync_title">Sync folder</string>
+    <string name="sync_pick_destination">Sync into which folder?</string>
+    <string name="sync_use_folder">Sync into this folder</string>
+    <string name="sync_from">From</string>
+    <string name="sync_to">To</string>
+    <string name="sync_change">Change</string>
+    <string name="sync_mirror">Mirror: also delete</string>
+    <string name="sync_mirror_sub">Delete what\'s in the destination but not in this folder, so both end up the same</string>
+    <string name="sync_rules">One way only: nothing in this folder is ever changed. Files missing in the destination are copied; a file that has another size there, or is older by more than 2 seconds, is replaced. A newer file of the same size in the destination is left alone. Folder links aren\'t followed.</string>
+    <string name="sync_dry_run">Dry run</string>
+    <string name="sync_now">Sync</string>
+    <string name="sync_checking">Comparing both folders… %1$d folders read</string>
+    <string name="sync_failed">Couldn\'t compare the folders: %1$s</string>
+    <string name="sync_up_to_date">Already the same. Nothing to do.</string>
+    <string name="sync_plan_bytes">%1$s to copy</string>
+    <string name="sync_plan_new_folders">New folders</string>
+    <string name="sync_plan_copy">New files to copy</string>
+    <string name="sync_plan_update">Changed files to replace</string>
+    <string name="sync_plan_delete">To delete in the destination</string>
+    <string name="sync_plan_conflicts_replaced">File in one, folder in the other: replaced</string>
+    <string name="sync_plan_conflicts_skipped">File in one, folder in the other: left alone</string>
+    <string name="sync_tap_to_list">Tap to list them</string>
+    <string name="sync_and_more">…and %1$d more</string>
+    <string name="sync_confirm_delete_body">This deletes them in %1$s for good. This can\'t be undone.</string>
+    <string name="sync_inside_itself">One folder is inside the other. Pick a folder outside this one.</string>
+    <string name="sync_task_title">Syncing %1$s to %2$s</string>
+    <string name="sync_conflict_skipped">Left alone %1$s: a file on one side and a folder on the other</string>
+    <string name="sync_kept_temporary">The new %1$s couldn\'t be put in place; it\'s kept as %2$s</string>
+    <plurals name="sync_confirm_delete_title">
+        <item quantity="one">Sync and delete %1$d item?</item>
+        <item quantity="other">Sync and delete %1$d items?</item>
+    </plurals>
 </resources>
