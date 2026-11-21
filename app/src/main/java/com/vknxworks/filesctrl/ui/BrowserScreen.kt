@@ -183,6 +183,7 @@ private val LocalListPadding = androidx.compose.runtime.compositionLocalOf { Pad
 private sealed interface Dlg {
     data class New(val folder: Boolean) : Dlg
     data class Rename(val e: FileEntry) : Dlg
+    data class BatchRename(val items: List<FileEntry>) : Dlg
     data class Delete(val items: List<FileEntry>) : Dlg
     data class Props(val e: FileEntry) : Dlg
     data class Checksum(val e: FileEntry) : Dlg
@@ -408,6 +409,15 @@ fun BrowserScreen(vm: BrowserViewModel, islandSpace: Dp, pane: Pane? = null, dua
                     } catch (e: Exception) { e.message ?: App.str(R.string.failed_5) }
                 }
                 if (err != null) dlg = Dlg.Error(App.str(R.string.couldn_t_rename_2), err) else vm.load(quiet = true)
+            }
+        }
+        is Dlg.BatchRename -> {
+            val chosen = d.items.mapTo(HashSet()) { it.name }
+            val taken = remember(vm.entries, d.items) { vm.entries.map { it.name }.filterNot { it in chosen }.toSet() }
+            BatchRenameDialog(d.items, taken, onDismiss = { dlg = null }) { renames ->
+                dlg = null
+                vm.selection.clear()
+                Ops.renameAll(renames)
             }
         }
         is Dlg.Delete -> DeleteDialog(d.items, remote = d.items.firstOrNull()?.vfsId?.startsWith(RemoteVfs.PREFIX) == true, onDismiss = { dlg = null }) {
@@ -676,6 +686,13 @@ private fun SelectionBar(vm: BrowserViewModel, readOnly: Boolean, onDialog: (Dlg
                         onClick = { menu = false; shareFiles(ctx, sel) })
                     if (single != null && !readOnly) CtrlDropdownMenuItem(text = { Text(stringResource(R.string.rename)) }, leadingIcon = { Icon(Icons.Outlined.DriveFileRenameOutline, null) },
                         onClick = { menu = false; vm.selection.clear(); onDialog(Dlg.Rename(single)) })
+                    // Several items in this folder: numbered in the order they're shown.
+                    if (sel.size > 1 && !readOnly && sel.all { it.parentLocation == vm.location }) CtrlDropdownMenuItem(text = { Text(stringResource(R.string.batch_rename)) }, leadingIcon = { Icon(Icons.Outlined.DriveFileRenameOutline, null) },
+                        onClick = {
+                            menu = false
+                            val order = vm.visible().withIndex().associate { it.value.path to it.index }
+                            onDialog(Dlg.BatchRename(sel.sortedBy { order[it.path] ?: Int.MAX_VALUE }))
+                        })
                     if (!readOnly) CtrlDropdownMenuItem(text = { Text(stringResource(R.string.compress)) }, leadingIcon = { Icon(Icons.Outlined.FolderZip, null) },
                         onClick = { menu = false; onDialog(Dlg.Compress(sel)) })
                     if (single != null && Mime.canBrowseAsArchive(single) && !readOnly) CtrlDropdownMenuItem(text = { Text(stringResource(R.string.extract_here)) }, leadingIcon = { Icon(Icons.Outlined.Unarchive, null) },

@@ -724,4 +724,27 @@
     <string name="unreadable_start_empty_body">Only do this if trying again doesn\'t help. What can\'t be opened is kept aside on this phone, not deleted, but FilesCtrl won\'t show it. You can then add your servers and bookmarks again.</string>
     <string name="unreadable_cant_save_server">Your saved servers can\'t be opened right now, so nothing can be saved next to them. Go to Places and tap Try again first.</string>
     <string name="unreadable_cant_bookmark">Your bookmarks can\'t be opened right now. Go to Places and tap Try again first.</string>
+
+    <!-- Batch rename -->
+    <string name="batch_rename">Rename all…</string>
+    <string name="batch_rename_title">Rename %1$d items</string>
+    <string name="batch_find">Find</string>
+    <string name="batch_replace">Replace with</string>
+    <string name="batch_match_case">Match upper and lower case</string>
+    <string name="batch_template">New name</string>
+    <string name="batch_template_hint">{name} is the name after find and replace; ### is a number with 3 digits. The extension stays.</string>
+    <string name="batch_start">Count from</string>
+    <string name="batch_case_keep">As is</string>
+    <string name="batch_case_lower">lower case</string>
+    <string name="batch_case_upper">UPPER CASE</string>
+    <string name="batch_preview">Preview</string>
+    <string name="batch_problem_invalid">This name isn\'t allowed</string>
+    <string name="batch_problem_duplicate">Two items would get this name</string>
+    <string name="batch_problem_exists">Another file in this folder has this name</string>
+    <string name="batch_rename_confirm">Rename %1$d</string>
+    <string name="rename_kept_temporary">%1$s was taken in the meantime; the item is now called %2$s</string>
+    <plurals name="renaming_items">
+        <item quantity="one">Renaming %1$d item</item>
+        <item quantity="other">Renaming %1$d items</item>
+    </plurals>
 </resources>

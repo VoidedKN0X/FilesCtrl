@@ -18,9 +18,10 @@ Part of the [Ctrl series](#the-ctrl-series) by VKNXWorks.
 - **Open network files in any app**: videos stream and can be skipped through without downloading first; *Edit with* lets an app save changes back
 - **Your servers in the system file picker**, so other apps can open and save files on them
 - **Copy, move, rename and delete** between your phone and any server, in the background
+- **Rename several at once:** find and replace, a name template with a counter, lower or upper case, with a preview that stops anything from being replaced
 - **Archives**: open ZIP, 7z, RAR (RAR4), TAR (.tar.gz, .tar.xz, .tar.zst, .tar.bz2 and more), CPIO, AR/DEB and single compressed files (.gz, .xz, .zst, .bz2 …) like folders, extract them, and compress to ZIP, 7z or TAR.* with optional AES-256 passwords
 - **Cryptomator vaults**: open a [Cryptomator](https://cryptomator.org) vault (format 8, made with Cryptomator 1.6 or newer) wherever it is, on your phone or on any server, with its password. Browse it, open, view and edit files, copy in and out, create folders, rename and delete like in any folder; everything is encrypted and decrypted on the fly. See [Cryptomator vaults](#cryptomator-vaults)
-- **Tabs**, restored when you open the app again, and **dual pane** on tablets, foldables and in landscape: two folders side by side, with copy and move from one to the other in one tap
+- **Tabs**, restored when you open the app again (after you closed the app on a server it starts on the phone's storage instead of reconnecting), and **dual pane** on tablets, foldables and in landscape: two folders side by side, with copy and move from one to the other in one tap
 - **Built-in picture viewer** for JPEG, PNG, WebP, GIF, HEIC and AVIF, also on servers and in archives: swipe through the folder, pinch to zoom, rotate, photo info (camera, date, exposure), share, delete or open in another app
 - **Save to FilesCtrl** from any app's share sheet: files of any type, and text as a .txt file, saved into any folder on your phone or a server, in the background. The last folder you used is offered first
 - **Checksums**: MD5, SHA-1, SHA-256, SHA-512 and CRC32 of any file, also on servers, with *Compare with* for a pasted hash

@@ -56,6 +56,9 @@ object BrowserTabs {
 
     private var restored = false
 
+    /** Set by [startFresh] before the tabs were restored: leave out tabs on servers while restoring. */
+    private var skipNetworkAtRestore = false
+
     fun init() {
         if (restored) return
         restored = true
@@ -76,6 +79,34 @@ object BrowserTabs {
         init()
         return if (dualPane) { right.ensureOne(); listOf(left.vm, right.vm) } else listOf(left.vm)
     }
+
+    /**
+     * FilesCtrl was opened anew after it had been closed (not just put in the background, and not re-created after
+     * Android stopped it in the background): it starts on the phone's storage instead of reconnecting to a server.
+     * Tabs on a network location (a server, or an archive or vault stored on one) are dropped; a pane left without a
+     * tab gets one on the phone's storage, and a pane whose open tab was on a server shows a tab on the phone.
+     */
+    fun startFresh() {
+        if (!restored) {
+            skipNetworkAtRestore = true
+            return
+        }
+        leaveNetwork(left)
+        leaveNetwork(right)
+    }
+
+    private fun leaveNetwork(p: Pane) {
+        if (p.tabs.none { onNetwork(it.location) }) return
+        val keep = p.tabs.filterNot { onNetwork(it.location) }
+        p.tabs.filter { onNetwork(it.location) }.forEach { it.dispose() }
+        p.tabs.clear()
+        p.tabs.addAll(keep)
+        p.active = 0
+        if (p.tabs.isEmpty()) p.tabs += BrowserViewModel()
+    }
+
+    /** A place on a server, or inside an archive or vault that is stored on one. */
+    fun onNetwork(loc: Location): Boolean = savable(loc).vfsId.startsWith(RemoteVfs.PREFIX)
 
     fun paneOf(vm: BrowserViewModel): Pane = if (right.tabs.contains(vm)) right else left
     fun otherPane(vm: BrowserViewModel): Pane = if (paneOf(vm).right) left else right
@@ -119,6 +150,7 @@ object BrowserTabs {
                 val arr = j.optJSONArray("tabs") ?: return
                 for (i in 0 until minOf(arr.length(), 12)) {
                     val loc = Location.fromKey(arr.optString(i))?.let { valid(it) } ?: continue
+                    if (skipNetworkAtRestore && onNetwork(loc)) continue
                     p.tabs += BrowserViewModel(loc)
                 }
                 p.active = j.optInt("active", 0).coerceIn(0, (p.tabs.size - 1).coerceAtLeast(0))

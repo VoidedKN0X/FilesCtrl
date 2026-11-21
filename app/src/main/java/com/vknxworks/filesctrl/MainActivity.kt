@@ -110,6 +110,8 @@ class MainActivity : FragmentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         App.init(this)
+        // Opened anew after being closed: start on the phone's storage, not on a server (a shortcut below still opens its folder).
+        if (savedInstanceState == null) BrowserTabs.startFresh()
         // Started from a home screen shortcut: open that folder (behind the app lock, like any start).
         if (savedInstanceState == null) com.vknxworks.filesctrl.shortcuts.Shortcuts.locationFrom(intent)?.let { PendingOpen.location = it }
         val nightNow = (resources.configuration.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK) == android.content.res.Configuration.UI_MODE_NIGHT_YES

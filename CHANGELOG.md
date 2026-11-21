@@ -8,10 +8,22 @@ To publish a new version: bump `versionCode` and `versionName` in `app/build.gra
 
 Changes on `main` that aren't in a release yet. They ship with the next version.
 
+### New
+
+- **Rename several files at once.** Select two or more items in a folder, then **⋮ > Rename all…**. *Find* and *Replace with* change part of every name (optionally matching upper and lower case exactly); *New name* builds the name from a template, where `{name}` is the name after find and replace and a run of `#` is a counter (`Holiday ###` gives Holiday 001, Holiday 002, … in the order the files are shown; *Count from* sets the first number); and the names can be put in lower or UPPER case. The extension (.jpg, .pdf, …) always stays.
+  - A preview shows every old and new name. Names that aren't allowed, that two items would get, or that another file in the folder already has are marked in red, and *Rename* stays off until they're fixed, so nothing is ever replaced.
+  - The renaming runs in the background like a copy. When a new name is the current name of another selected item (renumbering, for example), every item first gets a temporary name and then its new one; that second step always finishes, also after a failure or cancel. Changing only the case of a name works on SD cards and servers that ignore case, too.
+  - Works on the phone and on every kind of server; not offered in read-only places.
+
+### Changed
+
+- **FilesCtrl starts on the phone after you closed it on a server.** When you close FilesCtrl (back out of it, or swipe it away from the recent apps) while a tab shows a folder on an NFS share or any other server (also an archive or Cryptomator vault stored on one), the next time you open it, it starts on the phone's storage instead of connecting to the server again. Tabs on servers are closed; tabs on the phone stay. Putting FilesCtrl in the background, or Android stopping it in the background, still brings you back to the server folder you were in. A home-screen shortcut or bookmark to a server folder still opens that folder.
+
 ### Project
 
 - **Checksum list regenerated without the old entries.** `gradle/verification-metadata.xml` was regenerated on CI with the fixed workflow and committed exactly as printed (its SHA-256 matches the log). It now lists only the 464 components the build downloads today; the leftovers from earlier library and build-tool versions are gone.
 - **The checksum list no longer collects old entries.** The hand-started workflow that regenerates `gradle/verification-metadata.xml` used to add the new checksums to the existing file, so entries for library versions that are no longer used stayed in it. It now clears the old entries first and writes only what the build uses, and prints the file's SHA-256 so the copy that gets committed can be checked against the log. Nothing in the app changes.
+
 ## 1.12.0 (2026-11-21)
 
 Built and checked by CI only: nothing in this release had been run on a phone when it was published. It is the first release built with the new build tools (Android Gradle Plugin 9, stricter code shrinking), so update over your installed version and check that your data and settings are still there.

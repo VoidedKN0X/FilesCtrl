@@ -336,6 +336,61 @@ object Ops {
         vfs.delete(e.path, e.isDir && !e.isLink)
     }
 
+    // ---------- Rename several ----------
+
+    /**
+     * Renames each item to its new name, in its own folder. When a new name is the current name of another item in
+     * the list, everything is first renamed to a temporary name, then to its new name, so no file is ever replaced.
+     * A name that's taken by a file outside the list is skipped (the preview already said so).
+     */
+    fun renameAll(renames: List<Pair<FileEntry, String>>): OpTask {
+        val list = renames.filter { (e, n) -> n != e.name }
+        return launch(App.plural(R.plurals.renaming_items, list.size, list.size), list.map { it.first.parentLocation }.distinct(), list.mapTo(HashSet()) { it.first.vfsId }) { t ->
+            t.filesTotal = list.size
+            val oldPaths = list.mapTo(HashSet()) { it.first.path }
+            val twoSteps = list.any { (e, n) -> Paths.join(Paths.parent(e.path), n) in oldPaths }
+            val stage = ArrayList<Triple<Vfs, String, String>>() // (vfs, temporary path, final path)
+            try {
+                for ((e, n) in list) {
+                    coroutineContext.ensureActive()
+                    t.detail = e.name
+                    if (!Paths.isSafeName(n) || Paths.validName(n) != null) { t.warnings += App.str(R.string.skipped_unsafe_name, n); t.filesDone++; continue }
+                    val vfs = App.vfs.get(e.vfsId)
+                    val dir = Paths.parent(e.path)
+                    val target = Paths.join(dir, n)
+                    if (twoSteps) {
+                        val tmp = Paths.join(dir, Paths.unique(dir, ".filesctrl-rename-${t.id}-${e.name}") { vfs.exists(it) })
+                        vfs.rename(e.path, tmp)
+                        stage += Triple(vfs, tmp, target)
+                    } else if (target.equals(e.path, ignoreCase = true)) {
+                        // Only the case changes: on storage that ignores case (SD cards, many servers) the new name
+                        // "exists" already, so go through a temporary name.
+                        val tmp = Paths.join(dir, Paths.unique(dir, ".filesctrl-rename-${t.id}-${e.name}") { vfs.exists(it) })
+                        vfs.rename(e.path, tmp)
+                        stage += Triple(vfs, tmp, target)
+                    } else {
+                        if (vfs.exists(target)) { t.warnings += App.str(R.string.skipped_2, n); t.filesDone++; continue }
+                        vfs.rename(e.path, target)
+                        t.filesDone++
+                    }
+                }
+            } finally {
+                // Always finishes the second step (also after a failure or cancel), so nothing keeps its temporary name
+                // unless its new name was taken in the meantime; then it says which.
+                for ((vfs, tmp, target) in stage) {
+                    t.detail = Paths.name(target)
+                    try {
+                        if (vfs.exists(target)) t.warnings += App.str(R.string.rename_kept_temporary, Paths.name(target), Paths.name(tmp))
+                        else vfs.rename(tmp, target)
+                    } catch (ex: Exception) {
+                        t.warnings += App.str(R.string.rename_kept_temporary, Paths.name(target), Paths.name(tmp))
+                    }
+                    t.filesDone++
+                }
+            }
+        }
+    }
+
     // ---------- Archives ----------
 
     fun compress(items: List<FileEntry>, dest: Location, name: String, format: ArchiveFormat = ArchiveFormat.ZIP, password: CharArray? = null): OpTask {
