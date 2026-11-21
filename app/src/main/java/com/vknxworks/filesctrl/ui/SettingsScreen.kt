@@ -293,6 +293,8 @@ fun SettingsScreen() {
             }
         }
 
+        item { com.vknxworks.filesctrl.ui.settings.BackupSection() }
+
         item {
             SettingsSection(stringResource(R.string.other_apps)) {
                 NavItem(
