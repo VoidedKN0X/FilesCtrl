@@ -768,7 +768,7 @@
     <string name="analyser_empty">Nothing in here</string>
     <string name="analyser_no_extension">No extension</string>
     <string name="analyser_note">Tap a folder to look inside, or a file to show it in its folder. Long-press a folder to open it. Folder links aren\'t followed; nothing is changed here.</string>
-    <string name="analyser_note_whole">Tap a file to show it in its folder. Shares are of everything that was added up.</string>
+    <string name="analyser_note_whole">Tap a file to show it in its folder. Percentages are of everything that was added up.</string>
     <plurals name="analyser_progress">
         <item quantity="one">%1$d folder, %2$s so far</item>
         <item quantity="other">%1$d folders, %2$s so far</item>
@@ -874,4 +874,10 @@
     <string name="backup_restore_confirm">Restore</string>
     <string name="backup_restored">Settings restored. Servers added: %1$d (already here: %2$d). Bookmarks added: %3$d.</string>
     <string name="backup_restore_failed">Couldn\'t restore everything: %1$s</string>
+
+    <!-- Sort menu -->
+    <string name="sort_by_name">Name</string>
+    <string name="sort_by_size">Size</string>
+    <string name="sort_by_modified">Modified</string>
+    <string name="sort_by_type">Type</string>
 </resources>

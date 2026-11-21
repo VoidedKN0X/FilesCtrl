@@ -516,7 +516,18 @@ private fun MainBar(vm: BrowserViewModel, pane: Pane?, compact: Boolean, onDialo
                 CtrlDropdownMenu(expanded = sortMenu, onDismissRequest = { sortMenu = false }) {
                     SortBy.entries.forEach { by ->
                         CtrlDropdownMenuItem(
-                            text = { Text(by.name) },
+                            text = {
+                                Text(
+                                    stringResource(
+                                        when (by) {
+                                            SortBy.Name -> R.string.sort_by_name
+                                            SortBy.Size -> R.string.sort_by_size
+                                            SortBy.Modified -> R.string.sort_by_modified
+                                            SortBy.Type -> R.string.sort_by_type
+                                        },
+                                    ),
+                                )
+                            },
                             leadingIcon = { if (s.sortBy == by) Icon(Icons.Outlined.Check, null) else Spacer(Modifier.size(24.dp)) },
                             onClick = { s.sortBy = by; sortMenu = false },
                         )

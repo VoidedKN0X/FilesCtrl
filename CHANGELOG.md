@@ -45,6 +45,7 @@ Changes on `main` that aren't in a release yet. They ship with the next version.
 ### Changed
 
 - **FilesCtrl starts on the phone after you closed it on a server.** When you close FilesCtrl (back out of it, or swipe it away from the recent apps) while a tab shows a folder on an NFS share or any other server (also an archive or Cryptomator vault stored on one), the next time you open it, it starts on the phone's storage instead of connecting to the server again. Tabs on servers are closed; tabs on the phone stay. Putting FilesCtrl in the background, or Android stopping it in the background, still brings you back to the server folder you were in. A home-screen shortcut or bookmark to a server folder still opens that folder.
+- **FilesCtrl speaks Dutch.** With your phone set to Dutch (Nederlands), every screen, menu, message, notification and setting is now in Dutch (Belgian Dutch, informal "je"); with any other language it stays English. Android picks the language from the phone, so there is no setting for it in the app (Android's own per-app language setting works too). Protocol and technical names (NFS, SMB, SFTP, WebDAV, Shizuku, Cryptomator, host key fingerprints) and units stay as they are. The names in the sort menu (Name, Size, Modified, Type) came straight from the code and are now translated too.
 
 ### Project
 

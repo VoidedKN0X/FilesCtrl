@@ -39,6 +39,7 @@ Part of the [Ctrl series](#the-ctrl-series) by VKNXWorks.
 - **WebDAV over HTTPS by default**; plain HTTP only for your own server, after a one-time warning, and marked *Not encrypted (HTTP)* in Places
 - **Back up and restore settings** to a file, optionally with servers and bookmarks (never passwords, keys or trusted host keys and certificates)
 - Passwords and keys are stored encrypted; **app lock** with its own PIN and optional fingerprint unlock, which keeps saved passwords and keys encrypted while the app is locked
+- **English and Dutch**, following your phone's language
 - The Ctrl / Signal look shared by every Ctrl app: dark and light modes that follow your phone's dark theme, one violet accent, Space Grotesk and JetBrains Mono, and a tablet layout
 
 ## Requirements
