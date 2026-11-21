@@ -1,6 +1,7 @@
 package com.vknxworks.filesctrl.fs
 
 import com.vknxworks.filesctrl.data.NetServer
+import com.vknxworks.filesctrl.data.Proto
 import net.schmizz.sshj.DefaultConfig
 import net.schmizz.sshj.SSHClient
 import net.schmizz.sshj.common.Buffer

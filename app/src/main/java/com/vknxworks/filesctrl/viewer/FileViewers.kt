@@ -128,10 +128,10 @@ private fun rememberEntry(loc: Location): Pair<FileEntry?, String?> {
 }
 
 @Composable
-private fun ViewerFrame(title: String, subtitle: String?, onBack: () -> Unit, content: @Composable () -> Unit) {
+private fun ViewerFrame(title: String, subtitle: String?, onBack: () -> Unit, content: @Composable androidx.compose.foundation.layout.BoxScope.() -> Unit) {
     Column(Modifier.fillMaxSize().background(CtrlColors.Background)) {
         CtrlBackBar(title, onBack = onBack, backDescription = stringResource(R.string.back), subtitle = subtitle)
-        Box(Modifier.weight(1f).fillMaxWidth()) { content() }
+        Box(Modifier.weight(1f).fillMaxWidth(), content = content)
     }
 }
 
