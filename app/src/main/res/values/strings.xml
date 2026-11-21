@@ -756,4 +756,33 @@
     <string name="transfer_pause">Pause</string>
     <string name="transfer_resume">Resume</string>
     <string name="transfer_retry">Try again</string>
+
+    <!-- Storage analyser -->
+    <string name="analyser_title">Analyse storage</string>
+    <string name="analyser_scanning">Adding up everything in this folder…</string>
+    <string name="analyser_failed">Couldn\'t read this folder: %1$s</string>
+    <string name="analyser_free_of">%1$s free of %2$s</string>
+    <string name="analyser_view_folders">FOLDERS</string>
+    <string name="analyser_view_largest">LARGEST FILES</string>
+    <string name="analyser_view_types">FILE TYPES</string>
+    <string name="analyser_empty">Nothing in here</string>
+    <string name="analyser_no_extension">No extension</string>
+    <string name="analyser_note">Tap a folder to look inside, or a file to show it in its folder. Long-press a folder to open it. Folder links aren\'t followed; nothing is changed here.</string>
+    <string name="analyser_note_whole">Tap a file to show it in its folder. Shares are of everything that was added up.</string>
+    <plurals name="analyser_progress">
+        <item quantity="one">%1$d folder, %2$s so far</item>
+        <item quantity="other">%1$d folders, %2$s so far</item>
+    </plurals>
+    <plurals name="analyser_files">
+        <item quantity="one">%1$d file</item>
+        <item quantity="other">%1$d files</item>
+    </plurals>
+    <plurals name="analyser_other_files">
+        <item quantity="one">%1$d smaller file</item>
+        <item quantity="other">%1$d smaller files</item>
+    </plurals>
+    <plurals name="analyser_unreadable">
+        <item quantity="one">%1$d folder couldn\'t be read and isn\'t counted</item>
+        <item quantity="other">%1$d folders couldn\'t be read and aren\'t counted</item>
+    </plurals>
 </resources>

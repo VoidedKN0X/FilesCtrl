@@ -19,6 +19,12 @@ Changes on `main` that aren't in a release yet. They ship with the next version.
   - **Cancel**, as in the notification.
   - **Try again** for a copy, move, delete or compress (without password) that failed or was cancelled. A retried copy or move carries on where it stopped: files that are already in the destination with the same size count as done and aren't copied again, folders are merged, and items a move already took away are left out. A retried delete skips what is already gone. An archive with a password isn't kept for a retry (the password isn't stored), and extracting and renaming several are not repeated automatically.
   - **Clear finished** removes the finished ones from the list.
+- **Storage analyser.** **⋮ > Analyse storage** in any folder (on the phone, an SD card or USB drive, or a server) adds up everything inside it and shows where the space goes, biggest first:
+  - *Folders*: every sub-folder and the biggest files, each with its size, number of files, share and a bar. Tap a folder to look inside it (back goes up again); tap a file, or long-press a folder, to show it in the file browser.
+  - *Largest files*: the 50 biggest files found, in the folder you're looking at.
+  - *File types*: how much each extension takes.
+  - At the top: the total, the number of files and, for the folder you started in, the free space of that storage when it says.
+  - Only folder listings are read, never the files themselves; folder links aren't followed, so nothing is counted twice; folders that can't be read are counted and named as such. Nothing is changed or deleted from here. On a server this takes as long as listing every folder does. To keep memory small, only the 30 biggest files of each folder are listed by name; the rest show as "smaller files".
 
 ### Changed
 

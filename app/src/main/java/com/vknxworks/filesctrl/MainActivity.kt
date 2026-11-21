@@ -317,6 +317,11 @@ private fun AppContent(nav: androidx.navigation.NavHostController) {
                 if (loc == null) LaunchedEffect(Unit) { nav.close("edit?loc={loc}") }
                 else EditorScreen(remember(loc) { VfsTextSource(loc) }, onBack = { nav.back() })
             }
+            composable("analyse?loc={loc}") { entry ->
+                val loc = Location.fromKey(entry.arguments?.getString("loc").orEmpty())
+                if (loc == null) LaunchedEffect(Unit) { nav.close("analyse?loc={loc}") }
+                else com.vknxworks.filesctrl.ui.AnalyserScreen(loc, onBack = { nav.back() })
+            }
             // The built-in picture viewer.
             composable("view?loc={loc}") { entry ->
                 val loc = Location.fromKey(entry.arguments?.getString("loc").orEmpty())

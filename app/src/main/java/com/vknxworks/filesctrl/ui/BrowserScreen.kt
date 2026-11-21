@@ -78,6 +78,7 @@ import androidx.compose.material.icons.outlined.Menu
 import androidx.compose.material.icons.outlined.MoreVert
 import androidx.compose.material.icons.outlined.NoteAdd
 import androidx.compose.material.icons.outlined.Refresh
+import androidx.compose.material.icons.outlined.PieChart
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.SwapVert
 import androidx.compose.material.icons.outlined.SelectAll
@@ -613,6 +614,11 @@ private fun MainBar(vm: BrowserViewModel, pane: Pane?, compact: Boolean, onDialo
                             },
                         )
                     }
+                    CtrlDropdownMenuItem(
+                        text = { Text(stringResource(R.string.analyser_title)) },
+                        leadingIcon = { Icon(Icons.Outlined.PieChart, null) },
+                        onClick = { menu = false; nav.go(analyserRoute(vm.location)) },
+                    )
                     CtrlDropdownMenuItem(
                         text = { Text(stringResource(R.string.folder_properties)) },
                         leadingIcon = { Icon(Icons.Outlined.Info, null) },

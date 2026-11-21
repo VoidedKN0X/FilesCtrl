@@ -18,6 +18,7 @@ Part of the [Ctrl series](#the-ctrl-series) by VKNXWorks.
 - **Open network files in any app**: videos stream and can be skipped through without downloading first; *Edit with* lets an app save changes back
 - **Your servers in the system file picker**, so other apps can open and save files on them
 - **Copy, move, rename and delete** between your phone and any server, in the background
+- **Storage analyser:** what takes the space in any folder, on the phone or a server: by sub-folder, largest files and file type
 - **Transfers list:** pause, resume, cancel and retry copies, moves and other operations; a retried copy skips files that already arrived
 - **Rename several at once:** find and replace, a name template with a counter, lower or upper case, with a preview that stops anything from being replaced
 - **Archives**: open ZIP, 7z, RAR (RAR4), TAR (.tar.gz, .tar.xz, .tar.zst, .tar.bz2 and more), CPIO, AR/DEB and single compressed files (.gz, .xz, .zst, .bz2 …) like folders, extract them, and compress to ZIP, 7z or TAR.* with optional AES-256 passwords
