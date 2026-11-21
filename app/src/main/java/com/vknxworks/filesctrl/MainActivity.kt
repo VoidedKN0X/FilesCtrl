@@ -327,6 +327,22 @@ private fun AppContent(nav: androidx.navigation.NavHostController) {
                 if (loc == null) LaunchedEffect(Unit) { nav.close("sync?loc={loc}") }
                 else com.vknxworks.filesctrl.ui.SyncScreen(loc, onBack = { nav.back() })
             }
+            // The built-in PDF viewer, hex viewer and audio player.
+            composable("pdf?loc={loc}") { entry ->
+                val loc = Location.fromKey(entry.arguments?.getString("loc").orEmpty())
+                if (loc == null) LaunchedEffect(Unit) { nav.close("pdf?loc={loc}") }
+                else com.vknxworks.filesctrl.viewer.PdfViewerScreen(loc, onBack = { nav.back() })
+            }
+            composable("hex?loc={loc}") { entry ->
+                val loc = Location.fromKey(entry.arguments?.getString("loc").orEmpty())
+                if (loc == null) LaunchedEffect(Unit) { nav.close("hex?loc={loc}") }
+                else com.vknxworks.filesctrl.viewer.HexViewerScreen(loc, onBack = { nav.back() })
+            }
+            composable("audio?loc={loc}") { entry ->
+                val loc = Location.fromKey(entry.arguments?.getString("loc").orEmpty())
+                if (loc == null) LaunchedEffect(Unit) { nav.close("audio?loc={loc}") }
+                else com.vknxworks.filesctrl.viewer.AudioPlayerScreen(loc, onBack = { nav.back() })
+            }
             // The built-in picture viewer.
             composable("view?loc={loc}") { entry ->
                 val loc = Location.fromKey(entry.arguments?.getString("loc").orEmpty())

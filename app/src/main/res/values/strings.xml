@@ -657,8 +657,8 @@
     <string name="viewer_camera">Camera</string>
     <string name="viewer_lens">Lens</string>
     <string name="viewer_exposure">Exposure</string>
-    <string name="open_pictures_in_filesctrl">Open pictures in FilesCtrl</string>
-    <string name="open_pictures_in_filesctrl_subtitle">Show photos in the built-in viewer. Off: they open in the app you choose</string>
+    <string name="open_pictures_in_filesctrl">Open pictures, PDFs and audio in FilesCtrl</string>
+    <string name="open_pictures_in_filesctrl_subtitle">Use the built-in viewers and player. Off: they open in the app you choose</string>
 
     <!-- Shizuku (optional): Android/data and Android/obb -->
     <string name="shizuku_group">Shizuku</string>
@@ -819,5 +819,26 @@
     <plurals name="sync_confirm_delete_title">
         <item quantity="one">Sync and delete %1$d item?</item>
         <item quantity="other">Sync and delete %1$d items?</item>
+    </plurals>
+
+    <!-- PDF, hex and audio viewers -->
+    <string name="view_pdf_in_filesctrl">View in FilesCtrl</string>
+    <string name="play_in_filesctrl">Play in FilesCtrl</string>
+    <string name="view_as_hex">View as hex</string>
+    <string name="pdf_protected">This PDF has a password. Open it in another app.</string>
+    <string name="pdf_page_of">Page %1$d of %2$d</string>
+    <string name="pdf_page">Page %1$d</string>
+    <string name="hex_empty">This file is empty.</string>
+    <string name="hex_go_to">Go to offset</string>
+    <string name="hex_go">Go</string>
+    <string name="hex_go_to_hint">Decimal (4096) or hex (0x1000)</string>
+    <string name="audio_cant_play">This file can\'t be played here (%1$s). Try another app.</string>
+    <string name="audio_back_10">10 seconds back</string>
+    <string name="audio_forward_10">10 seconds forward</string>
+    <string name="audio_play">Play</string>
+    <string name="audio_pause">Pause</string>
+    <plurals name="hex_bytes">
+        <item quantity="one">%1$d byte</item>
+        <item quantity="other">%1$d bytes</item>
     </plurals>
 </resources>

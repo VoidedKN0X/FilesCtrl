@@ -27,6 +27,7 @@ Part of the [Ctrl series](#the-ctrl-series) by VKNXWorks.
 - **Tabs**, restored when you open the app again (after you closed the app on a server it starts on the phone's storage instead of reconnecting), and **dual pane** on tablets, foldables and in landscape: two folders side by side, with copy and move from one to the other in one tap
 - **Built-in picture viewer** for JPEG, PNG, WebP, GIF, HEIC and AVIF, also on servers and in archives: swipe through the folder, pinch to zoom, rotate, photo info (camera, date, exposure), share, delete or open in another app
 - **Save to FilesCtrl** from any app's share sheet: files of any type, and text as a .txt file, saved into any folder on your phone or a server, in the background. The last folder you used is offered first
+- **Built-in PDF viewer, hex viewer and audio player**, also for files on servers, in archives and in vaults, read where they are
 - **Checksums**: MD5, SHA-1, SHA-256, SHA-512 and CRC32 of any file, also on servers, with *Compare with* for a pasted hash
 - **Home screen shortcuts** to folders and bookmarks, and your first bookmarks on the app icon
 - Multi-select, search (also in subfolders), bookmarks, properties and permissions

@@ -79,6 +79,9 @@ import androidx.compose.material.icons.outlined.MoreVert
 import androidx.compose.material.icons.outlined.NoteAdd
 import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.outlined.PieChart
+import androidx.compose.material.icons.outlined.PictureAsPdf
+import androidx.compose.material.icons.outlined.MusicNote
+import androidx.compose.material.icons.outlined.Code
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.SwapVert
 import androidx.compose.material.icons.outlined.Sync
@@ -263,6 +266,8 @@ fun BrowserScreen(vm: BrowserViewModel, islandSpace: Dp, pane: Pane? = null, dua
             com.vknxworks.filesctrl.viewer.ViewerSession.set(items)
             nav.go(com.vknxworks.filesctrl.viewer.viewerRoute(e))
         }
+        else if (s.builtInViewer && com.vknxworks.filesctrl.viewer.FileViewers.isPdf(e)) nav.go(com.vknxworks.filesctrl.viewer.FileViewers.pdfRoute(e))
+        else if (s.builtInViewer && com.vknxworks.filesctrl.viewer.FileViewers.isAudio(e)) nav.go(com.vknxworks.filesctrl.viewer.FileViewers.audioRoute(e))
         else if (Mime.opensInEditor(e) && e.size < MAX_EDIT_BYTES) nav.go(editorRoute(e))
         else openFile(ctx, e)
     }
@@ -737,7 +742,7 @@ private fun SelectionBar(vm: BrowserViewModel, readOnly: Boolean, onDialog: (Dlg
 
 // ---------- Item actions ----------
 
-enum class ItemAction { Open, OpenWith, EditWith, EditText, Share, Copy, Cut, Rename, Delete, Compress, Extract, Browse, Bookmark, CopyPath, Properties, OpenLocation, Checksum, HomeScreen, NewTab, OtherPane }
+enum class ItemAction { Open, OpenWith, EditWith, EditText, Share, Copy, Cut, Rename, Delete, Compress, Extract, Browse, Bookmark, CopyPath, Properties, OpenLocation, Checksum, HomeScreen, NewTab, OtherPane, ViewPdf, PlayAudio, ViewHex }
 
 private fun handleItemAction(
     ctx: android.content.Context,
@@ -774,6 +779,9 @@ private fun handleItemAction(
         ItemAction.HomeScreen -> pinShortcut(ctx, e.name, e.location)
         ItemAction.NewTab -> BrowserTabs.openTab(vm, e.location)
         ItemAction.OtherPane -> BrowserTabs.openInOtherPane(vm, e.location)
+        ItemAction.ViewPdf -> nav.go(com.vknxworks.filesctrl.viewer.FileViewers.pdfRoute(e))
+        ItemAction.PlayAudio -> nav.go(com.vknxworks.filesctrl.viewer.FileViewers.audioRoute(e))
+        ItemAction.ViewHex -> nav.go(com.vknxworks.filesctrl.viewer.FileViewers.hexRoute(e))
     }
 }
 
@@ -789,6 +797,9 @@ private fun ItemMenu(e: FileEntry, readOnly: Boolean, inSearch: Boolean, expande
             entry(stringResource(R.string.open_with), Icons.AutoMirrored.Outlined.OpenInNew, ItemAction.OpenWith)
             if (!readOnly && !e.vfsId.startsWith(CryptoVfs.PREFIX)) entry(stringResource(R.string.edit_with), Icons.Outlined.Edit, ItemAction.EditWith)
             if (e.size < MAX_EDIT_BYTES) entry(stringResource(R.string.edit_as_text), Icons.Outlined.Edit, ItemAction.EditText)
+            if (com.vknxworks.filesctrl.viewer.FileViewers.isPdf(e)) entry(stringResource(R.string.view_pdf_in_filesctrl), Icons.Outlined.PictureAsPdf, ItemAction.ViewPdf)
+            if (com.vknxworks.filesctrl.viewer.FileViewers.isAudio(e)) entry(stringResource(R.string.play_in_filesctrl), Icons.Outlined.MusicNote, ItemAction.PlayAudio)
+            entry(stringResource(R.string.view_as_hex), Icons.Outlined.Code, ItemAction.ViewHex)
             entry(stringResource(R.string.share), Icons.Outlined.Share, ItemAction.Share)
         }
         entry(stringResource(R.string.copy), Icons.Outlined.ContentCopy, ItemAction.Copy)
