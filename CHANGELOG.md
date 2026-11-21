@@ -4,6 +4,12 @@ What changed in each FilesCtrl version. Every release on the [Releases page](htt
 
 To publish a new version: bump `versionCode` and `versionName` in `app/build.gradle.kts`, add a section here, and push to `main`. Pushes without a version bump only build; they don't make a release.
 
+## Unreleased
+
+### New
+
+- **FilesCtrl in French and German, following the phone's language.** With your phone set to French, FilesCtrl is now in French (formal "vous", as Android itself uses); set to German, it is in German (informal "du", as modern Android apps use). Every screen, message, error from the network protocols, the viewers, the text editor and the app lock are translated. Protocol and product names (NFS, SMB, SFTP, FTP, WebDAV, Shizuku, Cryptomator, Nextcloud), file extensions, units and commands (ssh-keygen, ssh -J, no_root_squash) are not, and like the Dutch version the list separators stay as they are. Android's per-app language setting (Settings > Apps > FilesCtrl > Language) now offers English, Dutch, French and German, so you can also pick one for FilesCtrl alone.
+
 ## 1.13.0 (2026-11-21)
 
 Built and checked by CI only: nothing in this release had been run on a phone when it was published.
