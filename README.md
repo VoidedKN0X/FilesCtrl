@@ -34,6 +34,7 @@ Part of the [Ctrl series](#the-ctrl-series) by VKNXWorks.
 - **Thumbnails** for photos and videos on the phone, and for photos on servers (can be turned off), list and grid views, sorting and hidden files
 - **Built-in text editor** for config files and notes, also offered to other apps
 - **Read-only servers**: switch it on and FilesCtrl hides every option that would change something there, and refuses writes from other apps
+- **SFTP jump hosts:** reach an SFTP server through another saved one (like ssh -J), with both host keys checked
 - **Checked connections**: SFTP host keys and self-signed WebDAV/FTPS certificates are only trusted after you confirm their fingerprint; SMB signing is on by default, with optional encryption
 - **WebDAV over HTTPS by default**; plain HTTP only for your own server, after a one-time warning, and marked *Not encrypted (HTTP)* in Places
 - Passwords and keys are stored encrypted; **app lock** with its own PIN and optional fingerprint unlock, which keeps saved passwords and keys encrypted while the app is locked

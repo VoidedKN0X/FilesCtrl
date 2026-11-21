@@ -58,6 +58,8 @@ class SftpVfs(server: NetServer, private val onLearned: (NetServer) -> Unit = {}
     private val lock = Any()
     private var ssh: SSHClient? = null
     private var sftp: SFTPClient? = null
+    /** The connection to the jump host, when this server is reached through one. */
+    private var jump: SSHClient? = null
     /** The home folder, used as the starting point when no folder is set. */
     @Volatile private var home: String? = null
 
@@ -90,29 +92,77 @@ class SftpVfs(server: NetServer, private val onLearned: (NetServer) -> Unit = {}
 
                 override fun findExistingAlgorithms(hostname: String?, port: Int): List<String> = emptyList()
             })
-            c.connect(s.host.trim(), s.effectivePort)
-            val user = s.username.ifBlank { "anonymous" }
-            when {
-                s.privateKey.isNotBlank() -> {
-                    val finder = if (s.password.isNotEmpty()) PasswordUtils.createOneOff(s.password.toCharArray()) else null
-                    c.authPublickey(user, c.loadKeys(s.privateKey, null, finder))
-                }
-                else -> c.authPassword(user, s.password)
+            if (s.jumpId.isNotBlank()) {
+                // Through a jump host (like ssh -J): log in there, open a tunnel to this server, and run SSH in it.
+                val j = connectJump(s, cfg)
+                jump = j
+                c.connectVia(j.newDirectConnection(s.host.trim(), s.effectivePort))
+            } else {
+                c.connect(s.host.trim(), s.effectivePort)
             }
+            authenticate(c, s)
             val f = c.newSFTPClient()
             if (home == null) home = try { f.canonicalize(".") } catch (_: Exception) { "/" }
             ssh = c; sftp = f
             return f
         } catch (e: Exception) {
             try { c.disconnect() } catch (_: Exception) {}
+            try { jump?.disconnect() } catch (_: Exception) {}
+            jump = null
             throw friendly(e, App.str(R.string.connecting))
+        }
+    }
+
+    /** Logs in with the server's key (with its passphrase) or its password. */
+    private fun authenticate(c: SSHClient, s: NetServer) {
+        val user = s.username.ifBlank { "anonymous" }
+        when {
+            s.privateKey.isNotBlank() -> {
+                val finder = if (s.password.isNotEmpty()) PasswordUtils.createOneOff(s.password.toCharArray()) else null
+                c.authPublickey(user, c.loadKeys(s.privateKey, null, finder))
+            }
+            else -> c.authPassword(user, s.password)
+        }
+    }
+
+    /**
+     * Connects and logs in to the jump host [target] goes through: another saved SFTP server, with its own login and its
+     * own confirmed host key. Only one hop, and the jump host's key must already have been confirmed by opening it
+     * once (a key seen only here is never trusted).
+     */
+    private fun connectJump(target: NetServer, cfg: net.schmizz.sshj.Config): SSHClient {
+        val j = App.servers.get(target.jumpId) ?: throw IOException(App.str(R.string.jump_host_missing))
+        if (j.type != Proto.SFTP || j.id == target.id) throw IOException(App.str(R.string.jump_host_missing))
+        if (j.jumpId.isNotBlank()) throw IOException(App.str(R.string.jump_host_chained, j.title))
+        if (j.hostKey.isBlank()) throw IOException(App.str(R.string.jump_host_unconfirmed, j.title))
+        val c = SSHClient(cfg)
+        try {
+            c.connectTimeout = target.timeoutSec.coerceIn(2, 120) * 1000
+            c.timeout = target.timeoutSec.coerceIn(2, 120) * 1000
+            c.addHostKeyVerifier(object : HostKeyVerifier {
+                override fun verify(hostname: String?, port: Int, key: PublicKey): Boolean {
+                    val fp = HostKeys.sha256(key)
+                    if (j.hostKey == fp) return true
+                    if (HostKeys.isLegacyMd5(j.hostKey) && j.hostKey.equals(SecurityUtils.getFingerprint(key), ignoreCase = true)) return true
+                    throw IOException(App.str(R.string.jump_host_key_changed, j.title, fp))
+                }
+
+                override fun findExistingAlgorithms(hostname: String?, port: Int): List<String> = emptyList()
+            })
+            c.connect(j.host.trim(), j.effectivePort)
+            authenticate(c, j)
+            return c
+        } catch (e: Exception) {
+            try { c.disconnect() } catch (_: Exception) {}
+            throw e
         }
     }
 
     private fun dropLocked() {
         try { sftp?.close() } catch (_: Exception) {}
         try { ssh?.disconnect() } catch (_: Exception) {}
-        sftp = null; ssh = null
+        try { jump?.disconnect() } catch (_: Exception) {}
+        sftp = null; ssh = null; jump = null
     }
 
     override fun close() = synchronized(lock) { dropLocked() }

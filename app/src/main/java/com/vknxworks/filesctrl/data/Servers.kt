@@ -80,6 +80,8 @@ data class NetServer(
     val uid: Int = 1000,
     val gid: Int = 1000,
     val mountPort: Int = 0,
+    /** SFTP only: the id of another saved SFTP server to connect through (a jump host, like ssh -J); "" = direct. */
+    val jumpId: String = "",
 ) {
     val title: String get() = name.ifBlank { host }
     val effectivePort: Int get() = if (port > 0) port else type.port(secure)
@@ -117,7 +119,7 @@ data class NetServer(
         .put("privateKey", seal(privateKey)).put("hostKey", hostKey).put("certPin", certPin).put("secure", secure)
         .put("smbSigning", smbSigning).put("smbEncrypt", smbEncrypt).put("guest", guest)
         .put("insecureTls", insecureTls).put("httpAcceptedHost", httpAcceptedHost).put("readOnly", readOnly).put("timeoutSec", timeoutSec)
-        .put("version", version).put("uid", uid).put("gid", gid).put("mountPort", mountPort)
+        .put("version", version).put("uid", uid).put("gid", gid).put("mountPort", mountPort).put("jumpId", jumpId)
 
     companion object {
         fun fromJson(o: JSONObject, open: (String) -> String): NetServer {
@@ -149,6 +151,7 @@ data class NetServer(
                 uid = o.optInt("uid", 1000),
                 gid = o.optInt("gid", 1000),
                 mountPort = o.optInt("mountPort", 0),
+                jumpId = o.optString("jumpId"),
             )
         }
     }

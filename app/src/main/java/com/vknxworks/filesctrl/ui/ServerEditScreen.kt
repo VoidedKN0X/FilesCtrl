@@ -29,6 +29,7 @@ import androidx.compose.material.icons.outlined.ExpandLess
 import androidx.compose.material.icons.outlined.ExpandMore
 import androidx.compose.material.icons.outlined.FolderOpen
 import androidx.compose.material.icons.outlined.Key
+import androidx.compose.material.icons.outlined.Route
 import androidx.compose.material.icons.outlined.Radar
 import androidx.compose.material.icons.outlined.Visibility
 import androidx.compose.material.icons.outlined.VisibilityOff
@@ -123,6 +124,8 @@ fun ServerEditScreen(serverId: String?, onDone: (openId: String?) -> Unit) {
     var domain by remember { mutableStateOf(base.domain) }
     var privateKey by remember { mutableStateOf(base.privateKey) }
     var hostKey by remember { mutableStateOf(base.hostKey) }
+    var jumpId by remember { mutableStateOf(base.jumpId) }
+    var jumpSheet by remember { mutableStateOf(false) }
     var certPin by remember { mutableStateOf(base.certPin) }
     var smbSigning by remember { mutableStateOf(base.smbSigning) }
     var smbEncrypt by remember { mutableStateOf(base.smbEncrypt) }
@@ -188,6 +191,7 @@ fun ServerEditScreen(serverId: String?, onDone: (openId: String?) -> Unit) {
         uid = uid.toIntOrNull() ?: 1000,
         gid = gid.toIntOrNull() ?: 1000,
         mountPort = mountPort.toIntOrNull()?.coerceIn(0, 65535) ?: 0,
+        jumpId = if (type == Proto.SFTP) jumpId else "",
     )
 
     /**
@@ -542,6 +546,30 @@ fun ServerEditScreen(serverId: String?, onDone: (openId: String?) -> Unit) {
                         Text(if (privateKey.isBlank()) stringResource(R.string.no_private_key) else stringResource(R.string.private_key_loaded), Modifier.weight(1f))
                         if (privateKey.isNotBlank()) TextButton(onClick = { privateKey = "" }) { Text(stringResource(R.string.remove)) }
                         CtrlSecondaryButton(onClick = { com.vknxworks.filesctrl.ui.lock.AppLockState.expectReturn(); keyPicker.launch(arrayOf("*/*")) }) { Text(if (privateKey.isBlank()) stringResource(R.string.choose_key) else stringResource(R.string.replace)) }
+                    }
+                    // Jump host (like ssh -J): another saved SFTP server this one is reached through.
+                    val jumpServer = App.servers.all.firstOrNull { it.id == jumpId }
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Outlined.Route, null, tint = hintColor)
+                        Spacer(Modifier.width(12.dp))
+                        Column(Modifier.weight(1f)) {
+                            Text(stringResource(R.string.jump_host))
+                            Text(
+                                jumpServer?.title ?: if (jumpId.isNotBlank()) stringResource(R.string.jump_host_missing) else stringResource(R.string.jump_host_none),
+                                style = hint, color = hintColor,
+                            )
+                        }
+                        CtrlSecondaryButton(onClick = { jumpSheet = true }) { Text(stringResource(R.string.jump_host_choose)) }
+                    }
+                    Text(stringResource(R.string.jump_host_hint), style = hint, color = hintColor)
+                    if (jumpSheet) {
+                        val options: List<Pair<String, String>> = listOf("" to stringResource(R.string.jump_host_none)) +
+                            App.servers.all.filter { it.type == Proto.SFTP && it.id != base.id && it.jumpId.isBlank() }.map { it.id to "${it.title} (${it.host})" }
+                        com.vknxworks.filesctrl.ui.settings.ChoiceSheet(
+                            stringResource(R.string.jump_host), options, jumpId,
+                            footer = stringResource(R.string.jump_host_sheet_footer),
+                            onDismiss = { jumpSheet = false },
+                        ) { jumpId = it; jumpSheet = false }
                     }
                     if (hostKey.isNotBlank()) {
                         Row(verticalAlignment = Alignment.CenterVertically) {

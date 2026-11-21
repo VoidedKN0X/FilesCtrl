@@ -841,4 +841,15 @@
         <item quantity="one">%1$d byte</item>
         <item quantity="other">%1$d bytes</item>
     </plurals>
+
+    <!-- SFTP jump hosts -->
+    <string name="jump_host">Jump host</string>
+    <string name="jump_host_none">None: connect directly</string>
+    <string name="jump_host_choose">Choose</string>
+    <string name="jump_host_hint">Reach this server through another saved SFTP server, like ssh -J. That server uses its own login and its own confirmed host key.</string>
+    <string name="jump_host_sheet_footer">Only saved SFTP servers that connect directly can be a jump host. Open a server once first, so its host key is confirmed.</string>
+    <string name="jump_host_missing">The jump host for this server is no longer saved</string>
+    <string name="jump_host_chained">%1$s connects through a jump host itself. Use one hop only.</string>
+    <string name="jump_host_unconfirmed">Open %1$s once first to confirm its host key, then try again.</string>
+    <string name="jump_host_key_changed">The host key of the jump host %1$s has changed (%2$s). Open %1$s to check it.</string>
 </resources>
