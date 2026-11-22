@@ -98,6 +98,10 @@
     <string name="lock_fingerprint_title">Unlock FilesCtrl</string>
     <string name="lock_fingerprint_subtitle">Confirm it\'s you to see your files</string>
     <string name="lock_forgot_body">The PIN can\'t be recovered, because it encrypts the saved passwords and keys of your network locations. FilesCtrl will turn the app lock off and forget those passwords and keys. The locations stay; you\'ll enter their passwords again.</string>
+    <string name="lock_forgot_screen_lock">Your phone\'s screen lock is asked for first, so only you can reset it.</string>
+    <string name="lock_reset_prompt_title">Reset FilesCtrl\'s app lock</string>
+    <string name="lock_reset_prompt_subtitle">Use your phone\'s screen lock to confirm it\'s you</string>
+    <string name="lock_reset_prompt_failed">Couldn\'t show the screen lock prompt</string>
     <string name="lock_forgot_confirm">Reset</string>
     <string name="lock_choose_intro">At least %1$d digits, different from your phone\'s PIN. If you forget it, the saved passwords and keys of your network locations are lost (the locations stay).</string>
     <string name="lock_migrate_intro">PINs now need at least %1$d digits, different from your phone\'s PIN. Your saved passwords and keys are encrypted with it while the app is locked.</string>
@@ -815,6 +819,7 @@
     <string name="sync_inside_itself">One folder is inside the other. Pick a folder outside this one.</string>
     <string name="sync_task_title">Syncing %1$s to %2$s</string>
     <string name="sync_conflict_skipped">Left alone %1$s: a file on one side and a folder on the other</string>
+    <string name="sync_delete_not_confirmed">Not deleted, because they weren\'t in the dry run you confirmed (or the source now looks empty): %1$d. Do a dry run again to check them.</string>
     <string name="sync_kept_temporary">The new %1$s couldn\'t be put in place; it\'s kept as %2$s</string>
     <plurals name="sync_confirm_delete_title">
         <item quantity="one">Sync and delete %1$d item?</item>

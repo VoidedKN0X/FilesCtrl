@@ -21,7 +21,22 @@ data class SyncPlan(
     val delete: List<String>,
     val conflicts: List<String>,
     val bytes: Long,
+    /** How many files and folders the source had when this plan was made (-1: not known). */
+    val sourceItems: Int = -1,
 ) {
+    /**
+     * The deletes of this (fresh) plan that may really run, after the user confirmed the dry run [confirmed]:
+     * only paths that were in the confirmed delete list too, so a sync never deletes something the user wasn't
+     * shown. Nothing at all is deleted when the source now lists as empty while it wasn't at the dry run (a share
+     * that isn't mounted, or a swapped SD card, lists as an empty folder without an error). Returns the deletes
+     * to run and the ones left out.
+     */
+    fun deletesAllowedBy(confirmed: SyncPlan): Pair<List<String>, List<String>> {
+        if (sourceItems == 0 && confirmed.sourceItems != 0) return emptyList<String>() to delete
+        val ok = confirmed.delete.toHashSet()
+        return delete.partition { it in ok }
+    }
+
     val isEmpty: Boolean get() = create.isEmpty() && copy.isEmpty() && update.isEmpty() && delete.isEmpty() && conflicts.isEmpty()
 
     companion object {
@@ -67,7 +82,7 @@ data class SyncPlan(
                 }
             }
             delete.sortByDescending { it.count { c -> c == '/' } }
-            return SyncPlan(create, copy, update, delete, conflicts, bytes)
+            return SyncPlan(create, copy, update, delete, conflicts, bytes, src.size)
         }
     }
 }

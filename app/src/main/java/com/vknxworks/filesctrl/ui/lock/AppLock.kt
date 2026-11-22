@@ -173,6 +173,68 @@ fun showBiometricPrompt(
     }
 }
 
+/** The phone has a screen lock (PIN, pattern or password) that can confirm it's the owner. */
+fun screenLockSet(context: Context): Boolean = runCatching {
+    context.getSystemService(android.app.KeyguardManager::class.java)?.isDeviceSecure == true
+}.getOrDefault(true)
+
+/**
+ * The phone's own screen lock (or a strong fingerprint). Only used for "Forgot PIN?", so that resetting the
+ * app lock isn't open to anyone who picks up the unlocked phone. [onResult] gets null when confirmed, or an
+ * error message; cancelling calls [onCancel] instead. Replaces a prompt that is still marked as open.
+ */
+fun screenLockAuthenticate(activity: android.app.Activity, onCancel: () -> Unit, onResult: (String?) -> Unit) {
+    OpenPrompt.signal?.let { runCatching { it.cancel() } }
+    val generation = ++OpenPrompt.generation
+    val signal = CancellationSignal()
+    OpenPrompt.signal = signal
+    fun finish(): Boolean {
+        if (generation != OpenPrompt.generation || OpenPrompt.signal !== signal) return false
+        OpenPrompt.signal = null
+        return true
+    }
+    try {
+        val prompt = BiometricPrompt.Builder(activity)
+            .setTitle(activity.getString(R.string.lock_reset_prompt_title))
+            .setSubtitle(activity.getString(R.string.lock_reset_prompt_subtitle))
+            .setAllowedAuthenticators(
+                android.hardware.biometrics.BiometricManager.Authenticators.BIOMETRIC_STRONG or
+                    android.hardware.biometrics.BiometricManager.Authenticators.DEVICE_CREDENTIAL,
+            )
+            .build()
+        prompt.authenticate(signal, activity.mainExecutor, object : BiometricPrompt.AuthenticationCallback() {
+            override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
+                if (finish()) onResult(null)
+            }
+
+            override fun onAuthenticationError(errorCode: Int, errString: CharSequence) {
+                if (!finish()) return
+                val cancelled = errorCode == BiometricPrompt.BIOMETRIC_ERROR_USER_CANCELED ||
+                    errorCode == BiometricPrompt.BIOMETRIC_ERROR_CANCELED
+                if (cancelled) onCancel() else onResult(errString.toString())
+            }
+        })
+    } catch (e: Exception) {
+        if (finish()) onResult(activity.getString(R.string.lock_reset_prompt_failed))
+    }
+}
+
+/**
+ * "Reset" in the "Forgot PIN?" dialog: with a screen lock on the phone, only after the phone's owner confirmed
+ * with it; without one, right away (as before). An error from the prompt is shown as a toast.
+ */
+fun confirmAndResetLock(context: Context) {
+    if (!screenLockSet(context)) {
+        resetLock()
+        return
+    }
+    val a = context.lockActivity() ?: return
+    if (a.isFinishing || a.isDestroyed) return
+    screenLockAuthenticate(a, onCancel = {}) { error ->
+        if (error == null) resetLock() else android.widget.Toast.makeText(a, error, android.widget.Toast.LENGTH_LONG).show()
+    }
+}
+
 /**
  * Waits until the app is really back on screen: resumed, with its window focused. A fingerprint prompt asked
  * for earlier (while the app is still coming back from the background) is dropped by the system, on some

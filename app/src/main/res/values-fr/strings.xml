@@ -50,6 +50,10 @@
     <string name="lock_fingerprint_title">Déverrouiller FilesCtrl</string>
     <string name="lock_fingerprint_subtitle">Confirmez votre identité pour voir vos fichiers</string>
     <string name="lock_forgot_body">Le code PIN ne peut pas être récupéré, car il chiffre les mots de passe et clés enregistrés de vos emplacements réseau. FilesCtrl désactivera le verrouillage et oubliera ces mots de passe et clés. Les emplacements restent ; vous saisirez à nouveau leurs mots de passe.</string>
+    <string name="lock_forgot_screen_lock">Le verrouillage d\'écran de votre téléphone vous sera d\'abord demandé, pour que vous seul puissiez le réinitialiser.</string>
+    <string name="lock_reset_prompt_title">Réinitialiser le verrouillage de FilesCtrl</string>
+    <string name="lock_reset_prompt_subtitle">Utilisez le verrouillage d\'écran de votre téléphone pour confirmer votre identité</string>
+    <string name="lock_reset_prompt_failed">Impossible d\'afficher le verrouillage d\'écran</string>
     <string name="lock_forgot_confirm">Réinitialiser</string>
     <string name="lock_choose_intro">Au moins %1$d chiffres, différent du code PIN de votre téléphone. Si vous l\'oubliez, les mots de passe et clés enregistrés de vos emplacements réseau sont perdus (les emplacements restent).</string>
     <string name="lock_migrate_intro">Les codes PIN doivent maintenant comporter au moins %1$d chiffres, différents du code PIN de votre téléphone. Vos mots de passe et clés enregistrés sont chiffrés avec ce code tant que l\'application est verrouillée.</string>
@@ -758,6 +762,7 @@
     <string name="sync_inside_itself">Un dossier se trouve dans l\'autre. Choisissez un dossier en dehors de celui-ci.</string>
     <string name="sync_task_title">Synchronisation de %1$s vers %2$s</string>
     <string name="sync_conflict_skipped">%1$s non touché : un fichier d\'un côté et un dossier de l\'autre</string>
+    <string name="sync_delete_not_confirmed">Non supprimés, car ils ne figuraient pas dans la simulation que vous avez confirmée (ou la source semble vide maintenant) : %1$d. Refaites une simulation pour les vérifier.</string>
     <string name="sync_kept_temporary">Le nouveau %1$s n\'a pas pu être mis en place ; il est conservé sous le nom %2$s</string>
     <plurals name="sync_confirm_delete_title">
         <item quantity="one">Synchroniser et supprimer %1$d élément ?</item>

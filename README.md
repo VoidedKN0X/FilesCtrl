@@ -18,7 +18,7 @@ Part of the [Ctrl series](#the-ctrl-series) by VKNXWorks.
 - **Open network files in any app**: videos stream and can be skipped through without downloading first; *Edit with* lets an app save changes back
 - **Your servers in the system file picker**, so other apps can open and save files on them
 - **Copy, move, rename and delete** between your phone and any server, in the background
-- **One-way folder sync** between any two folders (phone or servers), with a dry run that lists every copy, replace and delete first, and an optional mirror mode
+- **One-way folder sync** between any two folders (phone or servers), with a dry run that lists every copy, replace and delete first, and an optional mirror mode (a sync only ever deletes what the dry run you confirmed showed)
 - **Storage analyser:** what takes the space in any folder, on the phone or a server: by sub-folder, largest files and file type
 - **Transfers list:** pause, resume, cancel and retry copies, moves and other operations; a retried copy skips files that already arrived
 - **Rename several at once:** find and replace, a name template with a counter, lower or upper case, with a preview that stops anything from being replaced
@@ -138,7 +138,7 @@ Turn it on under **Settings > Privacy and security > App lock** (tap your profil
 - **Wrong PINs:** after 5 tries you wait 30 seconds, doubling up to 15 minutes. Restarting the app or the phone, or changing the clock, doesn't skip the wait.
 - **Lock again:** as soon as you leave the app (the default), after 1, 5 or 15 minutes or 1 hour away, or only when the app restarts. Opening a file in another app, sharing, picking a file or folder, choosing an SFTP key and opening Android's settings from FilesCtrl don't count as leaving, unless you stay away for more than 5 minutes.
 - **Change app PIN** asks for your current PIN first, and turning the app lock off asks for the PIN too.
-- **Forgot your PIN?** It can't be recovered, because it encrypts the saved passwords and keys. The lock screen offers to turn the app lock off and forget those passwords and keys; your network locations stay, and you enter their passwords again.
+- **Forgot your PIN?** It can't be recovered, because it encrypts the saved passwords and keys. The lock screen offers to turn the app lock off and forget those passwords and keys; your network locations stay, and you enter their passwords again. If your phone has a screen lock (PIN, pattern or password), it asks for that first, so someone who picks up your unlocked phone can't reset FilesCtrl's lock.
 - **With the app lock on**, the recent-apps screen always shows a blank card, your servers don't show in other apps' file pickers while FilesCtrl is locked, and copies and moves that are already running finish but nothing new can connect until you unlock. Locking closes every server connection that no running copy or move needs straight away, so its saved password leaves memory; the others close as soon as their last copy or move finishes. The file browser and the text editor lock and unlock together.
 
 **Hide in screenshots** and **Hide in recent apps** are in the same section, work without the app lock too, and are both off by default. The first keeps FilesCtrl out of screenshots and screen recordings; the second shows a blank card in the recent-apps view instead of the app. Adding or editing a network location (where you type passwords and key passphrases), the lock screen and the PIN screens are always kept out of screenshots, whatever the switches say.

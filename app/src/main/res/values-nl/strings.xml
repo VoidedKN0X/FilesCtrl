@@ -89,6 +89,10 @@
     <string name="lock_fingerprint_title">FilesCtrl ontgrendelen</string>
     <string name="lock_fingerprint_subtitle">Bevestig dat jij het bent om je bestanden te zien</string>
     <string name="lock_forgot_body">De pincode kan niet hersteld worden, omdat ze de bewaarde wachtwoorden en sleutels van je netwerklocaties versleutelt. FilesCtrl zet de app-vergrendeling uit en vergeet die wachtwoorden en sleutels. De locaties blijven; je voert hun wachtwoorden opnieuw in.</string>
+    <string name="lock_forgot_screen_lock">Eerst vraagt je telefoon zijn schermvergrendeling, zodat alleen jij dit kunt resetten.</string>
+    <string name="lock_reset_prompt_title">App-vergrendeling van FilesCtrl resetten</string>
+    <string name="lock_reset_prompt_subtitle">Bevestig met de schermvergrendeling van je telefoon dat jij het bent</string>
+    <string name="lock_reset_prompt_failed">De schermvergrendeling kon niet getoond worden</string>
     <string name="lock_forgot_confirm">Resetten</string>
     <string name="lock_choose_intro">Minstens %1$d cijfers, anders dan de pincode van je telefoon. Als je ze vergeet, ben je de bewaarde wachtwoorden en sleutels van je netwerklocaties kwijt (de locaties blijven).</string>
     <string name="lock_migrate_intro">Pincodes hebben nu minstens %1$d cijfers nodig, anders dan de pincode van je telefoon. Je bewaarde wachtwoorden en sleutels worden ermee versleuteld zolang de app vergrendeld is.</string>
@@ -770,6 +774,7 @@
     <string name="sync_inside_itself">De ene map zit in de andere. Kies een map buiten deze.</string>
     <string name="sync_task_title">%1$s synchroniseren naar %2$s</string>
     <string name="sync_conflict_skipped">%1$s blijft staan: een bestand aan de ene kant en een map aan de andere</string>
+    <string name="sync_delete_not_confirmed">Niet verwijderd, omdat ze niet in de proefrun stonden die je bevestigde (of de bron nu leeg lijkt): %1$d. Doe opnieuw een proefrun om ze na te kijken.</string>
     <string name="sync_kept_temporary">De nieuwe %1$s kon niet op zijn plaats gezet worden; ze staat als %2$s</string>
     <plurals name="sync_confirm_delete_title">
         <item quantity="one">Synchroniseren en %1$d item verwijderen?</item>

@@ -44,4 +44,29 @@ class SyncPlanTest {
         assertEquals(listOf("n"), mirror.copy)
         assertEquals(listOf("n"), mirror.delete)
     }
+
+    @Test fun onlyConfirmedDeletesRun() {
+        val dst = mapOf("keep.txt" to f(1), "old.txt" to f(1), "new-extra.txt" to f(1))
+        // The dry run: only old.txt was going to be deleted (new-extra.txt was still in the source then).
+        val confirmed = SyncPlan.of(mapOf("keep.txt" to f(1), "new-extra.txt" to f(1)), dst, mirror = true)
+        assertEquals(listOf("old.txt"), confirmed.delete)
+        // Now new-extra.txt is gone from the source too: it isn't deleted, because the user never saw it.
+        val fresh = SyncPlan.of(mapOf("keep.txt" to f(1)), dst, mirror = true)
+        val (run, skipped) = fresh.deletesAllowedBy(confirmed)
+        assertEquals(listOf("old.txt"), run)
+        assertEquals(listOf("new-extra.txt"), skipped)
+    }
+
+    @Test fun emptySourceDeletesNothing() {
+        val dst = mapOf("a.txt" to f(1), "b.txt" to f(1))
+        val confirmed = SyncPlan.of(mapOf("a.txt" to f(1), "b.txt" to f(1), "c.txt" to f(1)), dst, mirror = true)
+        // The share isn't mounted now and lists as empty: even a confirmed delete list wouldn't be trusted.
+        val fresh = SyncPlan.of(emptyMap(), dst, mirror = true)
+        val (run, skipped) = fresh.deletesAllowedBy(confirmed)
+        assertTrue(run.isEmpty())
+        assertEquals(setOf("a.txt", "b.txt"), skipped.toSet())
+        // A source that was already empty at the dry run (the user saw everything go) still mirrors.
+        val confirmedEmpty = SyncPlan.of(emptyMap(), dst, mirror = true)
+        assertEquals(setOf("a.txt", "b.txt"), fresh.deletesAllowedBy(confirmedEmpty).first.toSet())
+    }
 }

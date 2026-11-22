@@ -84,7 +84,6 @@ import com.vknxworks.filesctrl.ui.VfsTextSource
 import com.vknxworks.filesctrl.ui.lock.AppLockViewModel
 import com.vknxworks.filesctrl.ui.lock.LockScreen
 import com.vknxworks.filesctrl.ui.lock.AppLockState
-import com.vknxworks.filesctrl.ui.lock.resetLock
 import com.vknxworks.filesctrl.ui.lock.ChooseNewPinScreen
 import com.vknxworks.filesctrl.ui.lock.ForgotPinDialog
 import com.vknxworks.filesctrl.ui.lock.LockWindow
@@ -270,13 +269,17 @@ private fun Root(activity: FragmentActivity, lockVm: AppLockViewModel = viewMode
 /** "Forgot PIN?" on the lock screen. */
 @Composable
 fun ResetLockDialog(onDismiss: () -> Unit) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val screenLock = remember { com.vknxworks.filesctrl.ui.lock.screenLockSet(context) }
     ForgotPinDialog(
-        body = stringResource(R.string.lock_forgot_body),
+        body = stringResource(R.string.lock_forgot_body) +
+            (if (screenLock) " " + stringResource(R.string.lock_forgot_screen_lock) else ""),
         confirm = stringResource(R.string.lock_forgot_confirm),
         onDismiss = onDismiss,
     ) {
         onDismiss()
-        resetLock()
+        // Only the phone's owner may reset it: the phone's own screen lock is asked for first, if it has one.
+        com.vknxworks.filesctrl.ui.lock.confirmAndResetLock(context)
     }
 }
 

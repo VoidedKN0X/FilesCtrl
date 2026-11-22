@@ -54,6 +54,8 @@ class OpService : Service() {
         scope.launch {
             // Poll rather than observe: snapshot changes made off the main thread aren't guaranteed to be
             // delivered while no UI is on screen.
+            // What the notification shows now: only posted again when it changed (each post is a call into the system).
+            var shown: Pair<String, Int?>? = null
             while (true) {
                 val running = Ops.active
                 if (running.isEmpty()) {
@@ -67,8 +69,14 @@ class OpService : Service() {
                 holdWake(working.isNotEmpty())
                 val first = working.firstOrNull() ?: running.first()
                 val title = if (running.size == 1) first.title else App.plural(R.plurals.operations_running, running.size, running.size)
-                getSystemService(NotificationManager::class.java).notify(NOTIF_ID, build(title + "\n" + first.detail, first.progress))
-                delay(700)
+                val text = title + "\n" + first.detail
+                val now = text to first.progress?.let { (it * 100).toInt() }
+                if (now != shown) {
+                    getSystemService(NotificationManager::class.java).notify(NOTIF_ID, build(text, first.progress))
+                    shown = now
+                }
+                // While everything is paused nothing moves: look again every few seconds instead of constantly.
+                delay(if (working.isEmpty()) 3000 else 700)
             }
         }
     }

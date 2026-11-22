@@ -456,21 +456,24 @@ object Ops {
 
     /**
      * Makes [dst] match [src], one way: missing and changed files are copied over, and with [mirror] what's only in
-     * the destination is deleted. The plan is worked out again when it starts (the dry run is a preview). A changed
-     * file is written next to the old one first and only then put in its place, so a failed copy never loses the
-     * old file. Nothing in [src] is changed.
+     * the destination is deleted. The plan is worked out again when it starts (the dry run is a preview), but only
+     * what the user confirmed in the dry run [confirmed] is ever deleted (see [SyncPlan.deletesAllowedBy]); other
+     * deletes are skipped with a warning. A changed file is written next to the old one first and only then put in
+     * its place, so a failed copy never loses the old file. Nothing in [src] is changed.
      */
-    fun sync(src: Location, dst: Location, mirror: Boolean): OpTask =
-        launch(App.str(R.string.sync_task_title, Paths.name(src.path), Paths.name(dst.path)), listOf(dst), setOf(src.vfsId, dst.vfsId), retry = { sync(src, dst, mirror) }) { t ->
+    fun sync(src: Location, dst: Location, mirror: Boolean, confirmed: SyncPlan): OpTask =
+        launch(App.str(R.string.sync_task_title, Paths.name(src.path), Paths.name(dst.path)), listOf(dst), setOf(src.vfsId, dst.vfsId), retry = { sync(src, dst, mirror, confirmed) }) { t ->
             t.detail = App.str(R.string.counting_files)
             val plan = planSync(src, dst, mirror)
+            val (deletes, skipped) = plan.deletesAllowedBy(confirmed)
+            if (skipped.isNotEmpty()) t.warnings += App.str(R.string.sync_delete_not_confirmed, skipped.size)
             val from = App.vfs.get(src.vfsId)
             val to = App.vfs.get(dst.vfsId)
             t.bytesTotal = plan.bytes
-            t.filesTotal = plan.delete.size + plan.create.size + plan.copy.size + plan.update.size
+            t.filesTotal = deletes.size + plan.create.size + plan.copy.size + plan.update.size
             if (plan.conflicts.isNotEmpty() && !mirror) plan.conflicts.forEach { t.warnings += App.str(R.string.sync_conflict_skipped, it) }
             if (!to.exists(dst.path)) to.mkdir(dst.path)
-            for (rel in plan.delete) {
+            for (rel in deletes) {
                 coroutineContext.ensureActive()
                 t.checkPause()
                 val target = Paths.join(dst.path, rel)

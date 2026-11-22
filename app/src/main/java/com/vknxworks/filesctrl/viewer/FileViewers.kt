@@ -87,7 +87,9 @@ import com.vknxworks.filesctrl.ui.components.CtrlTextField
 import com.vknxworks.filesctrl.ui.contentUri
 import com.vknxworks.filesctrl.ui.theme.CtrlColors
 import com.vknxworks.filesctrl.ui.theme.CtrlType
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -220,9 +222,8 @@ fun PdfViewerScreen(loc: Location, onBack: () -> Unit) {
                                         runCatching {
                                             r.openPage(i).use { page ->
                                                 aspect.floatValue = page.width.toFloat() / page.height.coerceAtLeast(1)
-                                                // Twice the screen width, so zooming in stays readable.
-                                                val w = (widthPx * 2).coerceAtMost(4096)
-                                                val h = (w * page.height.toFloat() / page.width.coerceAtLeast(1)).toInt().coerceIn(1, 8192)
+                                                // The screen width, at most about 8 MP per page (see PdfPageSize).
+                                                val (w, h) = PdfPageSize.of(widthPx, page.width, page.height)
                                                 val b = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
                                                 b.eraseColor(android.graphics.Color.WHITE)
                                                 page.render(b, null, null, PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY)
@@ -407,26 +408,62 @@ fun AudioPlayerScreen(loc: Location, onBack: () -> Unit) {
         }
     }
 
+    val scope = rememberCoroutineScope()
     DisposableEffect(entry) {
         val e = entry ?: return@DisposableEffect onDispose { }
+        // Created here, on the main thread, so its callbacks come back on the main thread.
         val mp = MediaPlayer()
-        try {
-            mp.setAudioAttributes(
-                android.media.AudioAttributes.Builder().setUsage(android.media.AudioAttributes.USAGE_MEDIA)
-                    .setContentType(android.media.AudioAttributes.CONTENT_TYPE_MUSIC).build(),
-            )
-            mp.setDataSource(ctx, contentUri(ctx, e))
-            mp.setOnPreparedListener { duration = it.duration.coerceAtLeast(0); it.start(); playing = true; player = it }
-            mp.setOnCompletionListener { playing = false; position = duration }
-            mp.setOnErrorListener { _, what, extra -> error = App.str(R.string.audio_cant_play, "$what/$extra"); playing = false; true }
-            mp.prepareAsync()
-        } catch (ex: Exception) {
-            error = ex.message ?: ex.javaClass.simpleName
-        }
-        onDispose {
+        val pfd = java.util.concurrent.atomic.AtomicReference<ParcelFileDescriptor?>(null)
+        // Both only touched on the main thread.
+        var disposed = false
+        var started = false
+        var setupDone = false
+        fun cleanUp() {
             player = null
             runCatching { mp.stop() }
             mp.release()
+            runCatching { pfd.getAndSet(null)?.close() }
+        }
+        // Opening the file can mean network I/O (servers), unpacking (archives, vaults) or Shizuku: never on the
+        // main thread. A same-process call to FilesCtrl's own provider runs on the caller's thread, so the old
+        // setDataSource(context, uri) on the main thread failed for every server file.
+        val job = scope.launch {
+            started = true
+            try {
+                withContext(NonCancellable + Dispatchers.IO) {
+                    val f = openFd(ctx, e)
+                    pfd.set(f)
+                    mp.setAudioAttributes(
+                        android.media.AudioAttributes.Builder().setUsage(android.media.AudioAttributes.USAGE_MEDIA)
+                            .setContentType(android.media.AudioAttributes.CONTENT_TYPE_MUSIC).build(),
+                    )
+                    mp.setDataSource(f.fileDescriptor)
+                }
+                if (!disposed) {
+                    mp.setOnPreparedListener { duration = it.duration.coerceAtLeast(0); it.start(); playing = true; player = it }
+                    mp.setOnCompletionListener { playing = false; position = duration }
+                    mp.setOnErrorListener { _, what, extra -> error = App.str(R.string.audio_cant_play, "$what/$extra"); playing = false; true }
+                    mp.prepareAsync()
+                }
+            } catch (ex: CancellationException) {
+                throw ex
+            } catch (ex: Exception) {
+                if (!disposed) error = ex.message ?: ex.javaClass.simpleName
+            } finally {
+                setupDone = true
+                // The screen closed while the file was being opened: release only now, not during setDataSource.
+                if (disposed) cleanUp()
+            }
+        }
+        onDispose {
+            disposed = true
+            if (!started) {
+                // Never started: cancelling now means it never will.
+                job.cancel()
+                cleanUp()
+            } else if (setupDone) {
+                cleanUp()
+            }
         }
     }
     androidx.lifecycle.compose.LifecycleEventEffect(androidx.lifecycle.Lifecycle.Event.ON_STOP) {

@@ -50,6 +50,10 @@
     <string name="lock_fingerprint_title">FilesCtrl entsperren</string>
     <string name="lock_fingerprint_subtitle">Bestätige, dass du es bist, um deine Dateien zu sehen</string>
     <string name="lock_forgot_body">Die PIN kann nicht wiederhergestellt werden, weil sie die gespeicherten Passwörter und Schlüssel deiner Netzwerkorte verschlüsselt. FilesCtrl schaltet die App-Sperre aus und vergisst diese Passwörter und Schlüssel. Die Orte bleiben; du gibst ihre Passwörter erneut ein.</string>
+    <string name="lock_forgot_screen_lock">Zuerst wird die Displaysperre deines Smartphones abgefragt, damit nur du zurücksetzen kannst.</string>
+    <string name="lock_reset_prompt_title">App-Sperre von FilesCtrl zurücksetzen</string>
+    <string name="lock_reset_prompt_subtitle">Bestätige mit der Displaysperre deines Smartphones, dass du es bist</string>
+    <string name="lock_reset_prompt_failed">Displaysperre konnte nicht angezeigt werden</string>
     <string name="lock_forgot_confirm">Zurücksetzen</string>
     <string name="lock_choose_intro">Mindestens %1$d Ziffern, nicht dieselbe wie die PIN deines Smartphones. Wenn du sie vergisst, gehen die gespeicherten Passwörter und Schlüssel deiner Netzwerkorte verloren (die Orte bleiben).</string>
     <string name="lock_migrate_intro">PINs brauchen jetzt mindestens %1$d Ziffern und dürfen nicht dieselben wie die PIN deines Smartphones sein. Deine gespeicherten Passwörter und Schlüssel werden damit verschlüsselt, solange die App gesperrt ist.</string>
@@ -758,6 +762,7 @@
     <string name="sync_inside_itself">Ein Ordner liegt im anderen. Wähle einen Ordner außerhalb von diesem.</string>
     <string name="sync_task_title">%1$s wird nach %2$s synchronisiert</string>
     <string name="sync_conflict_skipped">%1$s unberührt: eine Datei auf einer Seite und ein Ordner auf der anderen</string>
+    <string name="sync_delete_not_confirmed">Nicht gelöscht, weil sie nicht im Probelauf waren, den du bestätigt hast (oder die Quelle jetzt leer aussieht): %1$d. Mach noch einen Probelauf, um sie zu prüfen.</string>
     <string name="sync_kept_temporary">Das neue %1$s konnte nicht an seinen Platz gesetzt werden; es bleibt als %2$s erhalten</string>
     <plurals name="sync_confirm_delete_title">
         <item quantity="one">Synchronisieren und %1$d Element löschen?</item>

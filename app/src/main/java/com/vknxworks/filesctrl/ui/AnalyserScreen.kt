@@ -96,6 +96,18 @@ fun AnalyserScreen(loc: Location, onBack: () -> Unit) {
                 space = try { vfs.space(loc.path) } catch (_: Exception) { null }
                 val t = ScanTotals()
                 val node = ScanNode(Paths.name(loc.path), loc.path, true, loc.vfsId)
+                // Counted here and handed to the screen at most every 100 ms: writing Compose state from this
+                // thread for every file meant hundreds of thousands of snapshot writes on big folders.
+                var bytes = 0L
+                var folders = 0
+                var publishedAt = 0L
+                fun publish(force: Boolean) {
+                    val now = android.os.SystemClock.elapsedRealtime()
+                    if (!force && now - publishedAt < 100) return
+                    publishedAt = now
+                    scannedBytes = bytes
+                    scannedFolders = folders
+                }
                 suspend fun walk(n: ScanNode) {
                     coroutineContext.ensureActive()
                     val list = try { vfs.list(n.path) } catch (e: java.io.IOException) {
@@ -119,13 +131,15 @@ fun AnalyserScreen(loc: Location, onBack: () -> Unit) {
                             t.addFile(f, e.ext)
                             n.size += f.size
                             n.files++
-                            scannedBytes += f.size
+                            bytes += f.size
                         }
                     }
                     ScanTotals.keepBiggest(n, files)
-                    scannedFolders++
+                    folders++
+                    publish(force = false)
                 }
                 walk(node)
+                publish(force = true)
                 ScanTotals.sortTree(node)
                 node to t
             } catch (e: kotlinx.coroutines.CancellationException) {

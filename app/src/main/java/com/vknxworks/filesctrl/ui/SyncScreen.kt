@@ -112,7 +112,9 @@ fun SyncScreen(source: Location, onBack: () -> Unit) {
     }
 
     fun start() {
-        Ops.sync(source, to, mirror)
+        // Only what this dry run showed may be deleted; the sync checks again when it runs.
+        val confirmed = plan?.takeIf { planFor == (to to mirror) } ?: return
+        Ops.sync(source, to, mirror, confirmed)
         TransfersUi.open = true
         onBack()
     }

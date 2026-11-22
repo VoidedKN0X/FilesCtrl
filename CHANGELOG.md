@@ -4,6 +4,20 @@ What changed in each FilesCtrl version. Every release on the [Releases page](htt
 
 To publish a new version: bump `versionCode` and `versionName` in `app/build.gradle.kts`, add a section here, and push to `main`. Pushes without a version bump only build; they don't make a release.
 
+## Unreleased
+
+### Fixed
+
+- **The built-in audio player now plays files from your servers.** Tapping an audio file on a server (SFTP, SMB, FTP, WebDAV, NFS…) with the built-in viewer on always showed "can't play" instead of playing it, and audio inside an archive, a vault or a Shizuku folder could freeze the screen while it opened. The file is now opened in the background before playback starts, the same way the PDF and hex viewers already did.
+- **Folder sync never deletes more than the dry run showed.** With **Mirror** on, the sync worked out what to delete again when it started, so if the source had changed since the dry run, or suddenly looked empty (a share that isn't mounted on the server, or a swapped SD card, shows up as an empty folder without an error), it could delete files in the destination that you were never shown, up to everything. Now only paths that were in the dry run you confirmed are deleted. Anything new on the delete list is skipped, and if the source looks empty now while it wasn't at the dry run, nothing is deleted at all. The transfer then finishes with a warning that says how many items were left alone and to do a dry run again.
+- **Tall PDF pages no longer stay blank.** Each page was drawn at twice the screen width, which for long pages (receipts, exported web pages) needed so much memory that the page stayed white. Pages are now drawn at the screen width and never bigger than about 8 megapixels, so they show and the viewer uses much less memory. Text can look a little softer when you zoom in far.
+- **The transfers notification no longer updates itself constantly.** It was posted again every 0.7 seconds even when nothing had changed, also while every transfer was paused. It's now only updated when its text or percentage changes, and while everything is paused it only looks every few seconds.
+- **The storage analyser counts big folders faster.** The "folders / size scanned" counter used to be updated for every single file; it now updates about ten times a second, which saves a lot of work on folders with hundreds of thousands of files.
+
+### Security
+
+- **"Forgot PIN?" now asks for your phone's own screen lock first.** Before, anyone holding your unlocked phone could tap "Forgot PIN?" on FilesCtrl's lock screen and reset it (forgetting your saved passwords and keys, then getting in). Now, if your phone has a screen lock (PIN, pattern, password, or a strong fingerprint), FilesCtrl asks for it before it resets anything; cancelling leaves everything as it was. The dialog says so. If your phone has no screen lock, it works as before (you only confirm the dialog).
+
 ## 1.14.2 (2026-11-22)
 
 Built and checked by CI only: nothing in this release had been run on a phone when it was published.
