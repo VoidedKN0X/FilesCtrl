@@ -54,7 +54,6 @@ object ShellFiles {
         Shizuku.UserServiceArgs(ComponentName(BuildConfig.APPLICATION_ID, ShellFilesService::class.java.name))
             .daemon(false)
             .processNameSuffix("shell")
-            .debuggable(BuildConfig.DEBUG)
             .version(BuildConfig.VERSION_CODE)
             .tag("files")
     }

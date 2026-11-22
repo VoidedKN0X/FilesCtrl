@@ -4,6 +4,13 @@ What changed in each FilesCtrl version. Every release on the [Releases page](htt
 
 To publish a new version: bump `versionCode` and `versionName` in `app/build.gradle.kts`, add a section here, and push to `main`. Pushes without a version bump only build; they don't make a release.
 
+## Unreleased
+
+### Removed
+
+- **Debug flag on the Shizuku helper.** The small helper part that Shizuku starts for opening Android/data and Android/obb no longer asks to be debuggable in test builds; it is now never debuggable (Android's default). Release builds already worked this way, so nothing else changes.
+- **All logging in release builds.** The release build now also strips warning, error and other log lines (until now only debug, verbose and info lines were stripped), including any from libraries. FilesCtrl itself writes no logs. Nothing else changes.
+
 ## 1.14.1 (2026-11-21)
 
 Built and checked by CI only: nothing in this release had been run on a phone when it was published.
